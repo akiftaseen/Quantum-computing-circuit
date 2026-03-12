@@ -1,65 +1,103 @@
-import { type Complex, c, cAdd, cMul } from './complex';
+import { type Complex, c, cAdd, cMul, cAbs2, cConj, cScale } from './complex';
 import type { Matrix2 } from './gate';
 
-// 初始化 n 个 qubit 的 |0...0⟩ 态
-export const initZeroState = (numQubits: number): Complex[] => {
-  const dim = 1 << numQubits; // 2^n
-  const state: Complex[] = Array(dim)
-    .fill(null)
-    .map(() => c(0, 0));
-  state[0] = c(1, 0); // |0...0⟩
-  return state;
+export const initZeroState = (n: number): Complex[] => {
+  const dim = 1 << n;
+  const s: Complex[] = Array(dim).fill(null).map(() => c(0));
+  s[0] = c(1);
+  return s;
 };
 
-/**
- * 在 n-qubit 的 statevector 上作用一个单比特门
- *
- * @param state 当前 statevector（长度 2^n）
- * @param gate  2x2 单比特门矩阵
- * @param target 作用的 qubit 索引（0 表示最低位）
- * @param numQubits 总 qubit 数
- */
 export const applySingleQubitGate = (
-  state: Complex[],
-  gate: Matrix2,
-  target: number,
-  numQubits: number,
+  state: Complex[], gate: Matrix2, target: number, n: number,
 ): Complex[] => {
-  const dim = 1 << numQubits;
-  const newState: Complex[] = Array(dim)
-    .fill(null)
-    .map(() => c(0, 0));
-
+  const dim = 1 << n;
+  const ns: Complex[] = Array(dim).fill(null).map(() => c(0));
   const mask = 1 << target;
-
-  // gate:
-  // [g00 g01
-  //  g10 g11]
-  const g00 = gate[0];
-  const g01 = gate[1];
-  const g10 = gate[2];
-  const g11 = gate[3];
-
-  // 遍历所有 basis，对每一对 (|...0...>, |...1...>) 成对更新
-  for (let basis = 0; basis < dim; basis++) {
-    const bit = (basis & mask) ? 1 : 0;
-    const partner = basis ^ mask; // 翻转 target 位
-
-    if (bit === 0) {
-      // 只在 bit==0 时处理 pair（避免成对重复）
-      const amp0 = state[basis];
-      const amp1 = state[partner];
-
-      // 新的幅度：
-      // |0> -> g00 * amp0 + g01 * amp1
-      // |1> -> g10 * amp0 + g11 * amp1
-      const new0 = cAdd(cMul(g00, amp0), cMul(g01, amp1));
-      const new1 = cAdd(cMul(g10, amp0), cMul(g11, amp1));
-
-      newState[basis] = new0;
-      newState[partner] = new1;
+  const [g00, g01, g10, g11] = gate;
+  for (let i = 0; i < dim; i++) {
+    if ((i & mask) === 0) {
+      const j = i | mask;
+      ns[i] = cAdd(cMul(g00, state[i]), cMul(g01, state[j]));
+      ns[j] = cAdd(cMul(g10, state[i]), cMul(g11, state[j]));
     }
   }
+  return ns;
+};
 
-  return newState;
+export const applyControlledGate = (
+  state: Complex[], gate: Matrix2, controls: number[], target: number, n: number,
+): Complex[] => {
+  const dim = 1 << n;
+  const ns = state.slice();
+  const tMask = 1 << target;
+  const cMask = controls.reduce((m, q) => m | (1 << q), 0);
+  const [g00, g01, g10, g11] = gate;
+  for (let i = 0; i < dim; i++) {
+    if ((i & tMask) !== 0) continue;
+    if ((i & cMask) !== cMask) continue;
+    const j = i | tMask;
+    const a0 = state[i], a1 = state[j];
+    ns[i] = cAdd(cMul(g00, a0), cMul(g01, a1));
+    ns[j] = cAdd(cMul(g10, a0), cMul(g11, a1));
+  }
+  return ns;
+};
+
+export const applySWAP = (
+  state: Complex[], q1: number, q2: number, n: number,
+): Complex[] => {
+  const dim = 1 << n;
+  const ns = state.slice();
+  const m1 = 1 << q1, m2 = 1 << q2;
+  for (let i = 0; i < dim; i++) {
+    const b1 = (i & m1) ? 1 : 0;
+    const b2 = (i & m2) ? 1 : 0;
+    if (b1 !== b2) {
+      const sw = i ^ m1 ^ m2;
+      if (i < sw) { const t = ns[i]; ns[i] = ns[sw]; ns[sw] = t; }
+    }
+  }
+  return ns;
+};
+
+export const measureQubit = (
+  state: Complex[], qubit: number, n: number, forced?: number,
+): { state: Complex[]; outcome: number; prob: number } => {
+  const dim = 1 << n;
+  const mask = 1 << qubit;
+  let p0 = 0;
+  for (let i = 0; i < dim; i++) if ((i & mask) === 0) p0 += cAbs2(state[i]);
+  const outcome = forced !== undefined ? forced : (Math.random() < p0 ? 0 : 1);
+  const prob = outcome === 0 ? p0 : 1 - p0;
+  const norm = 1 / Math.sqrt(prob || 1e-15);
+  const ns: Complex[] = Array(dim).fill(null).map(() => c(0));
+  for (let i = 0; i < dim; i++) {
+    if (((i & mask) ? 1 : 0) === outcome) ns[i] = cScale(state[i], norm);
+  }
+  return { state: ns, outcome, prob };
+};
+
+export const partialTrace = (
+  state: Complex[], qubit: number, n: number,
+): [Complex, Complex, Complex, Complex] => {
+  const dim = 1 << n;
+  const mask = 1 << qubit;
+  let r00 = c(0), r01 = c(0), r10 = c(0), r11 = c(0);
+  for (let i = 0; i < dim; i++) {
+    if ((i & mask) !== 0) continue;
+    const j = i | mask;
+    r00 = cAdd(r00, cMul(state[i], cConj(state[i])));
+    r01 = cAdd(r01, cMul(state[i], cConj(state[j])));
+    r10 = cAdd(r10, cMul(state[j], cConj(state[i])));
+    r11 = cAdd(r11, cMul(state[j], cConj(state[j])));
+  }
+  return [r00, r01, r10, r11];
+};
+
+export const getBlochVector = (
+  state: Complex[], qubit: number, n: number,
+): [number, number, number] => {
+  const [r00, r01, , r11] = partialTrace(state, qubit, n);
+  return [2 * r01.re, -2 * r01.im, r00.re - r11.re];
 };
