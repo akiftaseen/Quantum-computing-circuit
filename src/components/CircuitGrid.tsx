@@ -1,137 +1,277 @@
-import React, { useCallback } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 import type { CircuitState, PlacedGate, GateName } from '../logic/circuitTypes';
-import { isParametric, gateDisplayName, gateColor, newGateId } from '../logic/circuitTypes';
+import { isSingleQubit, isMultiQubit, isParametric, gateDisplayName } from '../logic/circuitTypes';
 
-interface Props {
+/* ------------------------------------------------------------------ */
+/*  Props — 与 App.tsx 传参完全一致                                     */
+/* ------------------------------------------------------------------ */
+interface CircuitGridProps {
   circuit: CircuitState;
-  onPlace: (g: Omit<PlacedGate, 'id'>) => void;
+  onPlace: (gate: Omit<PlacedGate, 'id'>) => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, u: Partial<PlacedGate>) => void;
+  onUpdate: (id: string, updates: Partial<PlacedGate>) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   stepCol: number | null;
 }
 
-const CS = 44, CG = 3, STEP = CS + CG;
+/* ---- 布局常量 ---- */
+const PAD_L = 72;
+const PAD_T = 28;
+const PAD_R = 36;
+const PAD_B = 28;
+const ROW_H = 52;
+const COL_W = 60;
+const BOX = 34;
+const R_TGT = 11;
 
-const CircuitGrid: React.FC<Props> = ({ circuit, onPlace, onRemove, onUpdate, selectedId, onSelect, stepCol }) => {
-  const { numQubits: nq, numColumns: nc, gates } = circuit;
+/* ---- 门颜色 [fill, stroke, text] ---- */
+const COLORS: Record<string, [string, string, string]> = {
+  H:   ['#dbeafe', '#60a5fa', '#1e40af'],
+  X:   ['#fee2e2', '#f87171', '#b91c1c'],
+  Y:   ['#fef9c3', '#facc15', '#854d0e'],
+  Z:   ['#e0e7ff', '#818cf8', '#3730a3'],
+  S:   ['#ede9fe', '#a78bfa', '#5b21b6'],
+  T:   ['#ede9fe', '#a78bfa', '#5b21b6'],
+  Sdg: ['#ede9fe', '#a78bfa', '#5b21b6'],
+  Tdg: ['#ede9fe', '#a78bfa', '#5b21b6'],
+  Rx:  ['#d1fae5', '#6ee7b7', '#065f46'],
+  Ry:  ['#d1fae5', '#6ee7b7', '#065f46'],
+  Rz:  ['#d1fae5', '#6ee7b7', '#065f46'],
+  P:   ['#fef9c3', '#facc15', '#854d0e'],
+  I:   ['#f3f4f6', '#d1d5db', '#6b7280'],
+  M:   ['#f1f5f9', '#64748b', '#334155'],
+};
+const DEFAULT_C: [string, string, string] = ['#f3f4f6', '#d1d5db', '#374151'];
+const gc = (g: string) => COLORS[g] ?? DEFAULT_C;
 
-  const cellInfo = useCallback((q: number, col: number) => {
-    for (const g of gates) {
-      if (g.column !== col) continue;
-      if (g.targets.includes(q)) return { gate: g, role: 'target' as const };
-      if (g.controls.includes(q)) return { gate: g, role: 'control' as const };
-      const all = [...g.targets, ...g.controls];
-      if (all.length >= 2) {
-        const mn = Math.min(...all), mx = Math.max(...all);
-        if (q > mn && q < mx) return { gate: g, role: 'through' as const };
-      }
-    }
-    return { gate: null, role: null };
-  }, [gates]);
+/* ================================================================== */
+const CircuitGrid: React.FC<CircuitGridProps> = ({
+  circuit,
+  onPlace,
+  onRemove,
+  onUpdate,
+  selectedId,
+  onSelect,
+  stepCol,
+}) => {
+  const { numQubits, numColumns, gates } = circuit;
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  const handleDrop = (e: React.DragEvent, q: number, col: number) => {
-    e.preventDefault();
-    const gn = e.dataTransfer.getData('application/gate') as GateName | '';
-    const gid = e.dataTransfer.getData('application/gate-move-id');
-    if (gid) {
-      const existing = gates.find(g => g.id === gid);
-      if (existing) {
-        const off = q - existing.targets[0];
-        onUpdate(gid, {
-          column: col,
-          targets: existing.targets.map(t => Math.max(0, Math.min(nq - 1, t + off))),
-          controls: existing.controls.map(c => Math.max(0, Math.min(nq - 1, c + off))),
-        });
-      }
-      return;
-    }
-    if (!gn) return;
-    if (gn === 'CNOT' || gn === 'CZ') {
-      const tgt = q + 1 < nq ? q + 1 : q - 1;
-      if (tgt < 0 || tgt >= nq) return;
-      onPlace({ gate: gn, column: col, targets: [tgt], controls: [q], params: [] });
-    } else if (gn === 'SWAP') {
-      const q2 = q + 1 < nq ? q + 1 : q - 1;
-      if (q2 < 0 || q2 >= nq) return;
-      onPlace({ gate: 'SWAP', column: col, targets: [q, q2], controls: [], params: [] });
-    } else if (gn === 'M') {
-      const cb = gates.filter(g => g.gate === 'M').length;
-      onPlace({ gate: 'M', column: col, targets: [q], controls: [], params: [], classicalBit: cb });
-    } else {
-      onPlace({ gate: gn, column: col, targets: [q], controls: [], params: isParametric(gn) ? [Math.PI / 2] : [] });
-    }
-  };
+  const W = PAD_L + numColumns * COL_W + PAD_R;
+  const H = PAD_T + Math.max(numQubits - 1, 0) * ROW_H + BOX + PAD_B;
 
-  const renderCell = (q: number, col: number) => {
-    const { gate, role } = cellInfo(q, col);
-    const dimmed = stepCol !== null && col > stepCol;
-    const cls = `circuit-cell${dimmed ? ' dimmed' : ''}`;
-    const sel = gate?.id === selectedId;
+  const qy = (q: number) => PAD_T + q * ROW_H + BOX / 2;
+  const sx = (s: number) => PAD_L + s * COL_W + COL_W / 2;
 
-    const onGateDragStart = (e: React.DragEvent, id: string) => {
-      e.dataTransfer.setData('application/gate-move-id', id);
-      e.dataTransfer.effectAllowed = 'move';
-    };
+  /* ---- 拖放 ---- */
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const gateName = e.dataTransfer.getData('gateId') as GateName;
+      if (!gateName || !svgRef.current) return;
 
-    let content: React.ReactNode = null;
-    if (gate && role === 'target') {
-      const dn = gateDisplayName[gate.gate];
-      const color = gateColor[gate.gate];
-      if (gate.gate === 'CNOT') {
-        content = <div className={`gate-tile cnot-target${sel ? ' selected' : ''}`} style={{ borderColor: color }}
-          onClick={() => onSelect(sel ? null : gate.id)} draggable onDragStart={e => onGateDragStart(e, gate.id)}>⊕</div>;
-      } else if (gate.gate === 'SWAP') {
-        content = <div className={`gate-tile swap-sym${sel ? ' selected' : ''}`}
-          onClick={() => onSelect(sel ? null : gate.id)} draggable onDragStart={e => onGateDragStart(e, gate.id)}>×</div>;
-      } else if (gate.gate === 'M') {
-        content = <div className={`gate-tile measure-tile${sel ? ' selected' : ''}`}
-          onClick={() => onSelect(sel ? null : gate.id)} draggable onDragStart={e => onGateDragStart(e, gate.id)}>
-          <span style={{ fontSize: 10 }}>📏</span></div>;
-      } else if (gate.gate === 'Barrier') {
-        content = <div className="barrier-line" />;
+      const rect = svgRef.current.getBoundingClientRect();
+      const col = Math.round((e.clientX - rect.left - PAD_L - COL_W / 2) / COL_W);
+      const qubit = Math.round((e.clientY - rect.top - PAD_T - BOX / 2) / ROW_H);
+
+      if (col < 0 || col >= numColumns || qubit < 0 || qubit >= numQubits) return;
+
+      if (isMultiQubit(gateName)) {
+        const control = qubit;
+        const target = qubit + 1 < numQubits ? qubit + 1 : qubit - 1;
+        if (target < 0 || target >= numQubits) return;
+
+        if (gateName === 'SWAP') {
+          onPlace({ gate: 'SWAP', column: col, targets: [control, target], controls: [], params: [] });
+        } else {
+          onPlace({ gate: gateName, column: col, targets: [target], controls: [control], params: [] });
+        }
       } else {
-        content = <div className={`gate-tile${sel ? ' selected' : ''}`} style={{ background: color }}
-          onClick={() => onSelect(sel ? null : gate.id)} draggable onDragStart={e => onGateDragStart(e, gate.id)}>
-          {dn}{isParametric(gate.gate) && gate.params[0] !== undefined &&
-            <span className="gate-param">{(gate.params[0] / Math.PI).toFixed(1)}π</span>}
-        </div>;
+        const params = isParametric(gateName) ? [Math.PI / 2] : [];
+        onPlace({ gate: gateName, column: col, targets: [qubit], controls: [], params });
       }
-    } else if (gate && role === 'control') {
-      content = <div className={`control-dot${sel ? ' selected' : ''}`}
-        onClick={() => onSelect(sel ? null : gate.id)}>●</div>;
-    } else if (gate && role === 'through') {
-      content = <div className="through-line" />;
-    }
+    },
+    [numColumns, numQubits, onPlace],
+  );
 
+  /* ---- 点击空白取消选中 ---- */
+  const handleBgClick = useCallback(
+    (e: React.MouseEvent) => {
+      const t = e.target as SVGElement;
+      if (t === svgRef.current || t.classList.contains('drop-zone') || t.classList.contains('bg-rect')) {
+        onSelect(null);
+      }
+    },
+    [onSelect],
+  );
+
+  /* ---- 导线 ---- */
+  const wires = useMemo(
+    () =>
+      Array.from({ length: numQubits }, (_, q) => {
+        const y = qy(q);
+        const wireEnd = PAD_L + (numColumns - 1) * COL_W + COL_W / 2 + 20;
+        return (
+          <g key={`wire-${q}`}>
+            <text x={14} y={y} dominantBaseline="central" fontSize={13}
+              fontFamily="'Courier New', monospace" fill="var(--text-3, #64748b)">
+              q<tspan fontSize={10} dy={2}>{q}</tspan>
+            </text>
+            <text x={42} y={y} dominantBaseline="central" fontSize={12}
+              fontFamily="serif" fill="var(--text-3, #94a3b8)">
+              |0⟩
+            </text>
+            <line x1={PAD_L - 6} y1={y} x2={wireEnd} y2={y}
+              stroke="var(--text-3, #94a3b8)" strokeWidth={1} />
+          </g>
+        );
+      }),
+    [numQubits, numColumns],
+  );
+
+  /* ---- Step 高亮列 ---- */
+  const stepHighlight = useMemo(() => {
+    if (stepCol === null) return null;
+    if (stepCol < 0 || stepCol >= numColumns) return null;
     return (
-      <div key={`${q}-${col}`} className={cls}
-        onDrop={e => handleDrop(e, q, col)} onDragOver={e => e.preventDefault()}
-        onClick={() => !gate && onSelect(null)}>
-        {content}
-      </div>
+      <rect
+        x={sx(stepCol) - COL_W / 2}
+        y={0}
+        width={COL_W}
+        height={H}
+        fill="rgba(99, 102, 241, 0.08)"
+        rx={4}
+      />
     );
-  };
+  }, [stepCol, numColumns, H]);
+
+  /* ---- 渲染所有门 ---- */
+  const gateElements = useMemo(() => {
+    const els: React.ReactNode[] = [];
+
+    gates.forEach((g) => {
+      const x = sx(g.column);
+      const isSel = g.id === selectedId;
+      const accent = isSel ? '#6366f1' : undefined;
+      const sw = isSel ? 2.8 : 1.5;
+
+      /* ---------- CNOT ---------- */
+      if (g.gate === 'CNOT' && g.controls.length > 0) {
+        const cy = qy(g.controls[0]);
+        const ty = qy(g.targets[0]);
+        els.push(
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+            <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={sw} />
+            <circle cx={x} cy={cy} r={5} fill={accent ?? '#1e40af'} />
+            <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#1e40af'} strokeWidth={sw} />
+            <line x1={x - R_TGT} y1={ty} x2={x + R_TGT} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={1.5} />
+            <line x1={x} y1={ty - R_TGT} x2={x} y2={ty + R_TGT} stroke={accent ?? '#1e40af'} strokeWidth={1.5} />
+          </g>,
+        );
+        return;
+      }
+
+      /* ---------- CZ ---------- */
+      if (g.gate === 'CZ' && g.controls.length > 0) {
+        const cy = qy(g.controls[0]);
+        const ty = qy(g.targets[0]);
+        els.push(
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+            <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#4527a0'} strokeWidth={sw} />
+            <circle cx={x} cy={cy} r={5} fill={accent ?? '#4527a0'} />
+            <circle cx={x} cy={ty} r={5} fill={accent ?? '#4527a0'} />
+          </g>,
+        );
+        return;
+      }
+
+      /* ---------- SWAP ---------- */
+      if (g.gate === 'SWAP' && g.targets.length >= 2) {
+        const y1 = qy(g.targets[0]);
+        const y2 = qy(g.targets[1]);
+        const d = 7;
+        els.push(
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+            <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#c2410c'} strokeWidth={sw} />
+            <line x1={x - d} y1={y1 - d} x2={x + d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
+            <line x1={x + d} y1={y1 - d} x2={x - d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
+            <line x1={x - d} y1={y2 - d} x2={x + d} y2={y2 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
+            <line x1={x + d} y1={y2 - d} x2={x - d} y2={y2 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
+          </g>,
+        );
+        return;
+      }
+
+      /* ---------- 单量子比特门 ---------- */
+      const tgt = g.targets[0];
+      const y = qy(tgt);
+      const [fl, st, tx] = gc(g.gate);
+      const label = gateDisplayName[g.gate] ?? g.gate;
+      const fontSize = label.length > 2 ? 10 : 14;
+
+      els.push(
+        <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+          <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX}
+            fill="var(--card, #fff)" />
+          <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX} rx={4}
+            fill={fl} stroke={isSel ? '#6366f1' : st} strokeWidth={isSel ? 2.8 : 1.4} />
+          <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
+            fontSize={fontSize} fontWeight={600} fill={tx} fontFamily="'Courier New', monospace">
+            {label}
+          </text>
+        </g>,
+      );
+    });
+
+    return els;
+  }, [gates, selectedId, onSelect]);
+
+  /* ---- 空位拖放区域 ---- */
+  const dropZones = useMemo(() => {
+    const zones: React.ReactNode[] = [];
+    for (let s = 0; s < numColumns; s++) {
+      for (let q = 0; q < numQubits; q++) {
+        zones.push(
+          <rect key={`z-${s}-${q}`} className="drop-zone"
+            x={sx(s) - COL_W / 2} y={qy(q) - ROW_H / 2}
+            width={COL_W} height={ROW_H} fill="transparent" />,
+        );
+      }
+    }
+    return zones;
+  }, [numColumns, numQubits]);
+
+  /* ---- 列编号 ---- */
+  const stepLabels = useMemo(
+    () =>
+      Array.from({ length: numColumns }, (_, s) => (
+        <text key={`sl-${s}`} x={sx(s)} y={H - 6} textAnchor="middle"
+          fontSize={9} fill="var(--text-3, #cbd5e1)" fontFamily="'Courier New', monospace">
+          {s}
+        </text>
+      )),
+    [numColumns, H],
+  );
 
   return (
-    <div className="circuit-grid-wrap">
-      <div className="circuit-col-nums">
-        <div style={{ width: 32 }} />
-        {Array.from({ length: nc }, (_, i) => (
-          <div key={i} className="col-num" style={{ width: CS, marginRight: CG }}>{i}</div>
-        ))}
-      </div>
-      {Array.from({ length: nq }, (_, q) => (
-        <div className="circuit-row" key={q}>
-          <div className="qubit-label">q{q}</div>
-          <div className="cells-row">
-            <div className="wire-line" />
-            {Array.from({ length: nc }, (_, col) => renderCell(q, col))}
-          </div>
-        </div>
-      ))}
-    </div>
+    <svg
+      ref={svgRef}
+      width={W}
+      height={H}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+      onClick={handleBgClick}
+      className="circuit-svg"
+    >
+      <rect className="bg-rect" width={W} height={H} fill="var(--card, #fff)" rx={10} />
+      {stepHighlight}
+      {dropZones}
+      {wires}
+      {gateElements}
+      {stepLabels}
+    </svg>
   );
 };
+
 export default CircuitGrid;

@@ -17,7 +17,7 @@ const ShotsHistogram: React.FC<Props> = ({ histogram, numQubits, totalShots }) =
         <BarChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
           <XAxis dataKey="basis" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(v: number, name: string) => name === 'count' ? v : (v as number).toFixed(4)} />
+          <Tooltip formatter={(v, name) => (name === 'count' ? v : Number(v).toFixed(4))} />
           <Bar dataKey="count" radius={[3, 3, 0, 0]}>
             {data.map((d, i) => (
               <Cell key={i} fill={d.count > 0 ? '#22c55e' : '#cbd5e1'} />

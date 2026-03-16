@@ -1,47 +1,80 @@
 import React from 'react';
-import type { GateName } from '../logic/circuitTypes';
 
-const CATS: { label: string; gates: { n: GateName; d: string; tip: string }[] }[] = [
-  { label: 'Single', gates: [
-    { n:'H', d:'H', tip:'Hadamard' }, { n:'X', d:'X', tip:'Pauli-X (NOT)' },
-    { n:'Y', d:'Y', tip:'Pauli-Y' }, { n:'Z', d:'Z', tip:'Pauli-Z' },
-    { n:'S', d:'S', tip:'S = √Z' }, { n:'Sdg', d:'S†', tip:'S-dagger' },
-    { n:'T', d:'T', tip:'T = ⁴√Z' }, { n:'Tdg', d:'T†', tip:'T-dagger' },
-  ]},
-  { label: 'Parametric', gates: [
-    { n:'Rx', d:'Rx', tip:'Rx(θ)' }, { n:'Ry', d:'Ry', tip:'Ry(θ)' },
-    { n:'Rz', d:'Rz', tip:'Rz(θ)' }, { n:'P', d:'P', tip:'Phase(φ)' },
-  ]},
-  { label: 'Multi-Qubit', gates: [
-    { n:'CNOT', d:'CX', tip:'CNOT / Controlled-X' }, { n:'CZ', d:'CZ', tip:'Controlled-Z' },
-    { n:'SWAP', d:'SW', tip:'SWAP' },
-  ]},
-  { label: 'Other', gates: [
-    { n:'M', d:'M', tip:'Measure (Z basis)' }, { n:'Barrier', d:'┃', tip:'Barrier' },
-  ]},
+const CATEGORIES = [
+  {
+    name: 'Basic',
+    gates: [
+      { id: 'H', label: 'H' },
+      { id: 'I', label: 'I' },
+    ],
+  },
+  {
+    name: 'Pauli',
+    gates: [
+      { id: 'X', label: 'X' },
+      { id: 'Y', label: 'Y' },
+      { id: 'Z', label: 'Z' },
+    ],
+  },
+  {
+    name: 'Phase',
+    gates: [
+      { id: 'S', label: 'S' },
+      { id: 'T', label: 'T' },
+      { id: 'Sdg', label: 'S†' },
+      { id: 'Tdg', label: 'T†' },
+    ],
+  },
+  {
+    name: 'Rotation',
+    gates: [
+      { id: 'Rx', label: 'Rx' },
+      { id: 'Ry', label: 'Ry' },
+      { id: 'Rz', label: 'Rz' },
+    ],
+  },
+  {
+    name: 'Multi-Qubit',
+    gates: [
+      { id: 'CNOT', label: 'CX' },
+      { id: 'CZ', label: 'CZ' },
+      { id: 'SWAP', label: 'SW' },
+    ],
+  },
 ];
 
 const GatePalette: React.FC = () => {
-  const onDrag = (e: React.DragEvent, g: GateName) => {
-    e.dataTransfer.setData('application/gate', g);
+  const onDragStart = (e: React.DragEvent, gateId: string) => {
+    e.dataTransfer.setData('gateId', gateId);
     e.dataTransfer.effectAllowed = 'copy';
   };
+
   return (
-    <div className="gate-palette" role="toolbar" aria-label="Gate palette">
-      {CATS.map(cat => (
-        <div key={cat.label} className="gate-cat">
-          <div className="gate-cat-label">{cat.label}</div>
-          <div className="gate-list">
-            {cat.gates.map(g => (
-              <div key={g.n} className="gate-item" draggable title={g.tip}
-                onDragStart={e => onDrag(e, g.n)} tabIndex={0} role="button" aria-label={g.tip}>
-                {g.d}
-              </div>
+    <aside className="palette">
+      <h3 className="palette-heading">Gates</h3>
+
+      {CATEGORIES.map((cat) => (
+        <div key={cat.name} className="palette-group">
+          <div className="palette-cat">{cat.name}</div>
+          <div className="palette-chips">
+            {cat.gates.map((g) => (
+              <span
+                key={g.id}
+                className="palette-chip"
+                draggable
+                onDragStart={(e) => onDragStart(e, g.id)}
+                title={`拖拽 ${g.id} 到电路`}
+              >
+                {g.label}
+              </span>
             ))}
           </div>
         </div>
       ))}
-    </div>
+
+      <p className="palette-hint">↑ 拖拽门到右侧电路上</p>
+    </aside>
   );
 };
+
 export default GatePalette;

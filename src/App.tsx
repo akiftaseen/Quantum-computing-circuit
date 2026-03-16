@@ -60,7 +60,7 @@ const App: React.FC = () => {
   // Live simulation
   const simResult = useMemo(() => {
     const col = stepCol ?? undefined;
-    return runCircuit(circuit, col, true); // skip measurements in preview
+    return runCircuit(circuit, col, true);
   }, [circuit, stepCol]);
 
   const blochVectors = useMemo(() =>
@@ -76,11 +76,18 @@ const App: React.FC = () => {
     circuit.gates.find(g => g.id === selectedId) ?? null,
   [circuit.gates, selectedId]);
 
-  // Circuit mutations
+  // ──── Circuit mutations ────
+
   const handlePlaceGate = useCallback((g: Omit<PlacedGate, 'id'>) => {
     const newGate: PlacedGate = { ...g, id: newGateId() };
+    // Auto-expand columns when placing near the end
+    let cols = circuit.numColumns;
+    if (newGate.column >= cols - 2) {
+      cols = newGate.column + 4;
+    }
     setCircuit({
       ...circuit,
+      numColumns: cols,
       gates: circuit.gates.filter(
         x => !(x.column === newGate.column && x.targets.some(t => newGate.targets.includes(t)) && x.controls.length === 0 && newGate.controls.length === 0)
       ).concat(newGate),
@@ -99,11 +106,18 @@ const App: React.FC = () => {
   }, [circuit, setCircuit]);
 
   const handleSetQubits = (n: number) => {
-    if (n < 1 || n > 4) return;
+    if (n < 1 || n > 6) return;
     const filtered = circuit.gates.filter(g =>
       g.targets.every(t => t < n) && g.controls.every(c => c < n)
     );
     setCircuit({ ...circuit, numQubits: n, gates: filtered });
+  };
+
+  const handleSetColumns = (n: number) => {
+    if (n < 4 || n > 60) return;
+    // Remove gates that fall outside the new range
+    const filtered = circuit.gates.filter(g => g.column < n);
+    setCircuit({ ...circuit, numColumns: n, gates: filtered });
   };
 
   const handleRunShots = () => {
@@ -180,147 +194,212 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className="app">
-      {/* Header */}
+    <div className="app-shell">
+      {/* ─── Header ─── */}
       <header className="app-header">
         <h1>⚛ Quantum Circuit Tutor</h1>
-        <div className="header-controls">
-          <label>Qubits:
-            <select value={circuit.numQubits} onChange={e => handleSetQubits(+e.target.value)}>
-              {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </label>
-          <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">↩ Undo</button>
-          <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
-          <button onClick={handleClear}>🗑 Clear</button>
-          <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+
+        {/* Qubit 数量 */}
+        <div className="header-adjuster">
+          <button onClick={() => handleSetQubits(circuit.numQubits - 1)}>−</button>
+          <span>{circuit.numQubits} qubits</span>
+          <button onClick={() => handleSetQubits(circuit.numQubits + 1)}>+</button>
         </div>
+
+        {/* 列数 / 线路长度 */}
+        <div className="header-adjuster">
+          <button onClick={() => handleSetColumns(circuit.numColumns - 2)}>−</button>
+          <span>{circuit.numColumns} cols</span>
+          <button onClick={() => handleSetColumns(circuit.numColumns + 2)}>+</button>
+        </div>
+
+        <div className="header-spacer" />
+
+        <button className="btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">↩ Undo</button>
+        <button className="btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
+        <button className="btn" onClick={handleClear}>🗑 Clear</button>
+        <button className="btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+        <button className="btn btn-primary" onClick={handleRunShots}>▶ Run {numShots} shots</button>
       </header>
 
+      {/* ─── Body ─── */}
       <div className="app-body">
-        {/* Sidebar */}
+        {/* ─── Left Sidebar ─── */}
         <aside className="sidebar">
           <GatePalette />
           <div className="sidebar-section">
-            <h3>Templates</h3>
+            <h3 className="sidebar-heading">Templates</h3>
             {TEMPLATES.map(t => (
               <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
             ))}
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="main">
-          {/* Circuit Grid */}
-          <section className="card circuit-card">
-            <CircuitGrid circuit={circuit} onPlace={handlePlaceGate} onRemove={handleRemoveGate}
-              onUpdate={handleUpdateGate} selectedId={selectedId} onSelect={setSelectedId} stepCol={stepCol} />
-            {/* Stepper */}
+        {/* ─── Main Area ─── */}
+        <div className="main-area">
+          {/* ─── Circuit Canvas ─── */}
+          <div className="circuit-scroll">
+            <CircuitGrid
+              circuit={circuit}
+              onPlace={handlePlaceGate}
+              onRemove={handleRemoveGate}
+              onUpdate={handleUpdateGate}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              stepCol={stepCol}
+            />
+            {/* Stepper bar */}
             <div className="stepper-row">
               <span className="stepper-label">Step:</span>
-              <input type="range" min={0} max={maxStepCol + 1}
+              <input
+                type="range"
+                min={0}
+                max={maxStepCol + 1}
                 value={stepCol === null ? maxStepCol + 1 : stepCol}
                 onChange={e => { const v = +e.target.value; setStepCol(v > maxStepCol ? null : v); }}
-                className="stepper-slider" />
+                className="stepper-slider"
+              />
               <span className="stepper-val">{stepCol === null ? 'All' : `Col ${stepCol}`}</span>
-              <button className="shots-btn" onClick={handleRunShots}>▶ Run {numShots} shots</button>
-              <input type="number" min={1} max={100000} value={numShots} onChange={e => setNumShots(+e.target.value)}
-                className="shots-input" />
+              <input
+                type="number"
+                min={1}
+                max={100000}
+                value={numShots}
+                onChange={e => setNumShots(+e.target.value)}
+                className="shots-input"
+              />
             </div>
-          </section>
+          </div>
 
-          {/* Param editor */}
+          {/* ─── Param Editor (conditional) ─── */}
           {paramEdit && selectedGate && (
-            <section className="card param-card">
+            <div className="info-card param-card">
               <h4>{gateDisplayName[selectedGate.gate]} Parameter</h4>
               <div className="param-row">
-                <input type="range" min={0} max={Math.PI * 4} step={0.01} value={paramEdit.value}
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.PI * 4}
+                  step={0.01}
+                  value={paramEdit.value}
                   onChange={e => {
                     const v = +e.target.value;
                     setParamEdit({ ...paramEdit, value: v });
                     handleUpdateGate(paramEdit.id, { params: [v] });
-                  }} />
-                <input type="number" step={0.01} value={+(paramEdit.value / Math.PI).toFixed(4)}
+                  }}
+                />
+                <input
+                  type="number"
+                  step={0.01}
+                  value={+(paramEdit.value / Math.PI).toFixed(4)}
                   onChange={e => {
                     const v = +e.target.value * Math.PI;
                     setParamEdit({ ...paramEdit, value: v });
                     handleUpdateGate(paramEdit.id, { params: [v] });
-                  }} />
+                  }}
+                />
                 <span>× π</span>
-                <button onClick={() => { handleRemoveGate(paramEdit.id); setSelectedId(null); }}>🗑 Delete</button>
+                <button className="btn" onClick={() => { handleRemoveGate(paramEdit.id); setSelectedId(null); }}>🗑</button>
               </div>
-            </section>
+            </div>
           )}
 
-          {/* Gate Details */}
+          {/* ─── Gate Details (conditional) ─── */}
           {selectedGate && isSingleQubit(selectedGate.gate) && (
-            <section className="card">
+            <div className="info-card">
               <GateDetailsPanel gate={selectedGate} />
-            </section>
+            </div>
           )}
 
-          {/* Tabs */}
-          <div className="tabs-bar">
-            {TABS.map(t => (
-              <button key={t.key} className={`tab-btn${tab === t.key ? ' active' : ''}`}
-                onClick={() => setTab(t.key)}>{t.label}</button>
-            ))}
-          </div>
+          {/* ─── Results Panel ─── */}
+          <div className="results-panel">
+            <div className="results-tabs">
+              {TABS.map(t => (
+                <button
+                  key={t.key}
+                  className={`results-tab${tab === t.key ? ' active' : ''}`}
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
-          <section className="card tab-content">
-            {tab === 'prob' && <ProbabilityChart state={simResult.state} numQubits={circuit.numQubits} />}
-            {tab === 'bloch' && (
-              <div className="bloch-grid">
-                {blochVectors.map((v, i) => <BlochSphere key={i} vector={v} label={`q${i}`} />)}
-              </div>
-            )}
-            {tab === 'dirac' && <DiracNotation state={simResult.state} numQubits={circuit.numQubits} />}
-            {tab === 'math' && (
-              <div className="math-panel">
-                {unitaryMatrix ? (
-                  <div>
-                    <h4>Overall Unitary ({circuit.numQubits <= 2 ? `${1 << circuit.numQubits}×${1 << circuit.numQubits}` : 'Too large'})</h4>
-                    <table className="matrix-table">
-                      <tbody>
-                        {unitaryMatrix.map((row, i) => (
-                          <tr key={i}>{row.map((z, j) => <td key={j} className="mat-cell">{formatComplex(z, 3)}</td>)}</tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : <p>Unitary display available for ≤ 2 qubits.</p>}
-              </div>
-            )}
-            {tab === 'shots' && (
-              <div>
-                {shotsResult ? (
-                  <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
-                ) : <p>Click "Run shots" to sample measurement outcomes.</p>}
-              </div>
-            )}
-            {tab === 'export' && (
-              <div className="export-panel">
-                <div className="export-buttons">
-                  <button onClick={() => handleExport('qiskit')}>📋 Qiskit Code</button>
-                  <button onClick={() => handleExport('pennylane')}>📋 PennyLane Code</button>
-                  <button onClick={handleSaveJSON}>💾 Save JSON</button>
-                  <button onClick={handleLoadJSON}>📂 Load JSON</button>
-                  <button onClick={handleShare}>🔗 Copy Share URL</button>
+            <div className="results-content">
+              {tab === 'prob' && (
+                <ProbabilityChart state={simResult.state} numQubits={circuit.numQubits} />
+              )}
+
+              {tab === 'bloch' && (
+                <div className="bloch-grid">
+                  {blochVectors.map((v, i) => (
+                    <BlochSphere key={i} vector={v} label={`q${i}`} />
+                  ))}
                 </div>
-                {showExportCode && (
-                  <div className="export-code">
-                    <h4>{exportType === 'qiskit' ? 'Qiskit' : 'PennyLane'} Code</h4>
-                    <pre>{showExportCode}</pre>
+              )}
+
+              {tab === 'dirac' && (
+                <DiracNotation state={simResult.state} numQubits={circuit.numQubits} />
+              )}
+
+              {tab === 'math' && (
+                <div className="math-panel">
+                  {unitaryMatrix ? (
+                    <div>
+                      <h4>Overall Unitary ({circuit.numQubits <= 2 ? `${1 << circuit.numQubits}×${1 << circuit.numQubits}` : 'Too large'})</h4>
+                      <table className="matrix-table">
+                        <tbody>
+                          {unitaryMatrix.map((row, i) => (
+                            <tr key={i}>
+                              {row.map((z, j) => (
+                                <td key={j} className="mat-cell">{formatComplex(z, 3)}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="empty-msg">Unitary display available for ≤ 2 qubits.</p>
+                  )}
+                </div>
+              )}
+
+              {tab === 'shots' && (
+                <div>
+                  {shotsResult ? (
+                    <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                  ) : (
+                    <p className="empty-msg">Click "▶ Run" to sample measurement outcomes.</p>
+                  )}
+                </div>
+              )}
+
+              {tab === 'export' && (
+                <div className="export-panel">
+                  <div className="export-buttons">
+                    <button className="btn" onClick={() => handleExport('qiskit')}>📋 Qiskit</button>
+                    <button className="btn" onClick={() => handleExport('pennylane')}>📋 PennyLane</button>
+                    <button className="btn" onClick={handleSaveJSON}>💾 Save JSON</button>
+                    <button className="btn" onClick={handleLoadJSON}>📂 Load JSON</button>
+                    <button className="btn" onClick={handleShare}>🔗 Share URL</button>
                   </div>
-                )}
-              </div>
-            )}
-          </section>
-        </main>
+                  {showExportCode && (
+                    <div className="export-code">
+                      <h4>{exportType === 'qiskit' ? 'Qiskit' : 'PennyLane'} Code</h4>
+                      <pre>{showExportCode}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
+
 export default App;
