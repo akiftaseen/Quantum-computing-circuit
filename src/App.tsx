@@ -3,14 +3,13 @@ import './App.css';
 import { formatComplex } from './logic/complex';
 import { runCircuit, runWithShots, computeUnitary2Q } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
-import { exportToQiskit, exportToPennyLane, exportToCirq, exportToLatex, importFromQASM } from './logic/qiskitExport';
-import { serializeCircuit, deserializeCircuit, generateShareURL, loadFromURL } from './logic/circuitSerializer';
+import { loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATES } from './logic/templates';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
 import { useTheme } from './hooks/useTheme';
 import type { CircuitState, PlacedGate } from './logic/circuitTypes';
 import { isParametric, newGateId, gateDisplayName, isSingleQubit } from './logic/circuitTypes';
-import { validateCircuit, validateQubitCount, validateColumnCount } from './logic/validation';
+import { validateQubitCount, validateColumnCount } from './logic/validation';
 
 import GatePalette from './components/GatePalette';
 import CircuitGrid from './components/CircuitGrid';
@@ -22,11 +21,10 @@ import ShotsHistogram from './components/ShotsHistogram';
 import GateDescriptionsModal from './components/GateDescriptionsModal';
 import CircuitAnalysisPanel from './components/CircuitAnalysisPanel';
 import AppHeader from './components/AppHeader';
-import ExportPanel from './components/ExportPanel';
 
 const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
 
-type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'export';
+type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis';
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
@@ -37,8 +35,6 @@ const App: React.FC = () => {
   const [numShots, setNumShots] = useState(1024);
   const [shotsResult, setShotsResult] = useState<Map<string, number> | null>(null);
   const [paramEdit, setParamEdit] = useState<{ id: string; value: number } | null>(null);
-  const [showExportCode, setShowExportCode] = useState<string | null>(null);
-  const [exportType, setExportType] = useState<'qiskit' | 'pennylane' | 'cirq' | 'latex'>('qiskit');
   const [showGateModal, setShowGateModal] = useState(false);
 
   // Keyboard shortcuts are defined after handlers to avoid stale references.
@@ -122,92 +118,6 @@ const App: React.FC = () => {
     setStepCol(null);
   };
 
-  const handleExport = (type: 'qiskit' | 'pennylane' | 'cirq' | 'latex') => {
-    setExportType(type);
-    if (type === 'qiskit') {
-      setShowExportCode(exportToQiskit(circuit));
-      return;
-    }
-    if (type === 'pennylane') {
-      setShowExportCode(exportToPennyLane(circuit));
-      return;
-    }
-    if (type === 'cirq') {
-      setShowExportCode(exportToCirq(circuit));
-      return;
-    }
-    setShowExportCode(exportToLatex(circuit));
-  };
-
-  const handleSaveJSON = () => {
-    const blob = new Blob([serializeCircuit(circuit)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'quantum-circuit.json'; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleLoadJSON = () => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = '.json';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const c = deserializeCircuit(reader.result as string);
-          const errors = validateCircuit(c);
-          if (errors.length > 0) {
-            alert(`Circuit validation errors:\n${errors.map(e => e.message).join('\n')}`);
-            return;
-          }
-          reset(c);
-          setSelectedId(null);
-        } catch (e) { 
-          alert(`Failed to load circuit: ${e instanceof Error ? e.message : 'Unknown error'}`);
-          console.error('Invalid circuit file', e); 
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
-  const handleShare = () => {
-    const url = generateShareURL(circuit);
-    navigator.clipboard?.writeText(url);
-  };
-
-  const handleLoadQASM = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.qasm,.txt';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const imported = importFromQASM(String(reader.result ?? ''));
-          const errors = validateCircuit(imported);
-          if (errors.length > 0) {
-            alert(`QASM import validation errors:\n${errors.map((e) => e.message).join('\n')}`);
-            return;
-          }
-          reset(imported);
-          setSelectedId(null);
-          setStepCol(null);
-          setShotsResult(null);
-        } catch (err) {
-          alert(`Failed to import QASM: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
@@ -262,7 +172,7 @@ const App: React.FC = () => {
     { key: 'dirac', label: 'Dirac ⟨ψ|' },
     { key: 'math', label: 'Math Lens' },
     { key: 'shots', label: 'Shots' },
-    { key: 'export', label: 'Export' },
+    { key: 'analysis', label: 'Analysis' },
   ];
 
   return (
@@ -294,9 +204,6 @@ const App: React.FC = () => {
             {TEMPLATES.map(t => (
               <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
             ))}
-          </div>
-          <div className="sidebar-section">
-            <CircuitAnalysisPanel circuit={circuit} />
           </div>
         </aside>
 
@@ -440,20 +347,12 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {tab === 'export' && (
-                <ExportPanel
-                  exportType={exportType}
-                  code={showExportCode}
-                  onExportQiskit={() => handleExport('qiskit')}
-                  onExportPennyLane={() => handleExport('pennylane')}
-                  onExportCirq={() => handleExport('cirq')}
-                  onExportLatex={() => handleExport('latex')}
-                  onSaveJSON={handleSaveJSON}
-                  onLoadJSON={handleLoadJSON}
-                  onLoadQASM={handleLoadQASM}
-                  onShare={handleShare}
-                />
+              {tab === 'analysis' && (
+                <div className="analysis-tab-wrap">
+                  <CircuitAnalysisPanel circuit={circuit} />
+                </div>
               )}
+
             </div>
           </div>
         </div>

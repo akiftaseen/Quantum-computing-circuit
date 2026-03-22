@@ -3,7 +3,7 @@ import type { CircuitState, PlacedGate, GateName } from '../logic/circuitTypes';
 import { isMultiQubit, isParametric, gateDisplayName } from '../logic/circuitTypes';
 
 /* ------------------------------------------------------------------ */
-/*  Props — 与 App.tsx 传参完全一致                                     */
+/*  Props - aligned with App.tsx                                       */
 /* ------------------------------------------------------------------ */
 interface CircuitGridProps {
   circuit: CircuitState;
@@ -15,7 +15,7 @@ interface CircuitGridProps {
   stepCol: number | null;
 }
 
-/* ---- 布局常量 ---- */
+/* ---- Layout constants ---- */
 const PAD_L = 72;
 const PAD_T = 28;
 const PAD_R = 36;
@@ -25,7 +25,7 @@ const COL_W = 60;
 const BOX = 34;
 const R_TGT = 11;
 
-/* ---- 门颜色 [fill, stroke, text] ---- */
+/* ---- Gate colors [fill, stroke, text] ---- */
 const COLORS: Record<string, [string, string, string]> = {
   H:   ['#dbeafe', '#60a5fa', '#1e40af'],
   X:   ['#fee2e2', '#f87171', '#b91c1c'],
@@ -62,7 +62,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   const qy = (q: number) => PAD_T + q * ROW_H + BOX / 2;
   const sx = (s: number) => PAD_L + s * COL_W + COL_W / 2;
 
-  /* ---- 拖放 ---- */
+  /* ---- Drag and drop ---- */
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -102,7 +102,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     [numColumns, numQubits, onPlace],
   );
 
-  /* ---- 点击空白取消选中 ---- */
+  /* ---- Deselect on blank click ---- */
   const handleBgClick = useCallback(
     (e: React.MouseEvent) => {
       const t = e.target as SVGElement;
@@ -113,7 +113,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     [onSelect],
   );
 
-  /* ---- 导线 ---- */
+  /* ---- Wires ---- */
   const wires = useMemo(
     () =>
       Array.from({ length: numQubits }, (_, q) => {
@@ -137,7 +137,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     [numQubits, numColumns],
   );
 
-  /* ---- Step 高亮列 ---- */
+  /* ---- Step highlight column ---- */
   const stepHighlight = useMemo(() => {
     if (stepCol === null) return null;
     if (stepCol < 0 || stepCol >= numColumns) return null;
@@ -153,7 +153,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     );
   }, [stepCol, numColumns, H]);
 
-  /* ---- 渲染所有门 ---- */
+  /* ---- Render all gates ---- */
   const gateElements = useMemo(() => {
     const els: React.ReactNode[] = [];
 
@@ -247,7 +247,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         return;
       }
 
-      /* ---------- 单量子比特门 ---------- */
+      /* ---------- Single-qubit gates ---------- */
       const tgt = g.targets[0];
       const y = qy(tgt);
       const [fl, st, tx] = gc(g.gate);
@@ -271,7 +271,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     return els;
   }, [gates, selectedId, onSelect]);
 
-  /* ---- 空位拖放区域 ---- */
+  /* ---- Empty drop zones ---- */
   const dropZones = useMemo(() => {
     const zones: React.ReactNode[] = [];
     for (let s = 0; s < numColumns; s++) {
@@ -286,7 +286,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     return zones;
   }, [numColumns, numQubits]);
 
-  /* ---- 列编号 ---- */
+  /* ---- Column labels ---- */
   const stepLabels = useMemo(
     () =>
       Array.from({ length: numColumns }, (_, s) => (

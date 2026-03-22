@@ -74,7 +74,7 @@ const GatePalette: React.FC = () => {
                 className="palette-chip"
                 draggable
                 onDragStart={(e) => onDragStart(e, g.id)}
-                title={`拖拽 ${g.id} 到电路`}
+                title={`Drag ${g.id} into the circuit`}
               >
                 {g.label}
               </span>
@@ -83,7 +83,7 @@ const GatePalette: React.FC = () => {
         </div>
       ))}
 
-      <p className="palette-hint">↑ 拖拽门到右侧电路上</p>
+      <p className="palette-hint">Drag gates into the circuit workspace</p>
     </aside>
   );
 };
