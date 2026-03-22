@@ -1,0 +1,170 @@
+Quantum Circuit Tutor - Plain Language Guide
+
+What this app is for
+This app is a hands-on playground for learning how quantum circuits behave.
+You do not need advanced math to use it.
+Think of it like a visual music mixer:
+- You place building blocks (gates)
+- You run the circuit
+- You observe how the final pattern changes
+
+The main goal is understanding ideas by interaction:
+- Superposition: a qubit can represent more than one possibility at once
+- Interference: some possibilities get stronger, others weaker
+- Measurement: when you observe, you get one concrete outcome
+- Noise: real systems are imperfect, and this affects results
+
+
+Big picture: how to use the app in 30 seconds
+1. Pick a template in the left panel, or start from scratch.
+2. Drag gates from the Gate Library into the circuit canvas.
+3. Click Run in the top header.
+4. Use the result tabs to understand what happened from different angles.
+5. Turn on noise sliders in the Shots tab to compare ideal vs realistic behavior.
+
+
+Layout overview
+Top header
+- Qubits and columns controls:
+  - Qubits = how many quantum lines you are working with
+  - Columns = how many time steps your circuit has
+- Undo / Redo / Clear for fast editing
+- Info icon opens a gate reference
+- Sidebar toggle shows/hides the left toolbox
+- Theme icon cycles dark/light/auto
+- Run button executes measurements (shots)
+
+Left sidebar
+- Gate Library: gate buttons grouped by category (Basic, Pauli, Phase, Rotation, Multi-Qubit, Interactions)
+- Templates: quick starting circuits so you can learn by modifying examples
+- Resizing: drag the right border of the sidebar from any height to make it wider or narrower
+
+Center workspace
+- The circuit grid is where your circuit is built
+- Each row is a qubit
+- Each column is a step in time
+- Drag gates onto empty cells to place them
+- Select a gate to inspect details or edit parameters when supported
+
+Bottom results panel
+- Probabilities: outcome chances before repeated measurements
+- Bloch Spheres: intuitive direction view of each qubit state
+- Dirac: compact symbolic state view
+- Math Lens: full operation matrix view (advanced, optional)
+- Shots: repeated measurement outcomes, with ideal vs noisy comparison
+- Analysis and State: one combined area with quality checks and deeper insights
+
+
+Recommended learning path (non-technical)
+Step 1: Start simple
+- Use 1 or 2 qubits
+- Place one H gate
+- Observe Probabilities and Bloch Spheres
+- This builds intuition for superposition
+
+Step 2: Add cause and effect
+- Add X, Z, S, or T gates after H
+- Notice how the output distribution and state view changes
+- Learn that order of gates matters
+
+Step 3: Explore relationship between qubits
+- Use CNOT with 2 qubits
+- Watch Analysis and State for correlation/entanglement hints
+- Compare with and without interaction gates
+
+Step 4: Run many shots
+- Press Run
+- In Shots, inspect top outcomes and distribution shape
+- Increase shots for more stable-looking distributions
+
+Step 5: Simulate reality
+- In Shots, raise noise sliders slightly
+- Compare ideal vs noisy histograms side-by-side
+- Understand that real hardware introduces drift and uncertainty
+
+
+How to read each result view without math
+Probabilities
+- Shows what outcomes are likely if you measured once
+- Higher bar means more likely outcome
+
+Bloch Spheres
+- Think of each qubit as a direction arrow
+- Different gate choices rotate that arrow
+- Useful for intuition about single-qubit behavior
+
+Dirac
+- A compact text summary of the current state
+- Good for quick comparison before/after edits
+
+Math Lens
+- Technical table describing the full circuit operation
+- Useful when you want exact transformation details
+- Safe to skip while learning basics
+
+Shots
+- Simulates repeated runs (like repeating an experiment many times)
+- Ideal: perfect world
+- Noisy: realistic world with imperfections
+- Distribution shift tells you how much noise changed outcomes
+
+Analysis and State
+- Gives structured, high-level diagnostic insight
+- Helps answer: Is this state coherent? correlated? stable under noise?
+- Useful for understanding quality, not just raw outputs
+
+
+Templates: what they are and why they matter
+Templates are examples that save setup time.
+Use them when:
+- You want to quickly see a known behavior
+- You are teaching or presenting
+- You want to modify one piece and see the effect
+
+A practical workflow:
+1. Load a template.
+2. Run once and inspect results.
+3. Change one gate only.
+4. Run again.
+5. Compare what changed.
+
+This one-change-at-a-time approach is the fastest way to build intuition.
+
+
+Common beginner confusion (and what it really means)
+"My chart changed a lot after one gate"
+- That is normal. Small gate changes can strongly affect outcomes.
+
+"Noisy results look worse"
+- Expected. Noise models real imperfections.
+
+"Why does the same circuit look slightly different in shots?"
+- Shots are sample-based. More shots usually means smoother, more stable estimates.
+
+"The math view is overwhelming"
+- Totally fine. Focus on Probabilities, Shots, and Analysis first.
+
+
+Tips for smooth usage
+- Use Undo/Redo frequently while experimenting.
+- Keep qubit count low when learning.
+- Prefer short circuits at first, then scale up.
+- Use templates as checkpoints.
+- Treat noise as a realism slider, not a failure indicator.
+- Compare views together:
+  - Probabilities tells likely outcomes
+  - Shots confirms sampled behavior
+  - Analysis gives interpretation
+
+
+What success looks like
+You are using the app well when you can:
+- Predict whether an edit should spread or concentrate outcomes
+- Explain why ideal and noisy runs differ
+- Use templates as starting points instead of fixed answers
+- Move between views to tell one coherent story about the circuit
+
+
+If you only remember one thing
+This app is not about memorizing formulas.
+It is about building intuition by making small changes and observing clear visual feedback.
