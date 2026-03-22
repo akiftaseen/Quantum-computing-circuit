@@ -23,21 +23,16 @@ const BlochSphere = lazy(() => import('./components/BlochSphere'));
 const DiracNotation = lazy(() => import('./components/DiracNotation'));
 const GateDescriptionsModal = lazy(() => import('./components/GateDescriptionsModal'));
 const CircuitAnalysisPanel = lazy(() => import('./components/CircuitAnalysisPanel'));
-const LearningPanel = lazy(() => import('./components/LearningPanel'));
-const WalkthroughPanel = lazy(() => import('./components/WalkthroughPanel'));
-const BasisExplorerPanel = lazy(() => import('./components/BasisExplorerPanel'));
 const QuantumStateInsightsPanel = lazy(() => import('./components/QuantumStateInsightsPanel'));
-const AlgorithmStudioPanel = lazy(() => import('./components/AlgorithmStudioPanel'));
 
 const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
 
-type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'state' | 'algorithms' | 'learn' | 'walkthrough' | 'basis';
+type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'state';
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
   const { mode: themeMode, cycleThemeMode } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
   const [stepCol, setStepCol] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('prob');
@@ -157,12 +152,6 @@ const App: React.FC = () => {
     setStepCol(null);
   };
 
-  const handleLoadTemplateByName = (name: string) => {
-    const template = TEMPLATES.find((t) => t.name === name);
-    if (!template) return;
-    handleTemplate(template.build);
-  };
-
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
@@ -259,14 +248,10 @@ const App: React.FC = () => {
     { key: 'shots', label: 'Shots', icon: 'N' },
     { key: 'analysis', label: 'Analysis', icon: '∆' },
     { key: 'state', label: 'State Lens', icon: 'ρ' },
-    { key: 'algorithms', label: 'Algo Studio', icon: 'f' },
-    { key: 'learn', label: 'Learning Studio', icon: 'λ' },
-    { key: 'walkthrough', label: 'Guided Lab', icon: '→' },
-    { key: 'basis', label: 'Basis Explorer', icon: '⊗' },
   ];
 
   return (
-    <div className={`app-shell${compactMode ? ' compact' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+    <div className={`app-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <AppHeader
         numQubits={circuit.numQubits}
         numColumns={circuit.numColumns}
@@ -283,9 +268,7 @@ const App: React.FC = () => {
         onCycleTheme={cycleThemeMode}
         onRunShots={handleRunShots}
         sidebarCollapsed={sidebarCollapsed}
-        compactMode={compactMode}
         onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
-        onToggleCompactMode={() => setCompactMode((prev) => !prev)}
       />
 
       {/* ─── Body ─── */}
@@ -549,38 +532,6 @@ const App: React.FC = () => {
                     shotsResult={shotsResult}
                     noisyShotsResult={noisyShotsResult}
                     noiseEnabled={noise.enabled}
-                  />
-                </Suspense>
-              )}
-
-              {tab === 'algorithms' && (
-                <Suspense fallback={<p className="empty-msg">Loading algorithm studio...</p>}>
-                  <AlgorithmStudioPanel circuit={circuit} shotsResult={shotsResult} />
-                </Suspense>
-              )}
-
-              {tab === 'learn' && (
-                <Suspense fallback={<p className="empty-msg">Loading learning guides...</p>}>
-                  <LearningPanel onUseTemplate={handleLoadTemplateByName} />
-                </Suspense>
-              )}
-
-              {tab === 'walkthrough' && (
-                <Suspense fallback={<p className="empty-msg">Loading walkthrough...</p>}>
-                  <WalkthroughPanel
-                    circuit={circuit}
-                    shotsResult={shotsResult}
-                    onRunShots={handleRunShots}
-                    onLoadTemplate={handleLoadTemplateByName}
-                  />
-                </Suspense>
-              )}
-
-              {tab === 'basis' && (
-                <Suspense fallback={<p className="empty-msg">Loading basis explorer...</p>}>
-                  <BasisExplorerPanel
-                    state={simResult.state}
-                    numQubits={circuit.numQubits}
                   />
                 </Suspense>
               )}

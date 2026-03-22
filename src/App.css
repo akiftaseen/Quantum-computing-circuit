@@ -20,21 +20,68 @@
 
 /* ---- Dark theme ---- */
 [data-theme='dark'] {
-  --bg: #070b10;
-  --card: #0f1721;
-  --text: #e8f0f7;
-  --text-2: #a2b4c7;
-  --text-3: #6f8194;
-  --border: #1f2c3a;
-  --primary: #7eb8e7;
-  --primary-hover: #96c8ef;
-  --primary-bg: #0d2234;
-  --slider-track: #1b2a38;
-  --slider-track-active: #3b6587;
-  --slider-thumb: #88c1ef;
-  --slider-thumb-border: #0f1721;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.42);
-  --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.5);
+  --bg: #00030a;
+  --card: #040a12;
+  --text: #e8f2fc;
+  --text-2: #94acc3;
+  --text-3: #627a92;
+  --border: #0c1826;
+  --primary: #6eb4ea;
+  --primary-hover: #8fc7f1;
+  --primary-bg: #051220;
+  --slider-track: #0a1522;
+  --slider-track-active: #244768;
+  --slider-thumb: #7ebeee;
+  --slider-thumb-border: #040a12;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.58);
+  --shadow-md: 0 18px 44px rgba(0, 0, 0, 0.64);
+}
+
+[data-theme='dark'] .app-shell {
+  background:
+    radial-gradient(1300px 420px at 8% -16%, rgba(7, 26, 48, 0.34), transparent 64%),
+    radial-gradient(1100px 360px at 100% 0%, rgba(8, 18, 32, 0.28), transparent 62%),
+    #00030a;
+}
+
+[data-theme='dark'] .app-header,
+[data-theme='dark'] .sidebar,
+[data-theme='dark'] .results-panel,
+[data-theme='dark'] .info-card,
+[data-theme='dark'] .analysis-panel,
+[data-theme='dark'] .state-insights-card,
+[data-theme='dark'] .shots-chart-card,
+[data-theme='dark'] .gate-modal-card {
+  background: #040a12;
+  border-color: #0d1a2a;
+}
+
+[data-theme='dark'] .results-tabs {
+  background: rgba(5, 10, 17, 0.96);
+}
+
+[data-theme='dark'] .btn {
+  background: #08111d;
+  border-color: #16304a;
+}
+
+[data-theme='dark'] .btn:hover {
+  background: #0d1828;
+  border-color: #234564;
+}
+
+[data-theme='dark'] .header-adjuster {
+  background: #07111c;
+  border-color: #163046;
+}
+
+[data-theme='dark'] .template-btn,
+[data-theme='dark'] .shots-summary-card,
+[data-theme='dark'] .state-bell-box,
+[data-theme='dark'] .shots-empty,
+[data-theme='dark'] .noise-controls {
+  background: #06101a;
+  border-color: #122437;
 }
 
 /* ===================== Slider System ===================== */
@@ -830,263 +877,6 @@ textarea:focus-visible {
   background: color-mix(in srgb, var(--bg) 80%, transparent);
 }
 
-.learning-panel {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.learning-title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text);
-}
-
-.learning-subtitle {
-  margin: 8px 0 14px;
-  color: var(--text-2);
-  font-size: 13px;
-}
-
-.learning-lessons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.learning-card {
-  border: 1px solid var(--border);
-  background: var(--card);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.learning-card-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-.learning-card-focus {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--primary) 70%, var(--text));
-}
-
-.learning-card-outcome {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.learning-checklist {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12px;
-  color: var(--text-2);
-  display: grid;
-  gap: 4px;
-}
-
-.learning-section {
-  margin-top: 14px;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
-}
-
-.learning-section-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: var(--text);
-}
-
-.learning-briefs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.learning-brief-card {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
-  padding: 10px;
-}
-
-.learning-brief-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 6px;
-}
-
-.learning-brief-summary,
-.learning-brief-watch {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.learning-brief-watch {
-  margin-top: 8px;
-}
-
-.learning-reflection-list {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.walkthrough-panel,
-.basis-panel {
-  max-width: 920px;
-  margin: 0 auto;
-  border: 1px solid var(--border);
-  background: var(--card);
-  border-radius: 12px;
-  padding: 14px;
-}
-
-.walkthrough-header,
-.basis-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.walkthrough-title,
-.basis-title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text);
-}
-
-.walkthrough-progress {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--primary);
-  background: var(--primary-bg);
-  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
-  border-radius: 999px;
-  padding: 3px 9px;
-}
-
-.walkthrough-subtitle,
-.basis-subtitle {
-  margin: 0 0 12px;
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.walkthrough-steps,
-.basis-grid {
-  display: grid;
-  gap: 10px;
-}
-
-.walkthrough-step,
-.basis-card {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
-  padding: 10px;
-}
-
-.walkthrough-step.done {
-  border-color: color-mix(in srgb, #22c55e 35%, var(--border));
-  background: color-mix(in srgb, #22c55e 10%, var(--bg));
-}
-
-.walkthrough-step-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-
-.basis-card-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--primary);
-  margin-bottom: 8px;
-}
-
-.walkthrough-step-detail,
-.walkthrough-step-status {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.walkthrough-step-status {
-  margin-top: 6px;
-  font-weight: 600;
-}
-
-.walkthrough-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.basis-controls label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.basis-controls select {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 6px;
-  background: var(--card);
-}
-
-.basis-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.basis-row {
-  display: grid;
-  grid-template-columns: 44px 1fr 54px;
-  gap: 8px;
-  align-items: center;
-  font-size: 11px;
-  color: var(--text-2);
-  margin-bottom: 6px;
-}
-
-.basis-bar {
-  height: 7px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
-  overflow: hidden;
-}
-
-.basis-bar > div {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 70%, #fff), var(--primary));
-}
-
-.basis-bloch-readout {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--text-2);
-  font-family: var(--font-mono);
-}
-
 .empty-msg {
   text-align: center;
   color: var(--text-3);
@@ -1737,68 +1527,6 @@ textarea:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.app-shell.compact .app-header {
-  padding: 8px 14px;
-  gap: 8px;
-}
-
-.app-shell.compact .btn {
-  padding: 6px 10px;
-  font-size: 11px;
-}
-
-.app-shell.compact .header-adjuster {
-  padding: 1px 3px;
-}
-
-.app-shell.compact .header-adjuster button {
-  width: 22px;
-  height: 22px;
-}
-
-.app-shell.compact .sidebar {
-  width: 168px;
-  min-width: 156px;
-  padding: 9px;
-}
-
-.app-shell.compact .template-btn,
-.app-shell.compact .palette-chip {
-  height: 24px;
-  min-width: 32px;
-  font-size: 11px;
-}
-
-.app-shell.compact .circuit-scroll {
-  padding: 10px;
-}
-
-.app-shell.compact .stepper-row {
-  padding-top: 6px;
-  gap: 8px;
-}
-
-.app-shell.compact .results-panel {
-  max-height: 52vh;
-}
-
-.app-shell.compact .results-tabs {
-  padding: 0 12px;
-}
-
-.app-shell.compact .results-tab {
-  padding: 8px 10px;
-  font-size: 12px;
-}
-
-.app-shell.compact .results-content {
-  padding: 12px;
-}
-
-.app-shell.compact .info-card {
-  padding: 9px 12px;
-}
-
 @keyframes app-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1891,10 +1619,7 @@ textarea:focus-visible {
   }
 
   .noise-controls,
-  .shots-summary-grid,
-  .learning-lessons,
-  .learning-briefs,
-  .basis-grid {
+  .shots-summary-grid {
     grid-template-columns: 1fr;
   }
 

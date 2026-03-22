@@ -10,7 +10,6 @@ interface Props {
   numShots: number;
   themeMode: ThemeMode;
   sidebarCollapsed: boolean;
-  compactMode: boolean;
   onSetQubits: (n: number) => void;
   onSetColumns: (n: number) => void;
   onUndo: () => void;
@@ -20,7 +19,6 @@ interface Props {
   onCycleTheme: () => void;
   onRunShots: () => void;
   onToggleSidebar: () => void;
-  onToggleCompactMode: () => void;
 }
 
 const themeLabel = (mode: ThemeMode) => {
@@ -37,7 +35,6 @@ const AppHeader: React.FC<Props> = ({
   numShots,
   themeMode,
   sidebarCollapsed,
-  compactMode,
   onSetQubits,
   onSetColumns,
   onUndo,
@@ -47,7 +44,6 @@ const AppHeader: React.FC<Props> = ({
   onCycleTheme,
   onRunShots,
   onToggleSidebar,
-  onToggleCompactMode,
 }) => {
   const canDecQubits = numQubits > CIRCUIT_CONSTRAINTS.MIN_QUBITS;
   const canIncQubits = numQubits < CIRCUIT_CONSTRAINTS.MAX_QUBITS;
@@ -78,9 +74,6 @@ const AppHeader: React.FC<Props> = ({
       <button className="btn" onClick={onShowGates} title="Gate reference">Gate Reference</button>
       <button className="btn" onClick={onToggleSidebar} title="Toggle toolbox sidebar">
         {sidebarCollapsed ? 'Show Tools' : 'Hide Tools'}
-      </button>
-      <button className={`btn${compactMode ? ' btn-primary' : ''}`} onClick={onToggleCompactMode} title="Toggle compact layout">
-        Compact {compactMode ? 'On' : 'Off'}
       </button>
       <button className="btn" onClick={onCycleTheme} title="Cycle theme mode">
         {themeLabel(themeMode)}
