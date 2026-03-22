@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ThemeMode } from '../hooks/useTheme';
+import { CIRCUIT_CONSTRAINTS } from '../logic/constants';
 
 interface Props {
   numQubits: number;
@@ -8,6 +9,8 @@ interface Props {
   canRedo: boolean;
   numShots: number;
   themeMode: ThemeMode;
+  sidebarCollapsed: boolean;
+  compactMode: boolean;
   onSetQubits: (n: number) => void;
   onSetColumns: (n: number) => void;
   onUndo: () => void;
@@ -16,6 +19,8 @@ interface Props {
   onShowGates: () => void;
   onCycleTheme: () => void;
   onRunShots: () => void;
+  onToggleSidebar: () => void;
+  onToggleCompactMode: () => void;
 }
 
 const themeLabel = (mode: ThemeMode) => {
@@ -31,6 +36,8 @@ const AppHeader: React.FC<Props> = ({
   canRedo,
   numShots,
   themeMode,
+  sidebarCollapsed,
+  compactMode,
   onSetQubits,
   onSetColumns,
   onUndo,
@@ -39,21 +46,28 @@ const AppHeader: React.FC<Props> = ({
   onShowGates,
   onCycleTheme,
   onRunShots,
+  onToggleSidebar,
+  onToggleCompactMode,
 }) => {
+  const canDecQubits = numQubits > CIRCUIT_CONSTRAINTS.MIN_QUBITS;
+  const canIncQubits = numQubits < CIRCUIT_CONSTRAINTS.MAX_QUBITS;
+  const canDecColumns = numColumns > CIRCUIT_CONSTRAINTS.MIN_COLUMNS;
+  const canIncColumns = numColumns < CIRCUIT_CONSTRAINTS.MAX_COLUMNS;
+
   return (
     <header className="app-header">
       <h1>Quantum Circuit Tutor</h1>
 
-      <div className="header-adjuster">
-        <button onClick={() => onSetQubits(numQubits - 1)}>−</button>
+      <div className="header-adjuster" aria-label="Qubit count control">
+        <button aria-label="Decrease qubits" disabled={!canDecQubits} onClick={() => onSetQubits(numQubits - 1)}>−</button>
         <span>{numQubits} qubits</span>
-        <button onClick={() => onSetQubits(numQubits + 1)}>+</button>
+        <button aria-label="Increase qubits" disabled={!canIncQubits} onClick={() => onSetQubits(numQubits + 1)}>+</button>
       </div>
 
-      <div className="header-adjuster">
-        <button onClick={() => onSetColumns(numColumns - 2)}>−</button>
+      <div className="header-adjuster" aria-label="Column count control">
+        <button aria-label="Decrease columns" disabled={!canDecColumns} onClick={() => onSetColumns(numColumns - 2)}>−</button>
         <span>{numColumns} cols</span>
-        <button onClick={() => onSetColumns(numColumns + 2)}>+</button>
+        <button aria-label="Increase columns" disabled={!canIncColumns} onClick={() => onSetColumns(numColumns + 2)}>+</button>
       </div>
 
       <div className="header-spacer" />
@@ -62,6 +76,12 @@ const AppHeader: React.FC<Props> = ({
       <button className="btn" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">Redo</button>
       <button className="btn" onClick={onClear}>Clear</button>
       <button className="btn" onClick={onShowGates} title="Gate reference">Gate Reference</button>
+      <button className="btn" onClick={onToggleSidebar} title="Toggle toolbox sidebar">
+        {sidebarCollapsed ? 'Show Tools' : 'Hide Tools'}
+      </button>
+      <button className={`btn${compactMode ? ' btn-primary' : ''}`} onClick={onToggleCompactMode} title="Toggle compact layout">
+        Compact {compactMode ? 'On' : 'Off'}
+      </button>
       <button className="btn" onClick={onCycleTheme} title="Cycle theme mode">
         {themeLabel(themeMode)}
       </button>

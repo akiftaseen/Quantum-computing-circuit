@@ -36,6 +36,8 @@ type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'state' 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
   const { mode: themeMode, cycleThemeMode } = useTheme();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
   const [stepCol, setStepCol] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('prob');
@@ -138,6 +140,10 @@ const App: React.FC = () => {
     if (!Number.isFinite(parsed)) return;
     const clamped = Math.max(1, Math.min(100000, Math.round(parsed)));
     setNumShots(clamped);
+  };
+
+  const resetNoise = () => {
+    setNoise(defaultNoise);
   };
 
   const handleClear = () => { reset({ ...circuit, gates: [] }); setSelectedId(null); setShotsResult(null); setNoisyShotsResult(null); setStepCol(null); };
@@ -245,22 +251,22 @@ const App: React.FC = () => {
     };
   }, [shotsResult, noisyShotsResult, numShots, circuit.numQubits]);
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'prob', label: 'Probabilities' },
-    { key: 'bloch', label: 'Bloch Spheres' },
-    { key: 'dirac', label: 'Dirac ⟨ψ|' },
-    { key: 'math', label: 'Math Lens' },
-    { key: 'shots', label: 'Shots' },
-    { key: 'analysis', label: 'Analysis' },
-    { key: 'state', label: 'State Lens' },
-    { key: 'algorithms', label: 'Algo Studio' },
-    { key: 'learn', label: 'Learning Studio' },
-    { key: 'walkthrough', label: 'Guided Lab' },
-    { key: 'basis', label: 'Basis Explorer' },
+  const TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: 'prob', label: 'Probabilities', icon: '◎' },
+    { key: 'bloch', label: 'Bloch Spheres', icon: '◔' },
+    { key: 'dirac', label: 'Dirac ⟨ψ|', icon: 'ψ' },
+    { key: 'math', label: 'Math Lens', icon: 'U' },
+    { key: 'shots', label: 'Shots', icon: 'N' },
+    { key: 'analysis', label: 'Analysis', icon: '∆' },
+    { key: 'state', label: 'State Lens', icon: 'ρ' },
+    { key: 'algorithms', label: 'Algo Studio', icon: 'f' },
+    { key: 'learn', label: 'Learning Studio', icon: 'λ' },
+    { key: 'walkthrough', label: 'Guided Lab', icon: '→' },
+    { key: 'basis', label: 'Basis Explorer', icon: '⊗' },
   ];
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${compactMode ? ' compact' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <AppHeader
         numQubits={circuit.numQubits}
         numColumns={circuit.numColumns}
@@ -276,15 +282,20 @@ const App: React.FC = () => {
         onShowGates={() => setShowGateModal(true)}
         onCycleTheme={cycleThemeMode}
         onRunShots={handleRunShots}
+        sidebarCollapsed={sidebarCollapsed}
+        compactMode={compactMode}
+        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+        onToggleCompactMode={() => setCompactMode((prev) => !prev)}
       />
 
       {/* ─── Body ─── */}
       <div className="app-body">
         {/* ─── Left Sidebar ─── */}
-        <aside className="sidebar">
+        <aside className="sidebar" aria-hidden={sidebarCollapsed}>
           <GatePalette />
           <div className="sidebar-section">
             <h3 className="sidebar-heading">Templates</h3>
+            <p className="sidebar-note">Load a circuit blueprint, then customize gates and run shots.</p>
             {TEMPLATES.map(t => (
               <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
             ))}
@@ -306,24 +317,28 @@ const App: React.FC = () => {
             />
             {/* Stepper bar */}
             <div className="stepper-row">
-              <span className="stepper-label">Step:</span>
+              <span className="stepper-label">Execution:</span>
               <input
                 type="range"
                 min={0}
                 max={maxStepCol + 1}
                 value={stepCol === null ? maxStepCol + 1 : stepCol}
                 onChange={e => { const v = +e.target.value; setStepCol(v > maxStepCol ? null : v); }}
-                className="stepper-slider"
+                className="ui-slider stepper-slider"
+                aria-label="Execution step"
               />
               <span className="stepper-val">{stepCol === null ? 'All' : `Col ${stepCol}`}</span>
-              <input
-                type="number"
-                min={1}
-                max={100000}
-                value={numShots}
-                onChange={e => updateNumShots(e.target.value)}
-                className="shots-input"
-              />
+              <label className="stepper-shots">
+                <span className="stepper-label">Shots</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  value={numShots}
+                  onChange={e => updateNumShots(e.target.value)}
+                  className="shots-input"
+                />
+              </label>
             </div>
           </div>
 
@@ -342,6 +357,8 @@ const App: React.FC = () => {
                     const v = +e.target.value;
                     handleUpdateGate(paramEdit.id, { params: [v] });
                   }}
+                  className="ui-slider"
+                  aria-label="Gate parameter"
                 />
                 <input
                   type="number"
@@ -374,7 +391,8 @@ const App: React.FC = () => {
                   className={`results-tab${tab === t.key ? ' active' : ''}`}
                   onClick={() => setTab(t.key)}
                 >
-                  {t.label}
+                  <span className="results-tab-icon" aria-hidden="true">{t.icon}</span>
+                  <span>{t.label}</span>
                 </button>
               ))}
             </div>
@@ -405,17 +423,19 @@ const App: React.FC = () => {
                   {unitaryMatrix ? (
                     <div>
                       <h4>Overall Unitary ({1 << circuit.numQubits}×{1 << circuit.numQubits})</h4>
-                      <table className="matrix-table">
-                        <tbody>
-                          {unitaryMatrix.map((row, i) => (
-                            <tr key={i}>
-                              {row.map((z, j) => (
-                                <td key={j} className="mat-cell">{formatComplex(z, 3)}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div className="matrix-wrap">
+                        <table className="matrix-table">
+                          <tbody>
+                            {unitaryMatrix.map((row, i) => (
+                              <tr key={i}>
+                                {row.map((z, j) => (
+                                  <td key={j} className="mat-cell">{formatComplex(z, 3)}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   ) : (
                     <p className="empty-msg">Unable to compute unitary for this circuit configuration.</p>
@@ -425,26 +445,40 @@ const App: React.FC = () => {
 
               {tab === 'shots' && (
                 <div className="shots-panel">
-                  <p className="shots-subtitle">
-                    Sample computational-basis outcomes and inspect how hardware-style noise shifts the distribution.
-                  </p>
+                  <div className="shots-header-row">
+                    <p className="shots-subtitle">
+                      Sample computational-basis outcomes and inspect how hardware-style noise shifts the distribution.
+                    </p>
+                    <div className="shots-header-actions">
+                      <span className={`shots-noise-state${noise.enabled ? ' on' : ''}`}>
+                        Noise {noise.enabled ? 'ON' : 'OFF'}
+                      </span>
+                      <button className="btn" onClick={resetNoise} disabled={!noise.enabled}>Reset Noise</button>
+                    </div>
+                  </div>
 
                   <div className="noise-controls">
                     <label>
                       <span>Depolarizing</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.depolarizing1q}
+                        className="ui-slider"
+                        aria-label="Depolarizing noise"
                         onChange={(e) => updateNoise({ depolarizing1q: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.depolarizing1q)}</strong>
                     </label>
                     <label>
                       <span>Amplitude damping</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.amplitudeDamping}
+                        className="ui-slider"
+                        aria-label="Amplitude damping noise"
                         onChange={(e) => updateNoise({ amplitudeDamping: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.amplitudeDamping)}</strong>
                     </label>
                     <label>
                       <span>Readout error</span>
                       <input type="range" min={0} max={0.15} step={0.005} value={noise.readoutError}
+                        className="ui-slider"
+                        aria-label="Readout error noise"
                         onChange={(e) => updateNoise({ readoutError: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.readoutError)}</strong>
                     </label>
