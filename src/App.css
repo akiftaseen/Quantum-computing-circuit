@@ -451,12 +451,12 @@ textarea:focus-visible {
 
 .noise-controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 12px;
   margin-bottom: 12px;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--bg) 85%, var(--card));
 }
 
@@ -478,15 +478,8 @@ textarea:focus-visible {
   color: var(--primary);
 }
 
-.noise-toggle {
-  justify-content: center;
-  align-items: center;
-  border-right: 1px solid var(--border);
-  padding-right: 6px;
-}
-
-.noise-toggle input {
-  margin-right: 6px;
+.noise-controls label input[type="range"] {
+  width: 100%;
 }
 
 .shots-panel {
@@ -1554,13 +1547,6 @@ textarea:focus-visible {
   .learning-briefs,
   .basis-grid {
     grid-template-columns: 1fr;
-  }
-
-  .noise-toggle {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    padding-right: 0;
-    padding-bottom: 8px;
   }
 
   .dirac-prob-row {
