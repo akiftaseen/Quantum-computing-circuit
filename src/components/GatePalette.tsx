@@ -61,9 +61,7 @@ const GatePalette: React.FC = () => {
   };
 
   return (
-    <aside className="palette">
-      <h3 className="palette-heading">Gates</h3>
-
+    <div className="palette">
       {CATEGORIES.map((cat) => (
         <div key={cat.name} className="palette-group">
           <div className="palette-cat">{cat.name}</div>
@@ -84,7 +82,7 @@ const GatePalette: React.FC = () => {
       ))}
 
       <p className="palette-hint">Drag gates into the circuit workspace</p>
-    </aside>
+    </div>
   );
 };
 

@@ -2,6 +2,8 @@ import React from 'react';
 import type { ThemeMode } from '../hooks/useTheme';
 import { CIRCUIT_CONSTRAINTS } from '../logic/constants';
 
+import { Undo2, Redo2, Trash2, Info, PanelLeftClose, PanelLeftOpen, Sun, Moon, Monitor } from 'lucide-react';
+
 interface Props {
   numQubits: number;
   numColumns: number;
@@ -25,6 +27,12 @@ const themeLabel = (mode: ThemeMode) => {
   if (mode === 'dark') return 'Dark';
   if (mode === 'light') return 'Light';
   return 'Auto';
+};
+
+const ThemeIcon = ({ mode, size }: { mode: ThemeMode, size: number }) => {
+  if (mode === 'dark') return <Moon size={size} strokeWidth={2} className="btn-icon-svg" />;
+  if (mode === 'light') return <Sun size={size} strokeWidth={2} className="btn-icon-svg" />;
+  return <Monitor size={size} strokeWidth={2} className="btn-icon-svg" />;
 };
 
 const AppHeader: React.FC<Props> = ({
@@ -68,17 +76,45 @@ const AppHeader: React.FC<Props> = ({
 
       <div className="header-spacer" />
 
-      <button className="btn" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">Undo</button>
-      <button className="btn" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">Redo</button>
-      <button className="btn" onClick={onClear}>Clear</button>
-      <button className="btn" onClick={onShowGates} title="Gate reference">Gate Reference</button>
-      <button className="btn" onClick={onToggleSidebar} title="Toggle toolbox sidebar">
-        {sidebarCollapsed ? 'Show Tools' : 'Hide Tools'}
-      </button>
-      <button className="btn" onClick={onCycleTheme} title="Cycle theme mode">
-        {themeLabel(themeMode)}
-      </button>
-      <button className="btn btn-primary" onClick={onRunShots}>Run {numShots} shots</button>
+      <div className="header-actions">
+        <button className="btn btn-icon" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
+          <Undo2 size={18} strokeWidth={2} className="btn-icon-svg" />
+        </button>
+        <button className="btn btn-icon" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+          <Redo2 size={18} strokeWidth={2} className="btn-icon-svg" />
+        </button>
+        <button className="btn btn-icon" onClick={onClear} title="Clear circuit" aria-label="Clear circuit">
+          <Trash2 size={18} strokeWidth={2} className="btn-icon-svg" />
+        </button>
+        <div className="header-divider" />
+        <button className="btn btn-icon" onClick={onShowGates} title="Gate reference" aria-label="Gate reference">
+          <Info size={18} strokeWidth={2} className="btn-icon-svg" />
+        </button>
+        <button
+          className="btn btn-icon"
+          onClick={onToggleSidebar}
+          title={sidebarCollapsed ? 'Show toolbox' : 'Hide toolbox'}
+          aria-label={sidebarCollapsed ? 'Show toolbox' : 'Hide toolbox'}
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={18} strokeWidth={2} className="btn-icon-svg" />
+          ) : (
+            <PanelLeftClose size={18} strokeWidth={2} className="btn-icon-svg" />
+          )}
+        </button>
+        <button
+          className="btn btn-icon"
+          onClick={onCycleTheme}
+          title={`Theme: ${themeLabel(themeMode)} (click to cycle)`}
+          aria-label={`Theme: ${themeLabel(themeMode)}`}
+        >
+          <ThemeIcon mode={themeMode} size={18} />
+        </button>
+        <div className="header-divider" />
+        <button className="btn btn-primary" onClick={onRunShots} title={`Run ${numShots} shots`}>
+          Run
+        </button>
+      </div>
     </header>
   );
 };

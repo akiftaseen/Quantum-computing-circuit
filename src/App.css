@@ -183,6 +183,20 @@ textarea:focus-visible {
   flex: 1;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border);
+  margin: 0 4px;
+}
+
 /* ---- Qubit Controls ---- */
 .qubit-control {
   display: flex;
@@ -251,6 +265,21 @@ textarea:focus-visible {
   border-color: var(--primary-hover);
 }
 
+.btn-icon {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 /* ---- Main Body ---- */
 .app-body {
   display: flex;
@@ -260,19 +289,38 @@ textarea:focus-visible {
 
 /* ===================== Left Sidebar ===================== */
 .sidebar {
-  width: 190px;
-  min-width: 170px;
-  max-width: 360px;
-  padding: 12px;
+  position: relative;
   background: var(--card);
   border-right: 1px solid var(--border);
-  overflow: auto;
   flex-shrink: 0;
+  display: flex;
+  transition: opacity 140ms ease;
+  will-change: width;
+}
+
+.sidebar-content {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  resize: horizontal;
-  transition: width 180ms ease, min-width 180ms ease, padding 180ms ease, opacity 140ms ease;
+  min-width: 0;
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 150ms ease;
+}
+
+.sidebar-resizer:hover, .sidebar-resizer.resizing {
+  background: var(--primary);
 }
 
 .sidebar:hover {
@@ -280,18 +328,23 @@ textarea:focus-visible {
 }
 
 .app-shell.sidebar-collapsed .sidebar {
-  width: 0;
-  min-width: 0;
+  width: 0 !important;
+  min-width: 0 !important;
   padding: 0;
   border-right: none;
   opacity: 0;
   overflow: hidden;
-  resize: none;
   pointer-events: none;
 }
 
+.sidebar-divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 12px 0;
+}
+
 .sidebar-section {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .sidebar-note {

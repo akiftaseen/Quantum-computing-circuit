@@ -41,8 +41,37 @@ const App: React.FC = () => {
   const [noisyShotsResult, setNoisyShotsResult] = useState<Map<string, number> | null>(null);
   const [noise, setNoise] = useState<NoiseConfig>(defaultNoise);
   const [showGateModal, setShowGateModal] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(200);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
 
   // Keyboard shortcuts are defined after handlers to avoid stale references.
+
+  // Sidebar resizer handlers
+  const startResizingSidebar = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+  }, []);
+
+  const stopResizingSidebar = useCallback(() => {
+    setIsResizingSidebar(false);
+  }, []);
+
+  const resizeSidebar = useCallback((e: MouseEvent) => {
+    if (isResizingSidebar) {
+      setSidebarWidth(Math.min(Math.max(160, e.clientX), 400));
+    }
+  }, [isResizingSidebar]);
+
+  useEffect(() => {
+    if (isResizingSidebar) {
+      window.addEventListener('mousemove', resizeSidebar);
+      window.addEventListener('mouseup', stopResizingSidebar);
+      return () => {
+        window.removeEventListener('mousemove', resizeSidebar);
+        window.removeEventListener('mouseup', stopResizingSidebar);
+      };
+    }
+  }, [isResizingSidebar, resizeSidebar, stopResizingSidebar]);
 
   // Live simulation
   const simResult = useMemo(() => {
@@ -246,8 +275,7 @@ const App: React.FC = () => {
     { key: 'dirac', label: 'Dirac ⟨ψ|', icon: 'ψ' },
     { key: 'math', label: 'Math Lens', icon: 'U' },
     { key: 'shots', label: 'Shots', icon: 'N' },
-    { key: 'analysis', label: 'Analysis', icon: '∆' },
-    { key: 'state', label: 'State Lens', icon: 'ρ' },
+    { key: 'analysis', label: 'Analysis & State', icon: '∆' },
   ];
 
   return (
@@ -274,15 +302,25 @@ const App: React.FC = () => {
       {/* ─── Body ─── */}
       <div className="app-body">
         {/* ─── Left Sidebar ─── */}
-        <aside className="sidebar" aria-hidden={sidebarCollapsed}>
-          <GatePalette />
-          <div className="sidebar-section">
-            <h3 className="sidebar-heading">Templates</h3>
-            <p className="sidebar-note">Load a circuit blueprint, then customize gates and run shots.</p>
-            {TEMPLATES.map(t => (
-              <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
-            ))}
+        <aside className="sidebar" aria-hidden={sidebarCollapsed} style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}>
+          <div className="sidebar-content">
+            <h3 className="sidebar-heading">Gate Library</h3>
+            <GatePalette />
+            
+            <div className="sidebar-divider" />
+            
+            <div className="sidebar-section">
+              <h3 className="sidebar-heading">Templates</h3>
+              <p className="sidebar-note">Start from a template, tweak gates, then run.</p>
+              {TEMPLATES.map(t => (
+                <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
+              ))}
+            </div>
           </div>
+          <div 
+            className={`sidebar-resizer ${isResizingSidebar ? 'resizing' : ''}`} 
+            onMouseDown={startResizingSidebar} 
+          />
         </aside>
 
         {/* ─── Main Area ─── */}
@@ -430,7 +468,7 @@ const App: React.FC = () => {
                 <div className="shots-panel">
                   <div className="shots-header-row">
                     <p className="shots-subtitle">
-                      Sample computational-basis outcomes and inspect how hardware-style noise shifts the distribution.
+                      Compare ideal and noisy measurement distributions.
                     </p>
                     <div className="shots-header-actions">
                       <span className={`shots-noise-state${noise.enabled ? ' on' : ''}`}>
@@ -510,30 +548,30 @@ const App: React.FC = () => {
                   ) : (
                     <div className="shots-empty">
                       <p className="empty-msg">Run shots to generate measurement statistics.</p>
-                      <p className="shots-empty-note">Tip: default is 1024 shots; try 512 to 4096 for stable comparisons.</p>
+                      <p className="shots-empty-note">Tip: 1024 is default; 512 to 4096 works well for comparisons.</p>
                     </div>
                   )}
                 </div>
               )}
 
               {tab === 'analysis' && (
-                <div className="analysis-tab-wrap">
+                <div className="analysis-tab-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <Suspense fallback={<p className="empty-msg">Loading state insights...</p>}>
+                    <QuantumStateInsightsPanel
+                      state={simResult.state}
+                      numQubits={circuit.numQubits}
+                      shotsResult={shotsResult}
+                      noisyShotsResult={noisyShotsResult}
+                      noiseEnabled={noise.enabled}
+                    />
+                  </Suspense>
+                  
+                  <div className="sidebar-divider" style={{ margin: '0' }} />
+                  
                   <Suspense fallback={<p className="empty-msg">Loading analysis...</p>}>
                     <CircuitAnalysisPanel circuit={circuit} />
                   </Suspense>
                 </div>
-              )}
-
-              {tab === 'state' && (
-                <Suspense fallback={<p className="empty-msg">Loading state insights...</p>}>
-                  <QuantumStateInsightsPanel
-                    state={simResult.state}
-                    numQubits={circuit.numQubits}
-                    shotsResult={shotsResult}
-                    noisyShotsResult={noisyShotsResult}
-                    noiseEnabled={noise.enabled}
-                  />
-                </Suspense>
               )}
 
             </div>
