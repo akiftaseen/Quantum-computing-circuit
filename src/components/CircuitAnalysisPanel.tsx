@@ -23,6 +23,35 @@ const CircuitAnalysisPanel: React.FC<Props> = ({ circuit }) => {
   const sortedGateCounts = Object.entries(metrics.gateCount)
     .sort((a, b) => b[1] - a[1]);
 
+  const learningInsights = useMemo(() => {
+    const notes: string[] = [];
+
+    if (metrics.totalGates === 0) {
+      notes.push('Start with H on one qubit, then run shots to observe superposition.');
+      return notes;
+    }
+
+    if (entanglingRatio >= 30) {
+      notes.push('This circuit is entanglement-heavy. Compare Bloch Spheres and Dirac views to see non-separable states.');
+    } else {
+      notes.push('This circuit is mostly single-qubit. Use it to build intuition before adding multi-qubit interactions.');
+    }
+
+    if ((metrics.gateCount.T ?? 0) + (metrics.gateCount.Tdg ?? 0) > 0) {
+      notes.push('T and T† gates add phase precision; inspect how they change outcomes after surrounding H gates.');
+    }
+
+    if ((metrics.gateCount.Rx ?? 0) + (metrics.gateCount.Ry ?? 0) + (metrics.gateCount.Rz ?? 0) > 0) {
+      notes.push('Rotation gates map directly to Bloch sphere movement. Step through columns to track geometric evolution.');
+    }
+
+    if ((metrics.gateCount.CCX ?? 0) > 0) {
+      notes.push('CCX (Toffoli) is a key reversible logic primitive and appears in many oracle-style constructions.');
+    }
+
+    return notes.slice(0, 3);
+  }, [entanglingRatio, metrics]);
+
   return (
     <div className="analysis-panel">
       <div className="analysis-header-row">
@@ -96,6 +125,17 @@ const CircuitAnalysisPanel: React.FC<Props> = ({ circuit }) => {
               +{optimizations.length - 5} more suggestions
             </div>
           )}
+        </div>
+      )}
+
+      {learningInsights.length > 0 && (
+        <div className="analysis-learning">
+          <div className="analysis-optimization-title">Learning Insights</div>
+          <ul className="analysis-optimization-list">
+            {learningInsights.map((insight) => (
+              <li key={insight} className="analysis-optimization-item">{insight}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

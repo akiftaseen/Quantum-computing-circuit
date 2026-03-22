@@ -10,6 +10,7 @@ import {
   S_GATE, SDG_GATE, T_GATE, TDG_GATE, Rx, Ry, Rz, PGate,
   iSWAP_GATE, CCX_GATE, XX, YY, ZZ,
 } from './gate';
+import { applyAmplitudeDamping, applyDepolarizing, flipReadout, type NoiseConfig } from './noiseModel';
 import type { Matrix2 } from './gate';
 
 export const getMatrix = (g: GateName, p: number[]): Matrix2 => {
@@ -132,6 +133,52 @@ export const runWithShots = (
       }
     }
   }
+  return hist;
+};
+
+const sampleFromState = (state: Complex[], numQubits: number): number => {
+  const dim = 1 << numQubits;
+  const probs = state.map((a) => a.re * a.re + a.im * a.im);
+  const r = Math.random();
+  let cum = 0;
+  for (let i = 0; i < dim; i++) {
+    cum += probs[i];
+    if (r < cum) return i;
+  }
+  return dim - 1;
+};
+
+export const runWithNoiseShots = (
+  circuit: CircuitState,
+  shots: number,
+  noise: NoiseConfig,
+): Map<string, number> => {
+  const { numQubits } = circuit;
+  const hist = new Map<string, number>();
+
+  if (!noise.enabled) return runWithShots(circuit, shots);
+
+  for (let s = 0; s < shots; s++) {
+    const ideal = runCircuit(circuit, undefined, true).state;
+    let noisy = ideal;
+
+    for (let q = 0; q < numQubits; q++) {
+      noisy = applyDepolarizing(noisy, q, numQubits, noise.depolarizing1q);
+      noisy = applyAmplitudeDamping(noisy, q, numQubits, noise.amplitudeDamping);
+    }
+
+    let idx = sampleFromState(noisy, numQubits);
+
+    if (noise.readoutError > 0) {
+      let bits = idx.toString(2).padStart(numQubits, '0').split('');
+      bits = bits.map((b) => String(flipReadout(Number(b), noise.readoutError)));
+      idx = parseInt(bits.join(''), 2);
+    }
+
+    const key = idx.toString(2).padStart(numQubits, '0');
+    hist.set(key, (hist.get(key) || 0) + 1);
+  }
+
   return hist;
 };
 

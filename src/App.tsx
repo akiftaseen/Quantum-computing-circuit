@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
 import './App.css';
 import { formatComplex } from './logic/complex';
-import { runCircuit, runWithShots, computeUnitary2Q } from './logic/circuitRunner';
+import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary2Q } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
 import { loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATES } from './logic/templates';
@@ -10,21 +10,27 @@ import { useTheme } from './hooks/useTheme';
 import type { CircuitState, PlacedGate } from './logic/circuitTypes';
 import { isParametric, newGateId, gateDisplayName, isSingleQubit } from './logic/circuitTypes';
 import { validateQubitCount, validateColumnCount } from './logic/validation';
+import { defaultNoise, type NoiseConfig } from './logic/noiseModel';
 
 import GatePalette from './components/GatePalette';
 import CircuitGrid from './components/CircuitGrid';
 import ProbabilityChart from './components/ProbabilityChart';
-import BlochSphere from './components/BlochSphere';
-import DiracNotation from './components/DiracNotation';
 import GateDetailsPanel from './components/GateDetailsPanel';
 import ShotsHistogram from './components/ShotsHistogram';
-import GateDescriptionsModal from './components/GateDescriptionsModal';
-import CircuitAnalysisPanel from './components/CircuitAnalysisPanel';
 import AppHeader from './components/AppHeader';
+import SaveSlotsPanel from './components/SaveSlotsPanel';
+
+const BlochSphere = lazy(() => import('./components/BlochSphere'));
+const DiracNotation = lazy(() => import('./components/DiracNotation'));
+const GateDescriptionsModal = lazy(() => import('./components/GateDescriptionsModal'));
+const CircuitAnalysisPanel = lazy(() => import('./components/CircuitAnalysisPanel'));
+const LearningPanel = lazy(() => import('./components/LearningPanel'));
+const WalkthroughPanel = lazy(() => import('./components/WalkthroughPanel'));
+const BasisExplorerPanel = lazy(() => import('./components/BasisExplorerPanel'));
 
 const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
 
-type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis';
+type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'learn' | 'walkthrough' | 'basis';
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
@@ -34,6 +40,8 @@ const App: React.FC = () => {
   const [tab, setTab] = useState<Tab>('prob');
   const [numShots, setNumShots] = useState(1024);
   const [shotsResult, setShotsResult] = useState<Map<string, number> | null>(null);
+  const [noisyShotsResult, setNoisyShotsResult] = useState<Map<string, number> | null>(null);
+  const [noise, setNoise] = useState<NoiseConfig>(defaultNoise);
   const [paramEdit, setParamEdit] = useState<{ id: string; value: number } | null>(null);
   const [showGateModal, setShowGateModal] = useState(false);
 
@@ -105,17 +113,29 @@ const App: React.FC = () => {
   const handleRunShots = () => {
     const hist = runWithShots(circuit, numShots);
     setShotsResult(hist);
+    if (noise.enabled) {
+      setNoisyShotsResult(runWithNoiseShots(circuit, numShots, noise));
+    } else {
+      setNoisyShotsResult(null);
+    }
     setTab('shots');
   };
 
-  const handleClear = () => { reset({ ...circuit, gates: [] }); setSelectedId(null); setShotsResult(null); setStepCol(null); };
+  const handleClear = () => { reset({ ...circuit, gates: [] }); setSelectedId(null); setShotsResult(null); setNoisyShotsResult(null); setStepCol(null); };
 
   const handleTemplate = (build: () => CircuitState) => {
     const c = build();
     reset(c);
     setSelectedId(null);
     setShotsResult(null);
+    setNoisyShotsResult(null);
     setStepCol(null);
+  };
+
+  const handleLoadTemplateByName = (name: string) => {
+    const template = TEMPLATES.find((t) => t.name === name);
+    if (!template) return;
+    handleTemplate(template.build);
   };
 
   // Keyboard shortcuts
@@ -173,6 +193,9 @@ const App: React.FC = () => {
     { key: 'math', label: 'Math Lens' },
     { key: 'shots', label: 'Shots' },
     { key: 'analysis', label: 'Analysis' },
+    { key: 'learn', label: 'Learning Studio' },
+    { key: 'walkthrough', label: 'Guided Lab' },
+    { key: 'basis', label: 'Basis Explorer' },
   ];
 
   return (
@@ -204,6 +227,18 @@ const App: React.FC = () => {
             {TEMPLATES.map(t => (
               <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
             ))}
+          </div>
+          <div className="sidebar-section">
+            <SaveSlotsPanel
+              circuit={circuit}
+              onLoadCircuit={(saved) => {
+                reset(saved);
+                setSelectedId(null);
+                setShotsResult(null);
+                setNoisyShotsResult(null);
+                setStepCol(null);
+              }}
+            />
           </div>
         </aside>
 
@@ -303,15 +338,19 @@ const App: React.FC = () => {
               )}
 
               {tab === 'bloch' && (
-                <div className="bloch-grid">
-                  {blochVectors.map((v, i) => (
-                    <BlochSphere key={i} vector={v} label={`q${i}`} />
-                  ))}
-                </div>
+                <Suspense fallback={<p className="empty-msg">Loading Bloch view...</p>}>
+                  <div className="bloch-grid">
+                    {blochVectors.map((v, i) => (
+                      <BlochSphere key={i} vector={v} label={`q${i}`} />
+                    ))}
+                  </div>
+                </Suspense>
               )}
 
               {tab === 'dirac' && (
-                <DiracNotation state={simResult.state} numQubits={circuit.numQubits} />
+                <Suspense fallback={<p className="empty-msg">Loading Dirac view...</p>}>
+                  <DiracNotation state={simResult.state} numQubits={circuit.numQubits} />
+                </Suspense>
               )}
 
               {tab === 'math' && (
@@ -339,8 +378,48 @@ const App: React.FC = () => {
 
               {tab === 'shots' && (
                 <div>
+                  <div className="noise-controls">
+                    <label className="noise-toggle">
+                      <input
+                        type="checkbox"
+                        checked={noise.enabled}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setNoise((prev) => ({ ...prev, enabled }));
+                          if (!enabled) setNoisyShotsResult(null);
+                        }}
+                      />
+                      Noise mode
+                    </label>
+                    <label>
+                      Depol
+                      <input type="range" min={0} max={0.2} step={0.005} value={noise.depolarizing1q}
+                        onChange={(e) => setNoise((prev) => ({ ...prev, depolarizing1q: Number(e.target.value) }))} />
+                    </label>
+                    <label>
+                      Damp
+                      <input type="range" min={0} max={0.2} step={0.005} value={noise.amplitudeDamping}
+                        onChange={(e) => setNoise((prev) => ({ ...prev, amplitudeDamping: Number(e.target.value) }))} />
+                    </label>
+                    <label>
+                      Readout
+                      <input type="range" min={0} max={0.15} step={0.005} value={noise.readoutError}
+                        onChange={(e) => setNoise((prev) => ({ ...prev, readoutError: Number(e.target.value) }))} />
+                    </label>
+                  </div>
                   {shotsResult ? (
-                    <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                    <div className="shots-compare-grid">
+                      <div>
+                        <h4 className="shots-title">Ideal</h4>
+                        <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                      </div>
+                      {noise.enabled && noisyShotsResult && (
+                        <div>
+                          <h4 className="shots-title">Noisy</h4>
+                          <ShotsHistogram histogram={noisyShotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <p className="empty-msg">Click "▶ Run" to sample measurement outcomes.</p>
                   )}
@@ -349,15 +428,45 @@ const App: React.FC = () => {
 
               {tab === 'analysis' && (
                 <div className="analysis-tab-wrap">
-                  <CircuitAnalysisPanel circuit={circuit} />
+                  <Suspense fallback={<p className="empty-msg">Loading analysis...</p>}>
+                    <CircuitAnalysisPanel circuit={circuit} />
+                  </Suspense>
                 </div>
+              )}
+
+              {tab === 'learn' && (
+                <Suspense fallback={<p className="empty-msg">Loading learning guides...</p>}>
+                  <LearningPanel onUseTemplate={handleLoadTemplateByName} />
+                </Suspense>
+              )}
+
+              {tab === 'walkthrough' && (
+                <Suspense fallback={<p className="empty-msg">Loading walkthrough...</p>}>
+                  <WalkthroughPanel
+                    circuit={circuit}
+                    shotsResult={shotsResult}
+                    onRunShots={handleRunShots}
+                    onLoadTemplate={handleLoadTemplateByName}
+                  />
+                </Suspense>
+              )}
+
+              {tab === 'basis' && (
+                <Suspense fallback={<p className="empty-msg">Loading basis explorer...</p>}>
+                  <BasisExplorerPanel
+                    state={simResult.state}
+                    numQubits={circuit.numQubits}
+                  />
+                </Suspense>
               )}
 
             </div>
           </div>
         </div>
       </div>
-      <GateDescriptionsModal isOpen={showGateModal} onClose={() => setShowGateModal(false)} />
+      <Suspense fallback={null}>
+        <GateDescriptionsModal isOpen={showGateModal} onClose={() => setShowGateModal(false)} />
+      </Suspense>
     </div>
   );
 };

@@ -6,6 +6,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
 - Build quantum circuits with drag-and-drop gates.
 - Simulate state vectors, probabilities, Bloch vectors, and measurement shots.
+- Compare ideal and noisy sampling outcomes.
 - Step through execution column-by-column.
 - Inspect gate matrices and overall unitary (for small systems).
 
@@ -16,6 +17,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Supports up to 6 qubits.
 - Auto-expands columns when placing gates near the end.
 - Undo/redo history.
+- Named save slots in local storage (quick save/load for experiments).
 
 ### Quantum Gates
 - Single-qubit: `I H X Y Z S Sdg T Tdg Rx Ry Rz P`
@@ -31,8 +33,16 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
 ### Educational Tools
 - Gate reference modal with formulas and use-cases.
-- Circuit analysis panel (gate counts, depth, estimated cost, optimization hints).
+- Circuit analysis panel (gate counts, depth, estimated cost, optimization hints, and contextual learning insights).
+- Guided learning tab with lesson checklists, concept briefs, and one-click template loading.
+- Interactive walkthrough tab for building and validating a Bell pair step-by-step.
+- Measurement basis lab (X/Y/Z basis probabilities per qubit via Bloch-vector inference).
 - Templates including Bell, GHZ, QFT, Grover, VQE, Ising examples.
+
+### Noise Exploration
+- Toggle noise mode in Shots tab.
+- Configure depolarizing noise, amplitude damping, and readout error.
+- Side-by-side ideal vs noisy histogram comparison for intuition.
 
 ## Keyboard Shortcuts
 
@@ -50,6 +60,15 @@ Theme mode cycles with the header button:
 - Auto (system preference)
 
 Theme preference is persisted in local storage.
+
+## Learning Workflow
+
+- Use `Learning Studio` tab for short guided experiments and concept briefs.
+- Use `Guided Lab` tab for step-by-step Bell pair construction.
+- Use `Basis Explorer` tab to compare X/Y/Z measurement expectations.
+- Use `Analysis` tab for complexity and optimization feedback.
+- Use `Shots` tab with noise mode to understand hardware effects.
+- Save milestone circuits in sidebar save slots for iterative practice and comparison.
 
 ## Run Locally
 
@@ -90,8 +109,8 @@ npm run test:coverage
 ## Project Structure
 
 - `src/App.tsx`: Main application composition.
-- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `CircuitAnalysisPanel`, etc.).
-- `src/logic/`: Simulation core, gates, analysis, and URL loading utilities.
+- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `CircuitAnalysisPanel`, `LearningPanel`, `SaveSlotsPanel`, etc.).
+- `src/logic/`: Simulation core, gates, analysis, noise modeling, and URL loading utilities.
 - `src/hooks/`: Reusable hooks (`useCircuitHistory`, `useTheme`).
 - `src/test/`: Test setup.
 

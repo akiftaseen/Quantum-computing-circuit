@@ -208,6 +208,50 @@ textarea:focus-visible {
   color: var(--text);
 }
 
+.save-slots-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.save-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.save-slot-card {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.save-slot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-slot-title {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.save-slot-meta {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-3);
+  line-height: 1.35;
+}
+
+.save-slot-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+
 /* ===================== Main Content ===================== */
 .main-area {
   flex: 1;
@@ -403,6 +447,305 @@ textarea:focus-visible {
 
 .results-content > * {
   animation: panel-fade-in 220ms ease;
+}
+
+.noise-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.noise-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.noise-toggle {
+  justify-content: center;
+}
+
+.noise-toggle input {
+  margin-right: 6px;
+}
+
+.shots-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.shots-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.learning-panel {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.learning-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.learning-subtitle {
+  margin: 8px 0 14px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.learning-lessons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.learning-card {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.learning-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.learning-card-focus {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--primary) 70%, var(--text));
+}
+
+.learning-card-outcome {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.learning-checklist {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-2);
+  display: grid;
+  gap: 4px;
+}
+
+.learning-section {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.learning-section-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.learning-briefs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.learning-brief-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 10px;
+}
+
+.learning-brief-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.learning-brief-summary,
+.learning-brief-watch {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.learning-brief-watch {
+  margin-top: 8px;
+}
+
+.learning-reflection-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.walkthrough-panel,
+.basis-panel {
+  max-width: 920px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.walkthrough-header,
+.basis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.walkthrough-title,
+.basis-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.walkthrough-progress {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-bg);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.walkthrough-subtitle,
+.basis-subtitle {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.walkthrough-steps,
+.basis-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.walkthrough-step,
+.basis-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 10px;
+}
+
+.walkthrough-step.done {
+  border-color: color-mix(in srgb, #22c55e 35%, var(--border));
+  background: color-mix(in srgb, #22c55e 10%, var(--bg));
+}
+
+.walkthrough-step-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.basis-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+.walkthrough-step-detail,
+.walkthrough-step-status {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.walkthrough-step-status {
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+.walkthrough-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.basis-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.basis-controls select {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: var(--card);
+}
+
+.basis-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.basis-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 54px;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.basis-bar {
+  height: 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  overflow: hidden;
+}
+
+.basis-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 70%, #fff), var(--primary));
+}
+
+.basis-bloch-readout {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
 }
 
 .empty-msg {
@@ -677,6 +1020,14 @@ textarea:focus-visible {
   font-size: 11px;
   color: var(--text-2);
   margin-top: 6px;
+}
+
+.analysis-learning {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+  background: color-mix(in srgb, var(--primary-bg) 55%, var(--card));
 }
 
 /* ---- Gate descriptions modal ---- */
@@ -1118,6 +1469,13 @@ textarea:focus-visible {
   .results-panel {
     max-height: 260px;
     resize: none;
+  }
+
+  .noise-controls,
+  .learning-lessons,
+  .learning-briefs,
+  .basis-grid {
+    grid-template-columns: 1fr;
   }
 
   .dirac-prob-row {
