@@ -17,7 +17,6 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Supports up to 6 qubits.
 - Auto-expands columns when placing gates near the end.
 - Undo/redo history.
-- Named save slots in local storage (quick save/load for experiments).
 
 ### Quantum Gates
 - Single-qubit: `I H X Y Z S Sdg T Tdg Rx Ry Rz P`
@@ -68,7 +67,7 @@ Theme preference is persisted in local storage.
 - Use `Basis Explorer` tab to compare X/Y/Z measurement expectations.
 - Use `Analysis` tab for complexity and optimization feedback.
 - Use `Shots` tab with noise mode to understand hardware effects.
-- Save milestone circuits in sidebar save slots for iterative practice and comparison.
+- Use templates and parameter tuning to iterate on milestone circuits and compare outcomes.
 
 ## Run Locally
 

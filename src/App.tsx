@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
 import './App.css';
 import { formatComplex } from './logic/complex';
-import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary2Q } from './logic/circuitRunner';
+import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
 import { loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATES } from './logic/templates';
@@ -18,7 +18,6 @@ import ProbabilityChart from './components/ProbabilityChart';
 import GateDetailsPanel from './components/GateDetailsPanel';
 import ShotsHistogram from './components/ShotsHistogram';
 import AppHeader from './components/AppHeader';
-import SaveSlotsPanel from './components/SaveSlotsPanel';
 
 const BlochSphere = lazy(() => import('./components/BlochSphere'));
 const DiracNotation = lazy(() => import('./components/DiracNotation'));
@@ -27,10 +26,12 @@ const CircuitAnalysisPanel = lazy(() => import('./components/CircuitAnalysisPane
 const LearningPanel = lazy(() => import('./components/LearningPanel'));
 const WalkthroughPanel = lazy(() => import('./components/WalkthroughPanel'));
 const BasisExplorerPanel = lazy(() => import('./components/BasisExplorerPanel'));
+const QuantumStateInsightsPanel = lazy(() => import('./components/QuantumStateInsightsPanel'));
+const AlgorithmStudioPanel = lazy(() => import('./components/AlgorithmStudioPanel'));
 
 const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
 
-type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'learn' | 'walkthrough' | 'basis';
+type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'state' | 'algorithms' | 'learn' | 'walkthrough' | 'basis';
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
@@ -42,7 +43,6 @@ const App: React.FC = () => {
   const [shotsResult, setShotsResult] = useState<Map<string, number> | null>(null);
   const [noisyShotsResult, setNoisyShotsResult] = useState<Map<string, number> | null>(null);
   const [noise, setNoise] = useState<NoiseConfig>(defaultNoise);
-  const [paramEdit, setParamEdit] = useState<{ id: string; value: number } | null>(null);
   const [showGateModal, setShowGateModal] = useState(false);
 
   // Keyboard shortcuts are defined after handlers to avoid stale references.
@@ -58,13 +58,16 @@ const App: React.FC = () => {
       getBlochVector(simResult.state, i, circuit.numQubits)
     ), [simResult.state, circuit.numQubits]);
 
-  const unitaryMatrix = useMemo(() =>
-    circuit.numQubits <= 2 ? computeUnitary2Q(circuit) : null,
-  [circuit]);
+  const unitaryMatrix = useMemo(() => computeUnitary(circuit), [circuit]);
 
   const selectedGate = useMemo(() =>
     circuit.gates.find(g => g.id === selectedId) ?? null,
   [circuit.gates, selectedId]);
+
+  const paramEdit = useMemo(() => {
+    if (!selectedGate || !isParametric(selectedGate.gate)) return null;
+    return { id: selectedGate.id, value: selectedGate.params[0] ?? Math.PI / 2 };
+  }, [selectedGate]);
 
   // ──── Circuit mutations ────
 
@@ -111,10 +114,30 @@ const App: React.FC = () => {
   };
 
   const handleRunShots = () => {
+    const effectiveNoise: NoiseConfig = {
+      ...noise,
+      enabled: noise.depolarizing1q > 0 || noise.amplitudeDamping > 0 || noise.readoutError > 0,
+    };
     const hist = runWithShots(circuit, numShots);
     setShotsResult(hist);
-    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, noise));
+    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise));
+    setNoise(effectiveNoise);
     setTab('shots');
+  };
+
+  const updateNoise = (patch: Partial<NoiseConfig>) => {
+    setNoise((prev) => {
+      const next: NoiseConfig = { ...prev, ...patch };
+      next.enabled = next.depolarizing1q > 0 || next.amplitudeDamping > 0 || next.readoutError > 0;
+      return next;
+    });
+  };
+
+  const updateNumShots = (raw: string) => {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.max(1, Math.min(100000, Math.round(parsed)));
+    setNumShots(clamped);
   };
 
   const handleClear = () => { reset({ ...circuit, gates: [] }); setSelectedId(null); setShotsResult(null); setNoisyShotsResult(null); setStepCol(null); };
@@ -171,15 +194,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Parametric gate editor
-  useEffect(() => {
-    if (selectedGate && isParametric(selectedGate.gate)) {
-      setParamEdit({ id: selectedGate.id, value: selectedGate.params[0] ?? Math.PI / 2 });
-    } else {
-      setParamEdit(null);
-    }
-  }, [selectedId, selectedGate]);
-
   const maxStepCol = circuit.numColumns - 1;
 
   const topOutcome = (hist: Map<string, number> | null): string | null => {
@@ -217,12 +231,17 @@ const App: React.FC = () => {
       l1 += Math.abs(p - q);
     }
 
+    const idealStdErr = Math.sqrt((idealTopProb * (1 - idealTopProb)) / Math.max(1, numShots));
+    const noisyStdErr = Math.sqrt((noisyTopProb * (1 - noisyTopProb)) / Math.max(1, numShots));
+
     return {
       idealTop,
       idealTopProb,
       noisyTop,
       noisyTopProb,
       tvDistance: 0.5 * l1,
+      idealTopCI95: 1.96 * idealStdErr,
+      noisyTopCI95: 1.96 * noisyStdErr,
     };
   }, [shotsResult, noisyShotsResult, numShots, circuit.numQubits]);
 
@@ -233,6 +252,8 @@ const App: React.FC = () => {
     { key: 'math', label: 'Math Lens' },
     { key: 'shots', label: 'Shots' },
     { key: 'analysis', label: 'Analysis' },
+    { key: 'state', label: 'State Lens' },
+    { key: 'algorithms', label: 'Algo Studio' },
     { key: 'learn', label: 'Learning Studio' },
     { key: 'walkthrough', label: 'Guided Lab' },
     { key: 'basis', label: 'Basis Explorer' },
@@ -268,18 +289,6 @@ const App: React.FC = () => {
               <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
             ))}
           </div>
-          <div className="sidebar-section">
-            <SaveSlotsPanel
-              circuit={circuit}
-              onLoadCircuit={(saved) => {
-                reset(saved);
-                setSelectedId(null);
-                setShotsResult(null);
-                setNoisyShotsResult(null);
-                setStepCol(null);
-              }}
-            />
-          </div>
         </aside>
 
         {/* ─── Main Area ─── */}
@@ -312,7 +321,7 @@ const App: React.FC = () => {
                 min={1}
                 max={100000}
                 value={numShots}
-                onChange={e => setNumShots(+e.target.value)}
+                onChange={e => updateNumShots(e.target.value)}
                 className="shots-input"
               />
             </div>
@@ -331,7 +340,6 @@ const App: React.FC = () => {
                   value={paramEdit.value}
                   onChange={e => {
                     const v = +e.target.value;
-                    setParamEdit({ ...paramEdit, value: v });
                     handleUpdateGate(paramEdit.id, { params: [v] });
                   }}
                 />
@@ -341,7 +349,6 @@ const App: React.FC = () => {
                   value={+(paramEdit.value / Math.PI).toFixed(4)}
                   onChange={e => {
                     const v = +e.target.value * Math.PI;
-                    setParamEdit({ ...paramEdit, value: v });
                     handleUpdateGate(paramEdit.id, { params: [v] });
                   }}
                 />
@@ -397,7 +404,7 @@ const App: React.FC = () => {
                 <div className="math-panel">
                   {unitaryMatrix ? (
                     <div>
-                      <h4>Overall Unitary ({circuit.numQubits <= 2 ? `${1 << circuit.numQubits}×${1 << circuit.numQubits}` : 'Too large'})</h4>
+                      <h4>Overall Unitary ({1 << circuit.numQubits}×{1 << circuit.numQubits})</h4>
                       <table className="matrix-table">
                         <tbody>
                           {unitaryMatrix.map((row, i) => (
@@ -411,7 +418,7 @@ const App: React.FC = () => {
                       </table>
                     </div>
                   ) : (
-                    <p className="empty-msg">Unitary display available for ≤ 2 qubits.</p>
+                    <p className="empty-msg">Unable to compute unitary for this circuit configuration.</p>
                   )}
                 </div>
               )}
@@ -426,19 +433,19 @@ const App: React.FC = () => {
                     <label>
                       <span>Depolarizing</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.depolarizing1q}
-                        onChange={(e) => setNoise((prev) => ({ ...prev, depolarizing1q: Number(e.target.value) }))} />
+                        onChange={(e) => updateNoise({ depolarizing1q: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.depolarizing1q)}</strong>
                     </label>
                     <label>
                       <span>Amplitude damping</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.amplitudeDamping}
-                        onChange={(e) => setNoise((prev) => ({ ...prev, amplitudeDamping: Number(e.target.value) }))} />
+                        onChange={(e) => updateNoise({ amplitudeDamping: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.amplitudeDamping)}</strong>
                     </label>
                     <label>
                       <span>Readout error</span>
                       <input type="range" min={0} max={0.15} step={0.005} value={noise.readoutError}
-                        onChange={(e) => setNoise((prev) => ({ ...prev, readoutError: Number(e.target.value) }))} />
+                        onChange={(e) => updateNoise({ readoutError: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.readoutError)}</strong>
                     </label>
                   </div>
@@ -452,6 +459,7 @@ const App: React.FC = () => {
                               {shotsInsights.idealTop ? `|${shotsInsights.idealTop}⟩` : 'n/a'}
                             </div>
                             <div className="shots-summary-note">{toPct(shotsInsights.idealTopProb)} of samples</div>
+                            <div className="shots-summary-note">95% CI: ±{toPct(shotsInsights.idealTopCI95)}</div>
                           </div>
 
                           <div className="shots-summary-card">
@@ -460,6 +468,7 @@ const App: React.FC = () => {
                               {shotsInsights.noisyTop ? `|${shotsInsights.noisyTop}⟩` : 'n/a'}
                             </div>
                             <div className="shots-summary-note">{toPct(shotsInsights.noisyTopProb)} of samples</div>
+                            <div className="shots-summary-note">95% CI: ±{toPct(shotsInsights.noisyTopCI95)}</div>
                           </div>
 
                           <div className="shots-summary-card">
@@ -484,7 +493,7 @@ const App: React.FC = () => {
                   ) : (
                     <div className="shots-empty">
                       <p className="empty-msg">Run shots to generate measurement statistics.</p>
-                      <p className="shots-empty-note">Tip: use 512 to 4096 shots for stable comparisons.</p>
+                      <p className="shots-empty-note">Tip: default is 1024 shots; try 512 to 4096 for stable comparisons.</p>
                     </div>
                   )}
                 </div>
@@ -496,6 +505,24 @@ const App: React.FC = () => {
                     <CircuitAnalysisPanel circuit={circuit} />
                   </Suspense>
                 </div>
+              )}
+
+              {tab === 'state' && (
+                <Suspense fallback={<p className="empty-msg">Loading state insights...</p>}>
+                  <QuantumStateInsightsPanel
+                    state={simResult.state}
+                    numQubits={circuit.numQubits}
+                    shotsResult={shotsResult}
+                    noisyShotsResult={noisyShotsResult}
+                    noiseEnabled={noise.enabled}
+                  />
+                </Suspense>
+              )}
+
+              {tab === 'algorithms' && (
+                <Suspense fallback={<p className="empty-msg">Loading algorithm studio...</p>}>
+                  <AlgorithmStudioPanel circuit={circuit} shotsResult={shotsResult} />
+                </Suspense>
               )}
 
               {tab === 'learn' && (

@@ -1,8 +1,8 @@
-import type { CircuitState, PlacedGate } from './circuitTypes';
+import type { CircuitState, PlacedGate, GateName } from './circuitTypes';
 import { newGateId } from './circuitTypes';
 
-const g = (gate: string, col: number, targets: number[], controls: number[] = [], params: number[] = [], cb?: number): PlacedGate => ({
-  id: newGateId(), gate: gate as any, column: col, targets, controls, params,
+const g = (gate: GateName, col: number, targets: number[], controls: number[] = [], params: number[] = [], cb?: number): PlacedGate => ({
+  id: newGateId(), gate, column: col, targets, controls, params,
   ...(cb !== undefined ? { classicalBit: cb } : {}),
 });
 

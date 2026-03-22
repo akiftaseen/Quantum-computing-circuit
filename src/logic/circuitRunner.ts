@@ -10,6 +10,7 @@ import {
   S_GATE, SDG_GATE, T_GATE, TDG_GATE, Rx, Ry, Rz, PGate,
   iSWAP_GATE, CCX_GATE, XX, YY, ZZ,
 } from './gate';
+import { CIRCUIT_CONSTRAINTS } from './constants';
 import { applyAmplitudeDamping, applyDepolarizing, flipReadout, type NoiseConfig } from './noiseModel';
 import type { Matrix2 } from './gate';
 
@@ -30,11 +31,14 @@ export interface StepResult {
   classicalBits: Map<number, number>;
 }
 
-export const runCircuit = (
-  circuit: CircuitState, upToCol?: number, skipMeasure = false,
+const evolveCircuitFromState = (
+  initialState: Complex[],
+  circuit: CircuitState,
+  upToCol?: number,
+  skipMeasure = false,
 ): StepResult => {
   const { numQubits, numColumns, gates } = circuit;
-  let state = initZeroState(numQubits);
+  let state = initialState;
   const cb = new Map<number, number>();
   const maxCol = upToCol ?? numColumns - 1;
 
@@ -88,7 +92,14 @@ export const runCircuit = (
         : applySingleQubitGate(state, mat, g.targets[0], numQubits);
     }
   }
+
   return { state, classicalBits: cb };
+};
+
+export const runCircuit = (
+  circuit: CircuitState, upToCol?: number, skipMeasure = false,
+): StepResult => {
+  return evolveCircuitFromState(initZeroState(circuit.numQubits), circuit, upToCol, skipMeasure);
 };
 
 export const runWithShots = (
@@ -182,29 +193,28 @@ export const runWithNoiseShots = (
   return hist;
 };
 
-export const computeUnitary2Q = (circuit: CircuitState): Complex[][] | null => {
-  if (circuit.numQubits > 2) return null;
+export const computeUnitary = (
+  circuit: CircuitState,
+  maxQubits: number = CIRCUIT_CONSTRAINTS.MAX_QUBITS,
+): Complex[][] | null => {
+  if (circuit.numQubits > maxQubits) return null;
   const dim = 1 << circuit.numQubits;
   const cols: Complex[][] = [];
+
+  const circNoMeasure: CircuitState = {
+    ...circuit,
+    gates: circuit.gates.filter(g => g.gate !== 'M' && g.gate !== 'Barrier'),
+  };
+
   for (let j = 0; j < dim; j++) {
     const basis: Complex[] = Array(dim).fill(null).map(() => c(0));
     basis[j] = c(1);
-    let st = basis;
-    const circ: CircuitState = { ...circuit, gates: circuit.gates.filter(g => g.gate !== 'M' && g.gate !== 'Barrier') };
-    for (let col = 0; col < circ.numColumns; col++) {
-      for (const g of circ.gates.filter(g2 => g2.column === col)) {
-        if (g.gate === 'SWAP') { st = applySWAP(st, g.targets[0], g.targets[1], circ.numQubits); continue; }
-        if (g.gate === 'CNOT') { st = applyControlledGate(st, X_GATE, g.controls, g.targets[0], circ.numQubits); continue; }
-        if (g.gate === 'CZ') { st = applyControlledGate(st, Z_GATE, g.controls, g.targets[0], circ.numQubits); continue; }
-        const mat = getMatrix(g.gate, g.params);
-        st = g.controls.length > 0
-          ? applyControlledGate(st, mat, g.controls, g.targets[0], circ.numQubits)
-          : applySingleQubitGate(st, mat, g.targets[0], circ.numQubits);
-      }
-    }
-    cols.push(st);
+    cols.push(evolveCircuitFromState(basis, circNoMeasure, undefined, true).state);
   }
+
   return Array.from({ length: dim }, (_, i) =>
     Array.from({ length: dim }, (_, j) => cols[j][i])
   );
 };
+
+export const computeUnitary2Q = (circuit: CircuitState): Complex[][] | null => computeUnitary(circuit, 2);
