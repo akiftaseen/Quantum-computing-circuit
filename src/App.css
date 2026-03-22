@@ -457,7 +457,7 @@ textarea:focus-visible {
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 85%, var(--card));
 }
 
 .noise-controls label {
@@ -469,18 +469,82 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.noise-controls label span {
+  line-height: 1.2;
+}
+
+.noise-value {
+  font-size: 11px;
+  color: var(--primary);
+}
+
 .noise-toggle {
   justify-content: center;
+  align-items: center;
+  border-right: 1px solid var(--border);
+  padding-right: 6px;
 }
 
 .noise-toggle input {
   margin-right: 6px;
 }
 
+.shots-panel {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.shots-subtitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.shots-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.shots-summary-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 10px;
+}
+
+.shots-summary-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-2);
+}
+
+.shots-summary-value {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.shots-summary-note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
 .shots-compare-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.shots-chart-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 10px;
 }
 
 .shots-title {
@@ -489,6 +553,19 @@ textarea:focus-visible {
   color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+
+.shots-empty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 80%, var(--card));
+  padding: 14px;
+}
+
+.shots-empty-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-2);
 }
 
 .learning-panel {
@@ -1472,10 +1549,18 @@ textarea:focus-visible {
   }
 
   .noise-controls,
+  .shots-summary-grid,
   .learning-lessons,
   .learning-briefs,
   .basis-grid {
     grid-template-columns: 1fr;
+  }
+
+  .noise-toggle {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 8px;
   }
 
   .dirac-prob-row {

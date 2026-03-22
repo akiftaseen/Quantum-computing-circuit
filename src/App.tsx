@@ -113,11 +113,7 @@ const App: React.FC = () => {
   const handleRunShots = () => {
     const hist = runWithShots(circuit, numShots);
     setShotsResult(hist);
-    if (noise.enabled) {
-      setNoisyShotsResult(runWithNoiseShots(circuit, numShots, noise));
-    } else {
-      setNoisyShotsResult(null);
-    }
+    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, noise));
     setTab('shots');
   };
 
@@ -185,6 +181,50 @@ const App: React.FC = () => {
   }, [selectedId, selectedGate]);
 
   const maxStepCol = circuit.numColumns - 1;
+
+  const topOutcome = (hist: Map<string, number> | null): string | null => {
+    if (!hist || hist.size === 0) return null;
+    let bestKey: string | null = null;
+    let bestCount = -1;
+    for (const [key, count] of hist.entries()) {
+      if (count > bestCount) {
+        bestKey = key;
+        bestCount = count;
+      }
+    }
+    return bestKey;
+  };
+
+  const toPct = (x: number) => `${(x * 100).toFixed(1)}%`;
+
+  const shotsInsights = useMemo(() => {
+    if (!shotsResult || !noisyShotsResult) return null;
+
+    const dim = 1 << circuit.numQubits;
+    const idealTop = topOutcome(shotsResult);
+    const idealTopCount = idealTop ? (shotsResult.get(idealTop) ?? 0) : 0;
+    const idealTopProb = numShots > 0 ? idealTopCount / numShots : 0;
+
+    const noisyTop = topOutcome(noisyShotsResult);
+    const noisyTopCount = noisyTop ? (noisyShotsResult.get(noisyTop) ?? 0) : 0;
+    const noisyTopProb = numShots > 0 ? noisyTopCount / numShots : 0;
+
+    let l1 = 0;
+    for (let i = 0; i < dim; i += 1) {
+      const key = i.toString(2).padStart(circuit.numQubits, '0');
+      const p = (shotsResult.get(key) ?? 0) / numShots;
+      const q = (noisyShotsResult.get(key) ?? 0) / numShots;
+      l1 += Math.abs(p - q);
+    }
+
+    return {
+      idealTop,
+      idealTopProb,
+      noisyTop,
+      noisyTopProb,
+      tvDistance: 0.5 * l1,
+    };
+  }, [shotsResult, noisyShotsResult, numShots, circuit.numQubits]);
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'prob', label: 'Probabilities' },
@@ -377,51 +417,75 @@ const App: React.FC = () => {
               )}
 
               {tab === 'shots' && (
-                <div>
+                <div className="shots-panel">
+                  <p className="shots-subtitle">
+                    Sample computational-basis outcomes and inspect how hardware-style noise shifts the distribution.
+                  </p>
+
                   <div className="noise-controls">
-                    <label className="noise-toggle">
-                      <input
-                        type="checkbox"
-                        checked={noise.enabled}
-                        onChange={(e) => {
-                          const enabled = e.target.checked;
-                          setNoise((prev) => ({ ...prev, enabled }));
-                          if (!enabled) setNoisyShotsResult(null);
-                        }}
-                      />
-                      Noise mode
-                    </label>
                     <label>
-                      Depol
+                      <span>Depolarizing</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.depolarizing1q}
                         onChange={(e) => setNoise((prev) => ({ ...prev, depolarizing1q: Number(e.target.value) }))} />
+                      <strong className="noise-value">{toPct(noise.depolarizing1q)}</strong>
                     </label>
                     <label>
-                      Damp
+                      <span>Amplitude damping</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.amplitudeDamping}
                         onChange={(e) => setNoise((prev) => ({ ...prev, amplitudeDamping: Number(e.target.value) }))} />
+                      <strong className="noise-value">{toPct(noise.amplitudeDamping)}</strong>
                     </label>
                     <label>
-                      Readout
+                      <span>Readout error</span>
                       <input type="range" min={0} max={0.15} step={0.005} value={noise.readoutError}
                         onChange={(e) => setNoise((prev) => ({ ...prev, readoutError: Number(e.target.value) }))} />
+                      <strong className="noise-value">{toPct(noise.readoutError)}</strong>
                     </label>
                   </div>
-                  {shotsResult ? (
-                    <div className="shots-compare-grid">
-                      <div>
-                        <h4 className="shots-title">Ideal</h4>
-                        <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
-                      </div>
-                      {noise.enabled && noisyShotsResult && (
-                        <div>
-                          <h4 className="shots-title">Noisy</h4>
-                          <ShotsHistogram histogram={noisyShotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                  {shotsResult && noisyShotsResult ? (
+                    <>
+                      {shotsInsights && (
+                        <div className="shots-summary-grid">
+                          <div className="shots-summary-card">
+                            <div className="shots-summary-label">Top ideal outcome</div>
+                            <div className="shots-summary-value">
+                              {shotsInsights.idealTop ? `|${shotsInsights.idealTop}⟩` : 'n/a'}
+                            </div>
+                            <div className="shots-summary-note">{toPct(shotsInsights.idealTopProb)} of samples</div>
+                          </div>
+
+                          <div className="shots-summary-card">
+                            <div className="shots-summary-label">Top noisy outcome</div>
+                            <div className="shots-summary-value">
+                              {shotsInsights.noisyTop ? `|${shotsInsights.noisyTop}⟩` : 'n/a'}
+                            </div>
+                            <div className="shots-summary-note">{toPct(shotsInsights.noisyTopProb)} of samples</div>
+                          </div>
+
+                          <div className="shots-summary-card">
+                            <div className="shots-summary-label">Distribution shift</div>
+                            <div className="shots-summary-value">{toPct(shotsInsights.tvDistance)}</div>
+                            <div className="shots-summary-note">Total variation distance</div>
+                          </div>
                         </div>
                       )}
-                    </div>
+
+                      <div className="shots-compare-grid">
+                        <section className="shots-chart-card">
+                          <h4 className="shots-title">Ideal</h4>
+                          <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                        </section>
+                        <section className="shots-chart-card">
+                          <h4 className="shots-title">Noisy</h4>
+                          <ShotsHistogram histogram={noisyShotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                        </section>
+                      </div>
+                    </>
                   ) : (
-                    <p className="empty-msg">Click "▶ Run" to sample measurement outcomes.</p>
+                    <div className="shots-empty">
+                      <p className="empty-msg">Run shots to generate measurement statistics.</p>
+                      <p className="shots-empty-note">Tip: use 512 to 4096 shots for stable comparisons.</p>
+                    </div>
                   )}
                 </div>
               )}
