@@ -3,11 +3,12 @@ import type { Complex } from './complex';
 import { c } from './complex';
 import {
   initZeroState, applySingleQubitGate, applyControlledGate,
-  applySWAP, measureQubit,
+  applySWAP, measureQubit, apply2QubitGate, apply3QubitGate,
 } from './simulator';
 import {
   I_GATE, H_GATE, X_GATE, Y_GATE, Z_GATE,
   S_GATE, SDG_GATE, T_GATE, TDG_GATE, Rx, Ry, Rz, PGate,
+  iSWAP_GATE, CCX_GATE, XX, YY, ZZ,
 } from './gate';
 import type { Matrix2 } from './gate';
 
@@ -50,6 +51,26 @@ export const runCircuit = (
       }
       if (g.gate === 'SWAP') {
         state = applySWAP(state, g.targets[0], g.targets[1], numQubits);
+        continue;
+      }
+      if (g.gate === 'iSWAP') {
+        state = apply2QubitGate(state, iSWAP_GATE, g.targets[0], g.targets[1], numQubits);
+        continue;
+      }
+      if (g.gate === 'XX') {
+        state = apply2QubitGate(state, XX(g.params[0] ?? 0), g.targets[0], g.targets[1], numQubits);
+        continue;
+      }
+      if (g.gate === 'YY') {
+        state = apply2QubitGate(state, YY(g.params[0] ?? 0), g.targets[0], g.targets[1], numQubits);
+        continue;
+      }
+      if (g.gate === 'ZZ') {
+        state = apply2QubitGate(state, ZZ(g.params[0] ?? 0), g.targets[0], g.targets[1], numQubits);
+        continue;
+      }
+      if (g.gate === 'CCX') {
+        state = apply3QubitGate(state, CCX_GATE, g.targets[0], g.controls[0], g.controls[1], numQubits);
         continue;
       }
       if (g.gate === 'CNOT') {

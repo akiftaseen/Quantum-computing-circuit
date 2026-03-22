@@ -61,6 +61,52 @@ export const applySWAP = (
   return ns;
 };
 
+export const apply2QubitGate = (
+  state: Complex[], gate: Complex[], q1: number, q2: number, n: number,
+): Complex[] => {
+  const dim = 1 << n;
+  const ns: Complex[] = Array(dim).fill(null).map(() => c(0));
+  const m1 = 1 << q1, m2 = 1 << q2;
+  
+  for (let i = 0; i < dim; i++) {
+    const b1 = (i & m1) ? 1 : 0;
+    const b2 = (i & m2) ? 1 : 0;
+    
+    for (let j = 0; j < 4; j++) {
+      const jb1 = (j & 2) >> 1;
+      const jb2 = (j & 1);
+      const idx = (i & ~m1 & ~m2) | (jb1 << q1) | (jb2 << q2);
+      const g_idx = (b1 << 1 | b2) * 4 + j;
+      ns[idx] = cAdd(ns[idx], cMul(gate[g_idx], state[i]));
+    }
+  }
+  return ns;
+};
+
+export const apply3QubitGate = (
+  state: Complex[], gate: Complex[], q1: number, q2: number, q3: number, n: number,
+): Complex[] => {
+  const dim = 1 << n;
+  const ns: Complex[] = Array(dim).fill(null).map(() => c(0));
+  const m1 = 1 << q1, m2 = 1 << q2, m3 = 1 << q3;
+  
+  for (let i = 0; i < dim; i++) {
+    const b1 = (i & m1) ? 1 : 0;
+    const b2 = (i & m2) ? 1 : 0;
+    const b3 = (i & m3) ? 1 : 0;
+    
+    for (let j = 0; j < 8; j++) {
+      const jb1 = (j & 4) >> 2;
+      const jb2 = (j & 2) >> 1;
+      const jb3 = (j & 1);
+      const idx = (i & ~m1 & ~m2 & ~m3) | (jb1 << q1) | (jb2 << q2) | (jb3 << q3);
+      const g_idx = (b1 << 2 | b2 << 1 | b3) * 8 + j;
+      ns[idx] = cAdd(ns[idx], cMul(gate[g_idx], state[i]));
+    }
+  }
+  return ns;
+};
+
 export const measureQubit = (
   state: Complex[], qubit: number, n: number, forced?: number,
 ): { state: Complex[]; outcome: number; prob: number } => {

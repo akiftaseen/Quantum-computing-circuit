@@ -12,15 +12,15 @@ const ShotsHistogram: React.FC<Props> = ({ histogram, numQubits, totalShots }) =
   });
 
   return (
-    <div style={{ width: '100%', height: 220 }}>
+    <div className="probability-chart-wrap">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-          <XAxis dataKey="basis" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} />
+          <XAxis dataKey="basis" tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={{ stroke: 'var(--border)' }} />
+          <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={{ stroke: 'var(--border)' }} />
           <Tooltip formatter={(v, name) => (name === 'count' ? v : Number(v).toFixed(4))} />
           <Bar dataKey="count" radius={[3, 3, 0, 0]}>
             {data.map((d, i) => (
-              <Cell key={i} fill={d.count > 0 ? '#22c55e' : '#cbd5e1'} />
+              <Cell key={i} fill={d.count > 0 ? 'var(--primary)' : 'var(--border)'} />
             ))}
           </Bar>
         </BarChart>
@@ -28,4 +28,4 @@ const ShotsHistogram: React.FC<Props> = ({ histogram, numQubits, totalShots }) =
     </div>
   );
 };
-export default ShotsHistogram;
+export default React.memo(ShotsHistogram);

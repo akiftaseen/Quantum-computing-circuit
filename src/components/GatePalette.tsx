@@ -23,6 +23,7 @@ const CATEGORIES = [
       { id: 'T', label: 'T' },
       { id: 'Sdg', label: 'S†' },
       { id: 'Tdg', label: 'T†' },
+      { id: 'P', label: 'P' },
     ],
   },
   {
@@ -39,6 +40,16 @@ const CATEGORIES = [
       { id: 'CNOT', label: 'CX' },
       { id: 'CZ', label: 'CZ' },
       { id: 'SWAP', label: 'SW' },
+      { id: 'CCX', label: 'CCX' },
+      { id: 'iSWAP', label: 'iSW' },
+    ],
+  },
+  {
+    name: 'Interactions',
+    gates: [
+      { id: 'XX', label: 'XX' },
+      { id: 'YY', label: 'YY' },
+      { id: 'ZZ', label: 'ZZ' },
     ],
   },
 ];

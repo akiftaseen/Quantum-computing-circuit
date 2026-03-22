@@ -33,6 +33,59 @@ export const SWAP_GATE: Matrix4 = [
   c(0),c(1),c(0),c(0), c(0),c(0),c(0),c(1),
 ];
 
+export const iSWAP_GATE: Matrix4 = [
+  c(1),c(0),c(0),c(0), c(0),c(0),c(0,1),c(0),
+  c(0),c(0,1),c(0),c(0), c(0),c(0),c(0),c(1),
+];
+
+// Toffoli gate (CCX) - 3-qubit: |abc⟩ → |ab(c⊕(a∧b))⟩
+// This is represented as a 8x8 matrix
+export type Matrix8 = Complex[]; // length 64, row-major
+export const CCX_GATE: Matrix8 = [
+  c(1),c(0),c(0),c(0),c(0),c(0),c(0),c(0),
+  c(0),c(1),c(0),c(0),c(0),c(0),c(0),c(0),
+  c(0),c(0),c(1),c(0),c(0),c(0),c(0),c(0),
+  c(0),c(0),c(0),c(1),c(0),c(0),c(0),c(0),
+  c(0),c(0),c(0),c(0),c(1),c(0),c(0),c(0),
+  c(0),c(0),c(0),c(0),c(0),c(1),c(0),c(0),
+  c(0),c(0),c(0),c(0),c(0),c(0),c(0),c(1),
+  c(0),c(0),c(0),c(0),c(0),c(0),c(1),c(0),
+];
+
+// XX, YY, ZZ gates (parametric two-qubit interactions)
+export const XX = (theta: number): Matrix4 => {
+  const cost2 = Math.cos(theta / 2);
+  const sint2 = Math.sin(theta / 2);
+  return [
+    c(cost2), c(0), c(0), c(0, -sint2),
+    c(0), c(cost2), c(0, -sint2), c(0),
+    c(0), c(0, -sint2), c(cost2), c(0),
+    c(0, -sint2), c(0), c(0), c(cost2),
+  ];
+};
+
+export const YY = (theta: number): Matrix4 => {
+  const cost2 = Math.cos(theta / 2);
+  const sint2 = Math.sin(theta / 2);
+  return [
+    c(cost2), c(0), c(0), c(0, sint2),
+    c(0), c(cost2), c(0, -sint2), c(0),
+    c(0), c(0, -sint2), c(cost2), c(0),
+    c(0, sint2), c(0), c(0), c(cost2),
+  ];
+};
+
+export const ZZ = (theta: number): Matrix4 => {
+  const e1 = cExp(-theta / 2);
+  const e2 = cExp(theta / 2);
+  return [
+    e1, c(0), c(0), c(0),
+    c(0), e2, c(0), c(0),
+    c(0), c(0), e2, c(0),
+    c(0), c(0), c(0), e1,
+  ];
+};
+
 export const tensorProduct2x2 = (a: Matrix2, b: Matrix2): Matrix4 => {
   const r: Complex[] = new Array(16);
   for (let i = 0; i < 2; i++)

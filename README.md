@@ -1,73 +1,124 @@
-# React + TypeScript + Vite
+# Quantum Circuit Tutor
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
-Currently, two official plugins are available:
+## What This App Does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Build quantum circuits with drag-and-drop gates.
+- Simulate state vectors, probabilities, Bloch vectors, and measurement shots.
+- Step through execution column-by-column.
+- Inspect gate matrices and overall unitary (for small systems).
+- Export circuits to multiple frameworks and formats.
+- Import OpenQASM files.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Circuit Building
+- Gate palette with basic, phase, rotation, multi-qubit, and interaction gates.
+- Supports up to 6 qubits.
+- Auto-expands columns when placing gates near the end.
+- Undo/redo history.
 
-## Expanding the ESLint configuration
+### Quantum Gates
+- Single-qubit: `I H X Y Z S Sdg T Tdg Rx Ry Rz P`
+- Multi-qubit: `CNOT CZ SWAP CCX iSWAP XX YY ZZ`
+- Measurement and barrier support.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Visualizations
+- Probability bar chart.
+- Interactive Dirac notation view (select basis states, phase color highlighting).
+- Bloch spheres per qubit.
+- Unitary matrix display (small circuits).
+- Shot histogram.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Educational Tools
+- Gate reference modal with formulas and use-cases.
+- Circuit analysis panel (gate counts, depth, estimated cost, optimization hints).
+- Templates including Bell, GHZ, QFT, Grover, VQE, Ising examples.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Interop and Export
+- Export to:
+  - Qiskit (Python)
+  - PennyLane (Python)
+  - Cirq (Python)
+  - LaTeX `quantikz`
+- Save/load JSON circuit files.
+- Share circuit state by URL.
+- Import `.qasm` / `.txt` OpenQASM-like files.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Keyboard Shortcuts
+
+- `Ctrl/Cmd + Z`: Undo
+- `Ctrl/Cmd + Shift + Z`: Redo
+- `Delete` / `Backspace`: Remove selected gate
+- `Arrow Left` / `Arrow Right`: Move step cursor
+- `1..6` with a gate selected: quick place `H X Y Z S T` on next column
+
+## Theme
+
+Theme mode cycles with the header button:
+- Light
+- Dark
+- Auto (system preference)
+
+Theme preference is persisted in local storage.
+
+## Run Locally
+
+### 1. Install dependencies
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Start dev server
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+Open the URL shown in terminal (usually `http://localhost:5173` or next available port).
+
+### 3. Build for production
+
+```bash
+npm run build
+```
+
+### 4. Preview production build
+
+```bash
+npm run preview
+```
+
+## Testing
+
+```bash
+npm run test
+npm run test:ui
+npm run test:coverage
+```
+
+## Project Structure
+
+- `src/App.tsx`: Main application composition.
+- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `ExportPanel`, etc.).
+- `src/logic/`: Simulation core, gates, serializers, exporters/importers.
+- `src/hooks/`: Reusable hooks (`useCircuitHistory`, `useTheme`).
+- `src/test/`: Test setup.
+
+## Notes and Limits
+
+- State-vector simulation scales exponentially with qubit count.
+- Unitary visualization is intentionally limited to small systems.
+- OpenQASM import currently supports common gate statements and measurements.
+
+## Scripts
+
+- `npm run dev` - start development server
+- `npm run build` - type-check and build
+- `npm run preview` - preview built app
+- `npm run lint` - run ESLint
+- `npm run test` - run Vitest
+- `npm run test:ui` - run Vitest UI
+- `npm run test:coverage` - test coverage

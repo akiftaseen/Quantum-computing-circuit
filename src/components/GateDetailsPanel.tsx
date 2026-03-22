@@ -35,4 +35,4 @@ const GateDetailsPanel: React.FC<Props> = ({ gate }) => {
     </div>
   );
 };
-export default GateDetailsPanel;
+export default React.memo(GateDetailsPanel);

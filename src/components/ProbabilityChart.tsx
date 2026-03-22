@@ -11,15 +11,15 @@ const ProbabilityChart: React.FC<Props> = ({ state, numQubits }) => {
     prob: cAbs2(state[i]),
   }));
   return (
-    <div style={{ width: '100%', height: 220 }}>
+    <div className="probability-chart-wrap">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-          <XAxis dataKey="basis" tick={{ fontSize: 11 }} />
-          <YAxis domain={[0, 1]} tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(v: number) => v.toFixed(4)} />
+          <XAxis dataKey="basis" tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={{ stroke: 'var(--border)' }} />
+          <YAxis domain={[0, 1]} tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={{ stroke: 'var(--border)' }} />
+          <Tooltip formatter={(v: number | undefined) => (v ?? 0).toFixed(4)} />
           <Bar dataKey="prob" radius={[3, 3, 0, 0]}>
             {data.map((d, i) => (
-              <Cell key={i} fill={d.prob > 0.01 ? '#6366f1' : '#cbd5e1'} />
+              <Cell key={i} fill={d.prob > 0.01 ? 'var(--primary)' : 'var(--border)'} />
             ))}
           </Bar>
         </BarChart>
@@ -27,4 +27,4 @@ const ProbabilityChart: React.FC<Props> = ({ state, numQubits }) => {
     </div>
   );
 };
-export default ProbabilityChart;
+export default React.memo(ProbabilityChart);

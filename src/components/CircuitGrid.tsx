@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback } from 'react';
 import type { CircuitState, PlacedGate, GateName } from '../logic/circuitTypes';
-import { isSingleQubit, isMultiQubit, isParametric, gateDisplayName } from '../logic/circuitTypes';
+import { isMultiQubit, isParametric, gateDisplayName } from '../logic/circuitTypes';
 
 /* ------------------------------------------------------------------ */
 /*  Props — 与 App.tsx 传参完全一致                                     */
@@ -49,8 +49,6 @@ const gc = (g: string) => COLORS[g] ?? DEFAULT_C;
 const CircuitGrid: React.FC<CircuitGridProps> = ({
   circuit,
   onPlace,
-  onRemove,
-  onUpdate,
   selectedId,
   onSelect,
   stepCol,
@@ -84,6 +82,15 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
 
         if (gateName === 'SWAP') {
           onPlace({ gate: 'SWAP', column: col, targets: [control, target], controls: [], params: [] });
+        } else if (gateName === 'iSWAP' || gateName === 'XX' || gateName === 'YY' || gateName === 'ZZ') {
+          const params = gateName === 'iSWAP' ? [] : [Math.PI / 4];
+          onPlace({ gate: gateName, column: col, targets: [control, target], controls: [], params });
+        } else if (gateName === 'CCX') {
+          const c1 = qubit;
+          const c2 = qubit + 1 < numQubits ? qubit + 1 : qubit - 1;
+          const t = qubit + 2 < numQubits ? qubit + 2 : qubit - 2;
+          if (c2 < 0 || c2 >= numQubits || t < 0 || t >= numQubits) return;
+          onPlace({ gate: 'CCX', column: col, targets: [t], controls: [c1, c2], params: [] });
         } else {
           onPlace({ gate: gateName, column: col, targets: [target], controls: [control], params: [] });
         }
@@ -161,7 +168,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const cy = qy(g.controls[0]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
             <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={sw} />
             <circle cx={x} cy={cy} r={5} fill={accent ?? '#1e40af'} />
             <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#1e40af'} strokeWidth={sw} />
@@ -177,7 +184,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const cy = qy(g.controls[0]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
             <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#4527a0'} strokeWidth={sw} />
             <circle cx={x} cy={cy} r={5} fill={accent ?? '#4527a0'} />
             <circle cx={x} cy={ty} r={5} fill={accent ?? '#4527a0'} />
@@ -192,12 +199,49 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const y2 = qy(g.targets[1]);
         const d = 7;
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
             <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#c2410c'} strokeWidth={sw} />
             <line x1={x - d} y1={y1 - d} x2={x + d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
             <line x1={x + d} y1={y1 - d} x2={x - d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
             <line x1={x - d} y1={y2 - d} x2={x + d} y2={y2 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
             <line x1={x + d} y1={y2 - d} x2={x - d} y2={y2 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
+          </g>,
+        );
+        return;
+      }
+
+      /* ---------- iSWAP / XX / YY / ZZ ---------- */
+      if ((g.gate === 'iSWAP' || g.gate === 'XX' || g.gate === 'YY' || g.gate === 'ZZ') && g.targets.length >= 2) {
+        const y1 = qy(g.targets[0]);
+        const y2 = qy(g.targets[1]);
+        const mid = (y1 + y2) / 2;
+        const label = gateDisplayName[g.gate] ?? g.gate;
+        els.push(
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+            <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#0f766e'} strokeWidth={sw} />
+            <circle cx={x} cy={y1} r={4.5} fill={accent ?? '#0f766e'} />
+            <circle cx={x} cy={y2} r={4.5} fill={accent ?? '#0f766e'} />
+            <rect x={x - 13} y={mid - 10} width={26} height={20} rx={4} fill="#ecfeff" stroke={accent ?? '#0f766e'} strokeWidth={1.5} />
+            <text x={x} y={mid} textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700} fill="#115e59">{label}</text>
+          </g>,
+        );
+        return;
+      }
+
+      /* ---------- CCX ---------- */
+      if (g.gate === 'CCX' && g.controls.length >= 2 && g.targets.length > 0) {
+        const c1 = qy(g.controls[0]);
+        const c2 = qy(g.controls[1]);
+        const ty = qy(g.targets[0]);
+        els.push(
+          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+            <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={Math.max(c1, c2)} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
+            <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={ty} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
+            <circle cx={x} cy={c1} r={5} fill={accent ?? '#5b21b6'} />
+            <circle cx={x} cy={c2} r={5} fill={accent ?? '#5b21b6'} />
+            <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
+            <line x1={x - R_TGT} y1={ty} x2={x + R_TGT} y2={ty} stroke={accent ?? '#5b21b6'} strokeWidth={1.5} />
+            <line x1={x} y1={ty - R_TGT} x2={x} y2={ty + R_TGT} stroke={accent ?? '#5b21b6'} strokeWidth={1.5} />
           </g>,
         );
         return;
@@ -211,7 +255,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       const fontSize = label.length > 2 ? 10 : 14;
 
       els.push(
-        <g key={g.id} className="qgate" onClick={() => onSelect(g.id)} style={{ cursor: 'pointer' }}>
+        <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX}
             fill="var(--card, #fff)" />
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX} rx={4}

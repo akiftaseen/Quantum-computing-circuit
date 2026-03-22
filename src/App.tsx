@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import './App.css';
-import { type Complex, cAbs2, formatComplex } from './logic/complex';
+import { formatComplex } from './logic/complex';
 import { runCircuit, runWithShots, computeUnitary2Q } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
-import { exportToQiskit, exportToPennyLane } from './logic/qiskitExport';
+import { exportToQiskit, exportToPennyLane, exportToCirq, exportToLatex, importFromQASM } from './logic/qiskitExport';
 import { serializeCircuit, deserializeCircuit, generateShareURL, loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATES } from './logic/templates';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
-import type { CircuitState, PlacedGate, GateName } from './logic/circuitTypes';
+import { useTheme } from './hooks/useTheme';
+import type { CircuitState, PlacedGate } from './logic/circuitTypes';
 import { isParametric, newGateId, gateDisplayName, isSingleQubit } from './logic/circuitTypes';
+import { validateCircuit, validateQubitCount, validateColumnCount } from './logic/validation';
 
 import GatePalette from './components/GatePalette';
 import CircuitGrid from './components/CircuitGrid';
@@ -17,6 +19,10 @@ import BlochSphere from './components/BlochSphere';
 import DiracNotation from './components/DiracNotation';
 import GateDetailsPanel from './components/GateDetailsPanel';
 import ShotsHistogram from './components/ShotsHistogram';
+import GateDescriptionsModal from './components/GateDescriptionsModal';
+import CircuitAnalysisPanel from './components/CircuitAnalysisPanel';
+import AppHeader from './components/AppHeader';
+import ExportPanel from './components/ExportPanel';
 
 const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
 
@@ -24,38 +30,18 @@ type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'export';
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
+  const { mode: themeMode, cycleThemeMode } = useTheme();
   const [stepCol, setStepCol] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('prob');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [numShots, setNumShots] = useState(1024);
   const [shotsResult, setShotsResult] = useState<Map<string, number> | null>(null);
   const [paramEdit, setParamEdit] = useState<{ id: string; value: number } | null>(null);
   const [showExportCode, setShowExportCode] = useState<string | null>(null);
-  const [exportType, setExportType] = useState<'qiskit' | 'pennylane'>('qiskit');
+  const [exportType, setExportType] = useState<'qiskit' | 'pennylane' | 'cirq' | 'latex'>('qiskit');
+  const [showGateModal, setShowGateModal] = useState(false);
 
-  // Theme
-  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Z') { e.preventDefault(); redo(); }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedId && !(e.target instanceof HTMLInputElement)) {
-          e.preventDefault();
-          handleRemoveGate(selectedId);
-          setSelectedId(null);
-        }
-      }
-      if (e.key === 'ArrowLeft') setStepCol(prev => prev === null ? circuit.numColumns - 2 : Math.max(0, prev - 1));
-      if (e.key === 'ArrowRight') setStepCol(prev => prev === null ? 0 : prev >= circuit.numColumns - 1 ? null : prev + 1);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, undo, redo, circuit.numColumns]);
+  // Keyboard shortcuts are defined after handlers to avoid stale references.
 
   // Live simulation
   const simResult = useMemo(() => {
@@ -106,7 +92,7 @@ const App: React.FC = () => {
   }, [circuit, setCircuit]);
 
   const handleSetQubits = (n: number) => {
-    if (n < 1 || n > 6) return;
+    if (!validateQubitCount(n)) return;
     const filtered = circuit.gates.filter(g =>
       g.targets.every(t => t < n) && g.controls.every(c => c < n)
     );
@@ -114,7 +100,7 @@ const App: React.FC = () => {
   };
 
   const handleSetColumns = (n: number) => {
-    if (n < 4 || n > 60) return;
+    if (!validateColumnCount(n)) return;
     // Remove gates that fall outside the new range
     const filtered = circuit.gates.filter(g => g.column < n);
     setCircuit({ ...circuit, numColumns: n, gates: filtered });
@@ -136,9 +122,21 @@ const App: React.FC = () => {
     setStepCol(null);
   };
 
-  const handleExport = (type: 'qiskit' | 'pennylane') => {
+  const handleExport = (type: 'qiskit' | 'pennylane' | 'cirq' | 'latex') => {
     setExportType(type);
-    setShowExportCode(type === 'qiskit' ? exportToQiskit(circuit) : exportToPennyLane(circuit));
+    if (type === 'qiskit') {
+      setShowExportCode(exportToQiskit(circuit));
+      return;
+    }
+    if (type === 'pennylane') {
+      setShowExportCode(exportToPennyLane(circuit));
+      return;
+    }
+    if (type === 'cirq') {
+      setShowExportCode(exportToCirq(circuit));
+      return;
+    }
+    setShowExportCode(exportToLatex(circuit));
   };
 
   const handleSaveJSON = () => {
@@ -159,9 +157,17 @@ const App: React.FC = () => {
       reader.onload = () => {
         try {
           const c = deserializeCircuit(reader.result as string);
+          const errors = validateCircuit(c);
+          if (errors.length > 0) {
+            alert(`Circuit validation errors:\n${errors.map(e => e.message).join('\n')}`);
+            return;
+          }
           reset(c);
           setSelectedId(null);
-        } catch (e) { console.error('Invalid circuit file'); }
+        } catch (e) { 
+          alert(`Failed to load circuit: ${e instanceof Error ? e.message : 'Unknown error'}`);
+          console.error('Invalid circuit file', e); 
+        }
       };
       reader.readAsText(file);
     };
@@ -172,6 +178,72 @@ const App: React.FC = () => {
     const url = generateShareURL(circuit);
     navigator.clipboard?.writeText(url);
   };
+
+  const handleLoadQASM = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.qasm,.txt';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = importFromQASM(String(reader.result ?? ''));
+          const errors = validateCircuit(imported);
+          if (errors.length > 0) {
+            alert(`QASM import validation errors:\n${errors.map((e) => e.message).join('\n')}`);
+            return;
+          }
+          reset(imported);
+          setSelectedId(null);
+          setStepCol(null);
+          setShotsResult(null);
+        } catch (err) {
+          alert(`Failed to import QASM: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  // Keyboard shortcuts
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Z') { e.preventDefault(); redo(); }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedId && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        handleRemoveGate(selectedId);
+        setSelectedId(null);
+      }
+    }
+    if (e.key === 'ArrowLeft') setStepCol(prev => prev === null ? circuit.numColumns - 2 : Math.max(0, prev - 1));
+    if (e.key === 'ArrowRight') setStepCol(prev => prev === null ? 0 : prev >= circuit.numColumns - 1 ? null : prev + 1);
+
+    // Gate keyboard shortcuts (1-6 on selected gate's qubit column+1)
+    if (!selectedGate) return;
+    if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+      const map: Record<string, 'H' | 'X' | 'Y' | 'Z' | 'S' | 'T'> = {
+        '1': 'H', '2': 'X', '3': 'Y', '4': 'Z', '5': 'S', '6': 'T',
+      };
+      const gate = map[e.key];
+      if (gate) {
+        const baseCol = selectedGate.column + 1;
+        const tgt = selectedGate.targets[0];
+        if (baseCol < circuit.numColumns) {
+          handlePlaceGate({ gate, column: baseCol, targets: [tgt], controls: [], params: [] });
+        }
+      }
+    }
+  }, [selectedId, selectedGate, undo, redo, circuit.numColumns, handleRemoveGate, handlePlaceGate]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   // Parametric gate editor
   useEffect(() => {
@@ -195,34 +267,22 @@ const App: React.FC = () => {
 
   return (
     <div className="app-shell">
-      {/* ─── Header ─── */}
-      <header className="app-header">
-        <h1>⚛ Quantum Circuit Tutor</h1>
-
-        {/* Qubit 数量 */}
-        <div className="header-adjuster">
-          <button onClick={() => handleSetQubits(circuit.numQubits - 1)}>−</button>
-          <span>{circuit.numQubits} qubits</span>
-          <button onClick={() => handleSetQubits(circuit.numQubits + 1)}>+</button>
-        </div>
-
-        {/* 列数 / 线路长度 */}
-        <div className="header-adjuster">
-          <button onClick={() => handleSetColumns(circuit.numColumns - 2)}>−</button>
-          <span>{circuit.numColumns} cols</span>
-          <button onClick={() => handleSetColumns(circuit.numColumns + 2)}>+</button>
-        </div>
-
-        <div className="header-spacer" />
-
-        <button className="btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">↩ Undo</button>
-        <button className="btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
-        <button className="btn" onClick={handleClear}>🗑 Clear</button>
-        <button className="btn" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
-          {theme === 'light' ? '🌙' : '☀️'}
-        </button>
-        <button className="btn btn-primary" onClick={handleRunShots}>▶ Run {numShots} shots</button>
-      </header>
+      <AppHeader
+        numQubits={circuit.numQubits}
+        numColumns={circuit.numColumns}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        numShots={numShots}
+        themeMode={themeMode}
+        onSetQubits={handleSetQubits}
+        onSetColumns={handleSetColumns}
+        onUndo={undo}
+        onRedo={redo}
+        onClear={handleClear}
+        onShowGates={() => setShowGateModal(true)}
+        onCycleTheme={cycleThemeMode}
+        onRunShots={handleRunShots}
+      />
 
       {/* ─── Body ─── */}
       <div className="app-body">
@@ -234,6 +294,9 @@ const App: React.FC = () => {
             {TEMPLATES.map(t => (
               <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
             ))}
+          </div>
+          <div className="sidebar-section">
+            <CircuitAnalysisPanel circuit={circuit} />
           </div>
         </aside>
 
@@ -378,26 +441,24 @@ const App: React.FC = () => {
               )}
 
               {tab === 'export' && (
-                <div className="export-panel">
-                  <div className="export-buttons">
-                    <button className="btn" onClick={() => handleExport('qiskit')}>📋 Qiskit</button>
-                    <button className="btn" onClick={() => handleExport('pennylane')}>📋 PennyLane</button>
-                    <button className="btn" onClick={handleSaveJSON}>💾 Save JSON</button>
-                    <button className="btn" onClick={handleLoadJSON}>📂 Load JSON</button>
-                    <button className="btn" onClick={handleShare}>🔗 Share URL</button>
-                  </div>
-                  {showExportCode && (
-                    <div className="export-code">
-                      <h4>{exportType === 'qiskit' ? 'Qiskit' : 'PennyLane'} Code</h4>
-                      <pre>{showExportCode}</pre>
-                    </div>
-                  )}
-                </div>
+                <ExportPanel
+                  exportType={exportType}
+                  code={showExportCode}
+                  onExportQiskit={() => handleExport('qiskit')}
+                  onExportPennyLane={() => handleExport('pennylane')}
+                  onExportCirq={() => handleExport('cirq')}
+                  onExportLatex={() => handleExport('latex')}
+                  onSaveJSON={handleSaveJSON}
+                  onLoadJSON={handleLoadJSON}
+                  onLoadQASM={handleLoadQASM}
+                  onShare={handleShare}
+                />
               )}
             </div>
           </div>
         </div>
       </div>
+      <GateDescriptionsModal isOpen={showGateModal} onClose={() => setShowGateModal(false)} />
     </div>
   );
 };

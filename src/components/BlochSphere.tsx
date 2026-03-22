@@ -31,9 +31,9 @@ const BlochSphere: React.FC<Props> = ({ vector: [bx, by, bz], label }) => {
       <div className="bloch-label">{label}</div>
       <svg width={140} height={140} viewBox="0 0 140 140">
         {/* Equator & meridians */}
-        <path d={circlePath('xy')} fill="none" stroke="var(--border-color)" strokeWidth={0.7} opacity={0.5} />
-        <path d={circlePath('xz')} fill="none" stroke="var(--border-color)" strokeWidth={0.5} opacity={0.3} strokeDasharray="3,3" />
-        <path d={circlePath('yz')} fill="none" stroke="var(--border-color)" strokeWidth={0.5} opacity={0.3} strokeDasharray="3,3" />
+        <path d={circlePath('xy')} fill="none" stroke="var(--border)" strokeWidth={0.7} opacity={0.5} />
+        <path d={circlePath('xz')} fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.3} strokeDasharray="3,3" />
+        <path d={circlePath('yz')} fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.3} strokeDasharray="3,3" />
         {/* Axes */}
         {[
           { p: project(1.15, 0, 0), l: 'x' },
@@ -44,18 +44,18 @@ const BlochSphere: React.FC<Props> = ({ vector: [bx, by, bz], label }) => {
           <React.Fragment key={i}>
             <line x1={ox} y1={oy} x2={project(...(i === 0 ? [1, 0, 0] : i === 1 ? [0, 1, 0] : i === 2 ? [0, 0, 1] : [0, 0, -1]) as [number, number, number])[0]}
               y2={project(...(i === 0 ? [1, 0, 0] : i === 1 ? [0, 1, 0] : i === 2 ? [0, 0, 1] : [0, 0, -1]) as [number, number, number])[1]}
-              stroke="var(--text-secondary)" strokeWidth={0.8} opacity={0.6} />
-            <text x={ax} y={ay} fontSize={9} fill="var(--text-secondary)" textAnchor="middle" dominantBaseline="middle">{l}</text>
+              stroke="var(--text-2)" strokeWidth={0.8} opacity={0.6} />
+            <text x={ax} y={ay} fontSize={9} fill="var(--text-2)" textAnchor="middle" dominantBaseline="middle">{l}</text>
           </React.Fragment>
         ))}
         {/* Bloch vector */}
         <line x1={ox} y1={oy} x2={px} y2={py} stroke="#ef4444" strokeWidth={2} />
         <circle cx={px} cy={py} r={4} fill="#ef4444" />
       </svg>
-      <div className="bloch-info" style={{ fontSize: 10, textAlign: 'center', color: 'var(--text-secondary)' }}>
+      <div className="bloch-info">
         |r| = {len.toFixed(2)}
       </div>
     </div>
   );
 };
-export default BlochSphere;
+export default React.memo(BlochSphere);
