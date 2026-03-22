@@ -8,8 +8,6 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Simulate state vectors, probabilities, Bloch vectors, and measurement shots.
 - Step through execution column-by-column.
 - Inspect gate matrices and overall unitary (for small systems).
-- Export circuits to multiple frameworks and formats.
-- Import OpenQASM files.
 
 ## Features
 
@@ -35,16 +33,6 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Gate reference modal with formulas and use-cases.
 - Circuit analysis panel (gate counts, depth, estimated cost, optimization hints).
 - Templates including Bell, GHZ, QFT, Grover, VQE, Ising examples.
-
-### Interop and Export
-- Export to:
-  - Qiskit (Python)
-  - PennyLane (Python)
-  - Cirq (Python)
-  - LaTeX `quantikz`
-- Save/load JSON circuit files.
-- Share circuit state by URL.
-- Import `.qasm` / `.txt` OpenQASM-like files.
 
 ## Keyboard Shortcuts
 
@@ -102,8 +90,8 @@ npm run test:coverage
 ## Project Structure
 
 - `src/App.tsx`: Main application composition.
-- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `ExportPanel`, etc.).
-- `src/logic/`: Simulation core, gates, serializers, exporters/importers.
+- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `CircuitAnalysisPanel`, etc.).
+- `src/logic/`: Simulation core, gates, analysis, and URL loading utilities.
 - `src/hooks/`: Reusable hooks (`useCircuitHistory`, `useTheme`).
 - `src/test/`: Test setup.
 
@@ -111,7 +99,6 @@ npm run test:coverage
 
 - State-vector simulation scales exponentially with qubit count.
 - Unitary visualization is intentionally limited to small systems.
-- OpenQASM import currently supports common gate statements and measurements.
 
 ## Scripts
 

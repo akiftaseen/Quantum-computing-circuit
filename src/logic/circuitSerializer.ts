@@ -1,8 +1,6 @@
 import type { CircuitState } from './circuitTypes';
 
-export const serializeCircuit = (c: CircuitState): string => JSON.stringify(c);
-
-export const deserializeCircuit = (json: string): CircuitState => {
+const deserializeCircuit = (json: string): CircuitState => {
   const p = JSON.parse(json);
   return {
     numQubits: p.numQubits ?? 2,
@@ -16,14 +14,8 @@ export const deserializeCircuit = (json: string): CircuitState => {
   };
 };
 
-export const encodeToURL = (c: CircuitState): string =>
-  btoa(unescape(encodeURIComponent(serializeCircuit(c))));
-
-export const decodeFromURL = (s: string): CircuitState =>
+const decodeFromURL = (s: string): CircuitState =>
   deserializeCircuit(decodeURIComponent(escape(atob(s))));
-
-export const generateShareURL = (c: CircuitState): string =>
-  `${location.origin}${location.pathname}?circuit=${encodeToURL(c)}`;
 
 export const loadFromURL = (): CircuitState | null => {
   const p = new URLSearchParams(location.search).get('circuit');
