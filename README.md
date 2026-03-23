@@ -4,6 +4,10 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
 Product direction and simplification plan: see `PRODUCT_ROADMAP.md`.
 
+Operational and technical documentation:
+- `MAINTENANCE.md` for maintenance workflows and release checks.
+- `APP_REFERENCE.md` for full feature, panel, and module reference.
+
 ## What This App Does
 
 - Build quantum circuits with drag-and-drop gates.
@@ -80,15 +84,13 @@ The app follows a core-first UX approach:
 - OpenQASM interoperability diagnostics with decomposition suggestions.
 - Compiled circuit execution-plan backend and alias-based shot sampling for faster local runs.
 - Session/project save packs (circuit + symbols + shots + notes).
-- Classroom assignment mode with rubric-based auto-checks.
-- Classroom assignment pack export for reusable instructor/student bundles.
 
 ### Insights Workspace (Professional Analysis)
 - Universal operational interpretation panel that explains what is driving outcomes for any circuit shape.
 - Soft operational checks that flag likely pitfalls (measurement ordering, low-shot confidence, high-depth sensitivity).
 - Confidence meter combining shot volume, outcome dominance, and ideal-vs-noisy stability.
 - A/B snapshot workspace for side-by-side circuit state comparison (fidelity, trace-distance proxy, gate/depth/cost deltas).
-- Glossary hints for technical terms via inline hover definitions.
+- Inline glossary hover definitions for technical terms.
 - Professional report export (`.md` and `.json`) with timestamped metrics, checks, confidence, and A/B summary.
 
 ### Offline-First PWA Mode

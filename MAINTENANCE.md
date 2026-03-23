@@ -4,6 +4,8 @@
 
 This document is the operational guide for maintaining the simulator safely over time.
 
+For the full product and module reference, see `APP_REFERENCE.md`.
+
 Primary goals:
 - Preserve correctness of quantum behavior and educational outputs.
 - Prevent dead code and drift between UI features and logic modules.
