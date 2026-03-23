@@ -31,6 +31,8 @@ const ExperimentWorkbenchPanel = lazy(() => import('./components/ExperimentWorkb
 const SimulatorLabPanel = lazy(() => import('./components/SimulatorLabPanel'));
 
 const INIT: CircuitState = { numQubits: 2, numColumns: 10, gates: [] };
+const APP_STATE_STORAGE_KEY = 'qcs.app.state.v1';
+const EXPORTABLE_LOCALSTORAGE_PREFIXES = ['qcs.', 'qc-sim-'];
 
 type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'sim';
 
@@ -54,31 +56,58 @@ const isTextEntryTarget = (target: EventTarget | null): boolean => {
 const fitArray = <T,>(source: T[], len: number, fill: T): T[] =>
   Array.from({ length: len }, (_, i) => source[i] ?? fill);
 
+const loadPersistedAppState = (): Partial<{
+  sidebarCollapsed: boolean;
+  sidebarWidth: number;
+  tab: Tab;
+  numShots: number;
+  shotSeedInput: string;
+  noise: NoiseConfig;
+  initialStateMode: InitialStateInputMode;
+  initialQubitExprs: string[];
+  statevectorExpr: string;
+  shotsBasisAxes: MeasurementBasisAxis[];
+  symbolBindings: SymbolBinding[];
+  stepCol: number | null;
+}> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as ReturnType<typeof loadPersistedAppState>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
 const App: React.FC = () => {
   const initialWorkspace = loadDraftWorkspace(INIT);
+  const persisted = useMemo(() => loadPersistedAppState(), []);
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(initialWorkspace.activeCircuit);
   const { mode: themeMode, cycleThemeMode } = useTheme();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [stepCol, setStepCol] = useState<number | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(persisted.sidebarCollapsed ?? false);
+  const [stepCol, setStepCol] = useState<number | null>(persisted.stepCol ?? null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('prob');
-  const [numShots, setNumShots] = useState(1024);
-  const [shotSeedInput, setShotSeedInput] = useState('');
+  const [tab, setTab] = useState<Tab>(persisted.tab ?? 'prob');
+  const [numShots, setNumShots] = useState(persisted.numShots ?? 1024);
+  const [shotSeedInput, setShotSeedInput] = useState(persisted.shotSeedInput ?? '');
   const [shotsResult, setShotsResult] = useState<Map<string, number> | null>(null);
   const [noisyShotsResult, setNoisyShotsResult] = useState<Map<string, number> | null>(null);
-  const [noise, setNoise] = useState<NoiseConfig>(defaultNoise);
+  const [noise, setNoise] = useState<NoiseConfig>(persisted.noise ?? defaultNoise);
   const [showGateModal, setShowGateModal] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(200);
+  const [sidebarWidth, setSidebarWidth] = useState(persisted.sidebarWidth ?? 200);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
-  const [initialStateMode, setInitialStateMode] = useState<InitialStateInputMode>('qubit');
-  const [initialQubitExprs, setInitialQubitExprs] = useState<string[]>(() => Array(INIT.numQubits).fill('0'));
-  const [statevectorExpr, setStatevectorExpr] = useState<string>('');
+  const [initialStateMode, setInitialStateMode] = useState<InitialStateInputMode>(persisted.initialStateMode ?? 'qubit');
+  const [initialQubitExprs, setInitialQubitExprs] = useState<string[]>(() => persisted.initialQubitExprs ?? Array(INIT.numQubits).fill('0'));
+  const [statevectorExpr, setStatevectorExpr] = useState<string>(persisted.statevectorExpr ?? '');
   const [activeInitTarget, setActiveInitTarget] = useState<{ mode: InitialStateInputMode; qubit?: number } | null>(null);
-  const [shotsBasisAxes, setShotsBasisAxes] = useState<MeasurementBasisAxis[]>(() => Array(INIT.numQubits).fill('Z'));
-  const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => defaultSymbolBindings());
+  const [shotsBasisAxes, setShotsBasisAxes] = useState<MeasurementBasisAxis[]>(() => persisted.shotsBasisAxes ?? Array(INIT.numQubits).fill('Z'));
+  const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => persisted.symbolBindings ?? defaultSymbolBindings());
   const [liveMessage, setLiveMessage] = useState('');
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const appStateImportRef = useRef<HTMLInputElement | null>(null);
 
   // Keyboard shortcuts are defined after handlers to avoid stale references.
 
@@ -108,6 +137,40 @@ const App: React.FC = () => {
       };
     }
   }, [isResizingSidebar, resizeSidebar, stopResizingSidebar]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify({
+        sidebarCollapsed,
+        sidebarWidth,
+        tab,
+        numShots,
+        shotSeedInput,
+        noise,
+        initialStateMode,
+        initialQubitExprs,
+        statevectorExpr,
+        shotsBasisAxes,
+        symbolBindings,
+        stepCol,
+      }));
+    } catch {
+      // Ignore localStorage write failures.
+    }
+  }, [
+    sidebarCollapsed,
+    sidebarWidth,
+    tab,
+    numShots,
+    shotSeedInput,
+    noise,
+    initialStateMode,
+    initialQubitExprs,
+    statevectorExpr,
+    shotsBasisAxes,
+    symbolBindings,
+    stepCol,
+  ]);
 
   const normalizedQubitExprs = useMemo(
     () => fitArray(initialQubitExprs, circuit.numQubits, '0'),
@@ -495,6 +558,68 @@ const App: React.FC = () => {
     document.getElementById(`results-tab-${nextTab.key}`)?.focus();
   };
 
+  const exportAppState = () => {
+    try {
+      const localStorageEntries: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (!EXPORTABLE_LOCALSTORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+        const value = localStorage.getItem(key);
+        if (value === null) continue;
+        localStorageEntries[key] = value;
+      }
+
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        localStorageEntries,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `quantum-sim-app-state-${Date.now()}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setLiveMessage('App state exported.');
+    } catch {
+      setLiveMessage('Failed to export app state.');
+    }
+  };
+
+  const importAppStateText = (raw: string) => {
+    try {
+      const parsed = JSON.parse(raw) as { version?: number; localStorageEntries?: Record<string, string> };
+      if (parsed.version !== 1 || !parsed.localStorageEntries || typeof parsed.localStorageEntries !== 'object') {
+        setLiveMessage('Invalid app-state file format.');
+        return;
+      }
+
+      for (const [key, value] of Object.entries(parsed.localStorageEntries)) {
+        if (!EXPORTABLE_LOCALSTORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+        localStorage.setItem(key, value);
+      }
+
+      setLiveMessage('App state imported. Reloading...');
+      window.setTimeout(() => window.location.reload(), 350);
+    } catch {
+      setLiveMessage('Failed to import app state.');
+    }
+  };
+
+  const onImportAppStateFile: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') importAppStateText(reader.result);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
   return (
     <div className={`app-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -528,6 +653,15 @@ const App: React.FC = () => {
         <button className="btn" onClick={duplicateActiveDraft} disabled={!activeDraft}>Duplicate</button>
         <button className="btn" onClick={renameActiveDraft} disabled={!activeDraft}>Rename</button>
         <button className="btn" onClick={deleteActiveDraft} disabled={!activeDraft}>Delete</button>
+        <button className="btn" onClick={exportAppState}>Export App State</button>
+        <button className="btn" onClick={() => appStateImportRef.current?.click()}>Import App State</button>
+        <input
+          ref={appStateImportRef}
+          type="file"
+          accept="application/json"
+          onChange={onImportAppStateFile}
+          style={{ display: 'none' }}
+        />
       </div>
 
       {/* ─── Body ─── */}

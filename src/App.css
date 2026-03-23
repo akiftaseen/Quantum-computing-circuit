@@ -2363,11 +2363,45 @@ textarea:focus-visible {
   align-content: start;
 }
 
+.sim-lab-card-is-pinned {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
 .sim-lab-card-title {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.2px;
   color: var(--text);
+}
+
+.sim-lab-card-title-with-pin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sim-lab-pin-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-2);
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sim-lab-pin-btn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.sim-lab-pin-btn.is-pinned {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--primary-bg) 64%, var(--card));
 }
 
 .sim-lab-note {
