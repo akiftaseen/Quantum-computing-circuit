@@ -13,6 +13,7 @@ interface CircuitGridProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   stepCol: number | null;
+  qubitStateLabels?: string[];
 }
 
 /* ---- Layout constants ---- */
@@ -52,6 +53,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   selectedId,
   onSelect,
   stepCol,
+  qubitStateLabels,
 }) => {
   const { numQubits, numColumns, gates } = circuit;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -127,14 +129,14 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
             </text>
             <text x={42} y={y} dominantBaseline="central" fontSize={12}
               fontFamily="var(--font-sans)" fill="var(--text-3, #94a3b8)">
-              |0⟩
+              {qubitStateLabels?.[q] ?? '|0⟩'}
             </text>
             <line x1={PAD_L - 6} y1={y} x2={wireEnd} y2={y}
               stroke="var(--text-3, #94a3b8)" strokeWidth={1} />
           </g>
         );
       }),
-    [numQubits, numColumns],
+    [numQubits, numColumns, qubitStateLabels],
   );
 
   /* ---- Step highlight column ---- */

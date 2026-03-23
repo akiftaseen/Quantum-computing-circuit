@@ -97,13 +97,13 @@ const evolveCircuitFromState = (
 };
 
 export const runCircuit = (
-  circuit: CircuitState, upToCol?: number, skipMeasure = false,
+  circuit: CircuitState, upToCol?: number, skipMeasure = false, initialState?: Complex[],
 ): StepResult => {
-  return evolveCircuitFromState(initZeroState(circuit.numQubits), circuit, upToCol, skipMeasure);
+  return evolveCircuitFromState(initialState ?? initZeroState(circuit.numQubits), circuit, upToCol, skipMeasure);
 };
 
 export const runWithShots = (
-  circuit: CircuitState, shots: number,
+  circuit: CircuitState, shots: number, initialState?: Complex[],
 ): Map<string, number> => {
   const { numQubits } = circuit;
   const hist = new Map<string, number>();
@@ -112,7 +112,7 @@ export const runWithShots = (
   );
 
   if (!hasMidMeasure) {
-    const { state } = runCircuit(circuit, undefined, true);
+    const { state } = runCircuit(circuit, undefined, true, initialState);
     const dim = 1 << numQubits;
     const probs = state.map(a => a.re * a.re + a.im * a.im);
     for (let s = 0; s < shots; s++) {
@@ -129,7 +129,7 @@ export const runWithShots = (
     }
   } else {
     for (let s = 0; s < shots; s++) {
-      const { state } = runCircuit(circuit);
+      const { state } = runCircuit(circuit, undefined, false, initialState);
       const dim = 1 << numQubits;
       const probs = state.map(a => a.re * a.re + a.im * a.im);
       const r = Math.random();
@@ -163,14 +163,15 @@ export const runWithNoiseShots = (
   circuit: CircuitState,
   shots: number,
   noise: NoiseConfig,
+  initialState?: Complex[],
 ): Map<string, number> => {
   const { numQubits } = circuit;
   const hist = new Map<string, number>();
 
-  if (!noise.enabled) return runWithShots(circuit, shots);
+  if (!noise.enabled) return runWithShots(circuit, shots, initialState);
 
   for (let s = 0; s < shots; s++) {
-    const ideal = runCircuit(circuit, undefined, true).state;
+    const ideal = runCircuit(circuit, undefined, true, initialState).state;
     let noisy = ideal;
 
     for (let q = 0; q < numQubits; q++) {

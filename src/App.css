@@ -637,6 +637,161 @@ textarea:focus-visible {
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
 }
 
+.init-state-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px 4px 0;
+}
+
+.init-state-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.init-state-mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.init-mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.init-mode-btn.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+
+.init-state-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.init-state-item {
+  display: grid;
+  gap: 4px;
+}
+
+.init-state-item span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.08px;
+}
+
+.init-state-item input {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+}
+
+.init-state-item.invalid input {
+  border-color: color-mix(in srgb, #ef4444 48%, var(--border));
+  background: color-mix(in srgb, #ef4444 6%, var(--card));
+}
+
+.init-state-item input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.statevector-input-wrap {
+  display: grid;
+  gap: 4px;
+}
+
+.statevector-input-label {
+  display: grid;
+  gap: 4px;
+}
+
+.statevector-input-label span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.statevector-input-label textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  padding: 7px 9px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+}
+
+.statevector-input-label.invalid textarea {
+  border-color: color-mix(in srgb, #ef4444 48%, var(--border));
+  background: color-mix(in srgb, #ef4444 6%, var(--card));
+}
+
+.statevector-input-label textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.formula-pad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 7px;
+  background: color-mix(in srgb, var(--bg) 78%, var(--card));
+}
+
+.formula-pad-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text-2);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.formula-pad-btn:hover {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+  background: color-mix(in srgb, var(--primary-bg) 40%, var(--card));
+  color: var(--text);
+}
+
+.init-state-hint {
+  font-size: 10px;
+  color: var(--text-3);
+  line-height: 1.35;
+}
+
+.init-state-hint.error {
+  color: color-mix(in srgb, #ef4444 85%, var(--text-2));
+}
+
 /* ---- Param / Info Card ---- */
 .info-card {
   background: var(--card);

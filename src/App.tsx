@@ -1,10 +1,11 @@
-import React, { lazy, Suspense, useState, useMemo, useCallback, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import './App.css';
 import { formatComplex } from './logic/complex';
 import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
 import { loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATE_GROUPS } from './logic/templates';
+import { buildInitialStateFromInput, parseInitialQubitStateDetailed, type InitialStateInputMode } from './logic/initialQubitState';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
 import { useTheme } from './hooks/useTheme';
 import type { CircuitState, PlacedGate } from './logic/circuitTypes';
@@ -43,6 +44,12 @@ const App: React.FC = () => {
   const [showGateModal, setShowGateModal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(200);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [initialStateMode, setInitialStateMode] = useState<InitialStateInputMode>('qubit');
+  const [initialQubitExprs, setInitialQubitExprs] = useState<string[]>(() => Array(INIT.numQubits).fill('0'));
+  const [statevectorExpr, setStatevectorExpr] = useState<string>('');
+  const [activeInitTarget, setActiveInitTarget] = useState<{ mode: InitialStateInputMode; qubit?: number } | null>(null);
+  const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Keyboard shortcuts are defined after handlers to avoid stale references.
 
@@ -73,11 +80,32 @@ const App: React.FC = () => {
     }
   }, [isResizingSidebar, resizeSidebar, stopResizingSidebar]);
 
+  useEffect(() => {
+    setInitialQubitExprs((prev) => {
+      if (prev.length === circuit.numQubits) return prev;
+      if (prev.length > circuit.numQubits) return prev.slice(0, circuit.numQubits);
+      return [...prev, ...Array(circuit.numQubits - prev.length).fill('0')];
+    });
+  }, [circuit.numQubits]);
+
+  const initialConfig = useMemo(
+    () => buildInitialStateFromInput(circuit.numQubits, initialStateMode, initialQubitExprs, statevectorExpr),
+    [circuit.numQubits, initialStateMode, initialQubitExprs, statevectorExpr],
+  );
+
+  const initialState = initialConfig.state;
+  const initialQubitLabels = initialConfig.qubitLabels;
+
+  const initialQubitValidation = useMemo(
+    () => Array.from({ length: circuit.numQubits }, (_, q) => parseInitialQubitStateDetailed(initialQubitExprs[q] ?? '0')),
+    [circuit.numQubits, initialQubitExprs],
+  );
+
   // Live simulation
   const simResult = useMemo(() => {
     const col = stepCol ?? undefined;
-    return runCircuit(circuit, col, true);
-  }, [circuit, stepCol]);
+    return runCircuit(circuit, col, true, initialState);
+  }, [circuit, stepCol, initialState]);
 
   const blochVectors = useMemo(() =>
     Array.from({ length: circuit.numQubits }, (_, i) =>
@@ -144,9 +172,9 @@ const App: React.FC = () => {
       ...noise,
       enabled: noise.depolarizing1q > 0 || noise.amplitudeDamping > 0 || noise.readoutError > 0,
     };
-    const hist = runWithShots(circuit, numShots);
+    const hist = runWithShots(circuit, numShots, initialState);
     setShotsResult(hist);
-    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise));
+    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState));
     setNoise(effectiveNoise);
     setTab('shots');
   };
@@ -170,11 +198,58 @@ const App: React.FC = () => {
     setNoise(defaultNoise);
   };
 
+  const insertInitToken = (token: string) => {
+    const caretOffset = token.endsWith('()') ? token.length - 1 : token.length;
+
+    if (activeInitTarget?.mode === 'statevector' || initialStateMode === 'statevector') {
+      const input = statevectorInputRef.current;
+      const value = input?.value ?? statevectorExpr;
+      const start = input?.selectionStart ?? value.length;
+      const end = input?.selectionEnd ?? value.length;
+      const nextValue = `${value.slice(0, start)}${token}${value.slice(end)}`;
+      const nextCaret = start + caretOffset;
+
+      setStatevectorExpr(nextValue);
+      requestAnimationFrame(() => {
+        const el = statevectorInputRef.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(nextCaret, nextCaret);
+      });
+      return;
+    }
+
+    const q = activeInitTarget?.mode === 'qubit' && activeInitTarget.qubit !== undefined
+      ? activeInitTarget.qubit
+      : 0;
+    const input = qubitInputRefs.current[q];
+    const value = input?.value ?? (initialQubitExprs[q] ?? '');
+    const start = input?.selectionStart ?? value.length;
+    const end = input?.selectionEnd ?? value.length;
+    const nextValue = `${value.slice(0, start)}${token}${value.slice(end)}`;
+    const nextCaret = start + caretOffset;
+
+    setInitialQubitExprs((prev) => {
+      const next = [...prev];
+      next[q] = nextValue;
+      return next;
+    });
+
+    requestAnimationFrame(() => {
+      const el = qubitInputRefs.current[q];
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(nextCaret, nextCaret);
+    });
+  };
+
   const handleClear = () => { reset({ ...circuit, gates: [] }); setSelectedId(null); setShotsResult(null); setNoisyShotsResult(null); setStepCol(null); };
 
   const handleTemplate = (build: () => CircuitState) => {
     const c = build();
     reset(c);
+    setInitialQubitExprs(Array(c.numQubits).fill('0'));
+    setStatevectorExpr('');
     setSelectedId(null);
     setShotsResult(null);
     setNoisyShotsResult(null);
@@ -345,6 +420,7 @@ const App: React.FC = () => {
               selectedId={selectedId}
               onSelect={setSelectedId}
               stepCol={stepCol}
+              qubitStateLabels={initialQubitLabels}
             />
             {/* Stepper bar */}
             <div className="stepper-row">
@@ -370,6 +446,78 @@ const App: React.FC = () => {
                   className="shots-input"
                 />
               </label>
+            </div>
+
+            <div className="init-state-row">
+              <div className="init-state-header">
+                <span className="stepper-label">Initial state</span>
+                <div className="init-state-mode-switch" role="tablist" aria-label="Initial state mode">
+                  <button
+                    type="button"
+                    className={`init-mode-btn${initialStateMode === 'qubit' ? ' active' : ''}`}
+                    onClick={() => setInitialStateMode('qubit')}
+                  >
+                    Per qubit
+                  </button>
+                  <button
+                    type="button"
+                    className={`init-mode-btn${initialStateMode === 'statevector' ? ' active' : ''}`}
+                    onClick={() => setInitialStateMode('statevector')}
+                  >
+                    Statevector
+                  </button>
+                </div>
+              </div>
+
+              {initialStateMode === 'qubit' ? (
+                <div className="init-state-inputs">
+                  {Array.from({ length: circuit.numQubits }, (_, q) => (
+                    <label key={q} className={`init-state-item${initialQubitValidation[q]?.valid ? '' : ' invalid'}`}>
+                      <span>q{q}</span>
+                      <input
+                        ref={(el) => { qubitInputRefs.current[q] = el; }}
+                        value={initialQubitExprs[q] ?? '0'}
+                        onFocus={() => setActiveInitTarget({ mode: 'qubit', qubit: q })}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setInitialQubitExprs((prev) => {
+                            const next = [...prev];
+                            next[q] = v;
+                            return next;
+                          });
+                        }}
+                        placeholder="0"
+                        title="Use presets: 0, 1, +, -, i, -i or expressions: a,b. Complex supported (e.g. 1/sqrt(2),i/sqrt(2))."
+                      />
+                      <small className={`init-state-hint${initialQubitValidation[q]?.valid ? '' : ' error'}`}>
+                        {initialQubitValidation[q]?.message}
+                      </small>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="statevector-input-wrap">
+                  <label className={`statevector-input-label${initialConfig.valid ? '' : ' invalid'}`}>
+                    <span>Statevector expression</span>
+                    <textarea
+                      ref={statevectorInputRef}
+                      value={statevectorExpr}
+                      onFocus={() => setActiveInitTarget({ mode: 'statevector' })}
+                      onChange={(e) => setStatevectorExpr(e.target.value)}
+                      placeholder="(1/sqrt(2))*|00⟩ + (i/sqrt(2))*|11⟩"
+                    />
+                  </label>
+                  <small className={`init-state-hint${initialConfig.valid ? '' : ' error'}`}>{initialConfig.message}</small>
+                </div>
+              )}
+
+              <div className="formula-pad" aria-label="Formula pad">
+                {['0', '1', '+', '-', '*', '/', '^', '(', ')', ',', 'i', 'pi', 'sqrt()', 'sin()', 'cos()', 'exp()', '|0⟩', '|1⟩', `|${'0'.repeat(circuit.numQubits)}⟩`, `|${'1'.repeat(circuit.numQubits)}⟩`].map((token) => (
+                  <button key={token} type="button" className="formula-pad-btn" onClick={() => insertInitToken(token)}>
+                    {token}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
