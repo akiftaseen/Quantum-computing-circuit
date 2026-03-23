@@ -34,8 +34,8 @@ const DiracNotation: React.FC<Props> = ({ state, numQubits, threshold = 1e-6 }) 
         <span key={t.label}>
           {i > 0 && <span className="dirac-plus"> + </span>}
           <span
-            className="dirac-amp"
-            style={{ color: phaseColor(t.phase), fontWeight: selectedBasis === t.label ? 700 : 500 }}
+            className={`dirac-amp${selectedBasis === t.label ? ' active' : ''}`}
+            style={{ '--phase-color': phaseColor(t.phase) } as React.CSSProperties}
             title={`phase: ${(t.phase * 180 / Math.PI).toFixed(1)}°`}
             onClick={() => setSelectedBasis((prev) => (prev === t.label ? null : t.label))}
             role="button"
@@ -56,28 +56,21 @@ const DiracNotation: React.FC<Props> = ({ state, numQubits, threshold = 1e-6 }) 
         {terms.map(t => (
           <div
             key={t.label}
-            className="dirac-prob-row"
+            className={`dirac-prob-row${selectedBasis === t.label ? ' active' : ''}`}
             onClick={() => setSelectedBasis((prev) => (prev === t.label ? null : t.label))}
-            style={{
-              cursor: 'pointer',
-              borderRadius: 4,
-              background: selectedBasis === t.label ? 'var(--primary-bg)' : 'transparent',
-              padding: '2px 4px',
-            }}
+            style={{ '--phase-color': phaseColor(t.phase) } as React.CSSProperties}
           >
             <span>|{t.label}⟩</span>
             <div className="dirac-prob-bar">
               <div
+                className={`dirac-prob-fill${selectedBasis === t.label ? ' active' : ''}`}
                 style={{
                   width: `${t.prob * 100}%`,
-                  background: selectedBasis === t.label ? phaseColor(t.phase) : '#6366f1',
-                  height: '100%',
-                  borderRadius: 3,
                 }}
               />
             </div>
             <span>{(t.prob * 100).toFixed(1)}%</span>
-            <span style={{ minWidth: 64, textAlign: 'right', color: 'var(--text-2)' }}>
+            <span className="dirac-phase-val">
               {(t.phase * 180 / Math.PI).toFixed(1)}°
             </span>
           </div>

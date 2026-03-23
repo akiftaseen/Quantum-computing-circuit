@@ -122,11 +122,11 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         return (
           <g key={`wire-${q}`}>
             <text x={14} y={y} dominantBaseline="central" fontSize={13}
-              fontFamily="'Courier New', monospace" fill="var(--text-3, #64748b)">
+              fontFamily="var(--font-mono)" fill="var(--text-3, #64748b)">
               q<tspan fontSize={10} dy={2}>{q}</tspan>
             </text>
             <text x={42} y={y} dominantBaseline="central" fontSize={12}
-              fontFamily="serif" fill="var(--text-3, #94a3b8)">
+              fontFamily="var(--font-sans)" fill="var(--text-3, #94a3b8)">
               |0⟩
             </text>
             <line x1={PAD_L - 6} y1={y} x2={wireEnd} y2={y}
@@ -261,7 +261,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX} rx={4}
             fill={fl} stroke={isSel ? '#6366f1' : st} strokeWidth={isSel ? 2.8 : 1.4} />
           <text x={x} y={y} textAnchor="middle" dominantBaseline="central"
-            fontSize={fontSize} fontWeight={600} fill={tx} fontFamily="'Courier New', monospace">
+            fontSize={fontSize} fontWeight={600} fill={tx} fontFamily="var(--font-mono)">
             {label}
           </text>
         </g>,
@@ -291,7 +291,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     () =>
       Array.from({ length: numColumns }, (_, s) => (
         <text key={`sl-${s}`} x={sx(s)} y={H - 6} textAnchor="middle"
-          fontSize={9} fill="var(--text-3, #cbd5e1)" fontFamily="'Courier New', monospace">
+          fontSize={9} fill="var(--text-3, #cbd5e1)" fontFamily="var(--font-mono)">
           {s}
         </text>
       )),

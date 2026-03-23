@@ -20,28 +20,28 @@
 
 /* ---- Dark theme ---- */
 [data-theme='dark'] {
-  --bg: #00030a;
-  --card: #040a12;
-  --text: #e8f2fc;
-  --text-2: #94acc3;
-  --text-3: #627a92;
-  --border: #0c1826;
-  --primary: #6eb4ea;
-  --primary-hover: #8fc7f1;
-  --primary-bg: #051220;
-  --slider-track: #0a1522;
-  --slider-track-active: #244768;
-  --slider-thumb: #7ebeee;
-  --slider-thumb-border: #040a12;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.58);
-  --shadow-md: 0 18px 44px rgba(0, 0, 0, 0.64);
+  --bg: #06111d;
+  --card: #0d1a29;
+  --text: #e6f0fb;
+  --text-2: #9cb3c9;
+  --text-3: #738ca5;
+  --border: #1a2f44;
+  --primary: #7ec0f2;
+  --primary-hover: #9ad0f8;
+  --primary-bg: #11263a;
+  --slider-track: #1a3148;
+  --slider-track-active: #3f739b;
+  --slider-thumb: #92caf2;
+  --slider-thumb-border: #0d1a29;
+  --shadow-sm: 0 1px 2px rgba(1, 5, 12, 0.5);
+  --shadow-md: 0 18px 44px rgba(1, 6, 14, 0.58);
 }
 
 [data-theme='dark'] .app-shell {
   background:
-    radial-gradient(1300px 420px at 8% -16%, rgba(7, 26, 48, 0.34), transparent 64%),
-    radial-gradient(1100px 360px at 100% 0%, rgba(8, 18, 32, 0.28), transparent 62%),
-    #00030a;
+    radial-gradient(1200px 420px at 4% -14%, rgba(46, 106, 156, 0.22), transparent 64%),
+    radial-gradient(1000px 380px at 100% -8%, rgba(24, 66, 106, 0.24), transparent 62%),
+    #06111d;
 }
 
 [data-theme='dark'] .app-header,
@@ -52,27 +52,27 @@
 [data-theme='dark'] .state-insights-card,
 [data-theme='dark'] .shots-chart-card,
 [data-theme='dark'] .gate-modal-card {
-  background: #040a12;
-  border-color: #0d1a2a;
+  background: #0d1a29;
+  border-color: #1a3045;
 }
 
 [data-theme='dark'] .results-tabs {
-  background: rgba(5, 10, 17, 0.96);
+  background: rgba(7, 16, 27, 0.96);
 }
 
 [data-theme='dark'] .btn {
-  background: #08111d;
-  border-color: #16304a;
+  background: #13263a;
+  border-color: #28435d;
 }
 
 [data-theme='dark'] .btn:hover {
-  background: #0d1828;
-  border-color: #234564;
+  background: #1a3046;
+  border-color: #355a79;
 }
 
 [data-theme='dark'] .header-adjuster {
-  background: #07111c;
-  border-color: #163046;
+  background: #102133;
+  border-color: #27445f;
 }
 
 [data-theme='dark'] .template-btn,
@@ -80,8 +80,66 @@
 [data-theme='dark'] .state-bell-box,
 [data-theme='dark'] .shots-empty,
 [data-theme='dark'] .noise-controls {
-  background: #06101a;
-  border-color: #122437;
+  background: #112233;
+  border-color: #274258;
+}
+
+[data-theme='dark'] .sidebar-divider {
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--primary) 28%, var(--border)), transparent);
+}
+
+[data-theme='dark'] .sidebar-primary-section,
+[data-theme='dark'] .sidebar-secondary-section {
+  --text: #e6f0fb;
+  --text-2: #9cb3c9;
+  --text-3: #738ca5;
+  --border: #274258;
+  --primary: #7ec0f2;
+  --primary-bg: #17324a;
+  background: #132435;
+  border-color: #2a455d;
+}
+
+[data-theme='dark'] .sidebar-secondary-section .template-btn {
+  background: #132b3d;
+  border-color: #2b4861;
+}
+
+[data-theme='dark'] .template-btn:hover {
+  background: #1b3850;
+  border-color: #4f7594;
+  color: #e6f0fb;
+}
+
+[data-theme='dark'] .template-group {
+  border-top-color: color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+[data-theme='dark'] .template-badge {
+  background: #0f2131;
+  border-color: #33536f;
+  color: #9cb3c9;
+}
+
+[data-theme='dark'] .template-btn:hover .template-badge {
+  border-color: #5e88ab;
+  color: #d7e8f7;
+}
+
+[data-theme='dark'] .palette-group {
+  border-bottom-color: color-mix(in srgb, #6c8cab 20%, var(--border));
+}
+
+[data-theme='dark'] .palette-chip {
+  background: #193249;
+  color: #b5d6f0;
+  border-color: #355874;
+}
+
+[data-theme='dark'] .palette-chip:hover {
+  background: #22425f;
+  border-color: #5f87aa;
+  color: #e6f0fb;
 }
 
 /* ===================== Slider System ===================== */
@@ -170,10 +228,10 @@ textarea:focus-visible {
 }
 
 .app-header h1 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
-  letter-spacing: 0.1px;
+  letter-spacing: 0.25px;
   text-transform: uppercase;
   white-space: nowrap;
   margin: 0;
@@ -233,7 +291,7 @@ textarea:focus-visible {
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.08px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card);
@@ -383,11 +441,11 @@ textarea:focus-visible {
 }
 
 .sidebar-heading {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   margin-bottom: 6px;
 }
 
@@ -400,7 +458,7 @@ textarea:focus-visible {
   padding: 8px 10px;
   margin-bottom: 4px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
   border: 1px solid var(--border);
   border-radius: 5px;
@@ -433,10 +491,10 @@ textarea:focus-visible {
 }
 
 .template-group-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.6px;
   color: var(--text-3);
   margin: 0 0 6px;
 }
@@ -523,6 +581,7 @@ textarea:focus-visible {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-2);
+  letter-spacing: 0.08px;
   white-space: nowrap;
 }
 
@@ -640,7 +699,7 @@ textarea:focus-visible {
   gap: 7px;
   padding: 10px 14px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-2);
   border: none;
   background: none;
@@ -657,7 +716,7 @@ textarea:focus-visible {
 .results-tab.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .results-tab-icon {
@@ -703,6 +762,8 @@ textarea:focus-visible {
   font-size: 11px;
   color: var(--text-2);
   font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.06px;
 }
 
 .noise-controls label span {
@@ -712,6 +773,7 @@ textarea:focus-visible {
 .noise-value {
   font-size: 11px;
   color: var(--primary);
+  line-height: 1.35;
 }
 
 .noise-controls label input[type="range"] {
@@ -742,6 +804,7 @@ textarea:focus-visible {
   margin: 0;
   font-size: 12px;
   color: var(--text-2);
+  line-height: 1.45;
 }
 
 .shots-noise-state {
@@ -780,8 +843,9 @@ textarea:focus-visible {
 .shots-summary-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.45px;
   color: var(--text-2);
+  line-height: 1.35;
 }
 
 .shots-summary-value {
@@ -795,6 +859,7 @@ textarea:focus-visible {
   margin-top: 4px;
   font-size: 11px;
   color: var(--text-2);
+  line-height: 1.4;
 }
 
 .shots-compare-grid {
@@ -813,9 +878,10 @@ textarea:focus-visible {
 .shots-title {
   margin: 0 0 8px;
   font-size: 12px;
+  font-weight: 700;
   color: var(--text-2);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.55px;
 }
 
 .shots-empty {
@@ -829,6 +895,7 @@ textarea:focus-visible {
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--text-2);
+  line-height: 1.45;
 }
 
 .state-insights-panel,
@@ -874,6 +941,7 @@ textarea:focus-visible {
   font-size: 13px;
   font-weight: 700;
   color: var(--primary);
+  letter-spacing: 0.08px;
 }
 
 .state-inline-metrics {
@@ -882,6 +950,7 @@ textarea:focus-visible {
   gap: 8px;
   font-size: 12px;
   color: var(--text-2);
+  line-height: 1.45;
 }
 
 .state-amplitude-table {
@@ -890,6 +959,7 @@ textarea:focus-visible {
   gap: 6px 10px;
   align-items: center;
   font-size: 12px;
+  line-height: 1.4;
 }
 
 .state-amplitude-head {
@@ -920,6 +990,7 @@ textarea:focus-visible {
   align-items: center;
   font-size: 12px;
   color: var(--text-2);
+  line-height: 1.4;
 }
 
 .state-tag {
@@ -958,6 +1029,7 @@ textarea:focus-visible {
   align-items: center;
   font-size: 12px;
   color: var(--text-2);
+  line-height: 1.35;
 }
 
 .state-bar {
@@ -1003,6 +1075,8 @@ textarea:focus-visible {
   font-size: 11px;
   color: var(--text-2);
   font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.06px;
 }
 
 .state-controls-row input,
@@ -1021,6 +1095,7 @@ textarea:focus-visible {
   border: 1px dashed var(--border);
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg) 80%, transparent);
+  line-height: 1.45;
 }
 
 .empty-msg {
@@ -1059,6 +1134,15 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
+.dirac-amp {
+  color: var(--phase-color, var(--primary));
+  font-weight: 500;
+}
+
+.dirac-amp.active {
+  font-weight: 700;
+}
+
 .dirac-amp:hover,
 .dirac-basis:hover {
   opacity: 0.85;
@@ -1077,6 +1161,14 @@ textarea:focus-visible {
   gap: 8px;
   font-size: 12px;
   color: var(--text);
+  line-height: 1.35;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.dirac-prob-row.active {
+  background: var(--primary-bg);
 }
 
 .dirac-prob-bar {
@@ -1084,6 +1176,22 @@ textarea:focus-visible {
   border-radius: 4px;
   background: color-mix(in srgb, var(--border) 70%, transparent);
   overflow: hidden;
+}
+
+.dirac-prob-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--primary);
+}
+
+.dirac-prob-fill.active {
+  background: var(--phase-color, var(--primary));
+}
+
+.dirac-phase-val {
+  min-width: 64px;
+  text-align: right;
+  color: var(--text-2);
 }
 
 /* ---- Bloch grid ---- */
@@ -1094,8 +1202,25 @@ textarea:focus-visible {
   justify-content: center;
 }
 
+.bloch-container {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 76%, var(--card));
+  padding: 8px 10px;
+}
+
+.bloch-label {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+
 .bloch-info {
-  font-size: 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
   text-align: center;
   color: var(--text-2);
 }
@@ -1187,6 +1312,8 @@ textarea:focus-visible {
   color: var(--text-2);
   font-size: 11px;
   margin-bottom: 4px;
+  line-height: 1.35;
+  letter-spacing: 0.06px;
 }
 
 .analysis-metric-value {
@@ -1212,6 +1339,8 @@ textarea:focus-visible {
   font-size: 11px;
   color: var(--text-2);
   font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.06px;
 }
 
 .analysis-indicator-track {
@@ -1245,7 +1374,8 @@ textarea:focus-visible {
   font-size: 11px;
   margin-bottom: 6px;
   font-weight: 700;
-  letter-spacing: 0.2px;
+  line-height: 1.35;
+  letter-spacing: 0.35px;
 }
 
 .analysis-breakdown-grid {
@@ -1262,6 +1392,7 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .analysis-breakdown-count {
@@ -1287,17 +1418,20 @@ textarea:focus-visible {
   margin: 0;
   padding-left: 18px;
   font-size: 11px;
+  line-height: 1.45;
 }
 
 .analysis-optimization-item {
   color: var(--text-2);
   margin-bottom: 4px;
+  line-height: 1.45;
 }
 
 .analysis-optimization-more {
   font-size: 11px;
   color: var(--text-2);
   margin-top: 6px;
+  line-height: 1.4;
 }
 
 .analysis-learning {
@@ -1512,6 +1646,12 @@ textarea:focus-visible {
 }
 
 /* ---- Math panel ---- */
+.math-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .math-panel h4 {
   font-size: 13px;
   font-weight: 600;
@@ -1524,22 +1664,38 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: 10px;
   max-height: 320px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--bg) 70%, var(--card));
 }
 
 .matrix-table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-family: var(--font-mono);
   font-size: 12px;
   width: max-content;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card);
 }
 
 .mat-cell {
-  border: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 5px 8px;
   text-align: center;
   white-space: nowrap;
   color: var(--text);
   background: var(--card);
+}
+
+.matrix-table tr td:last-child {
+  border-right: none;
+}
+
+.matrix-table tr:last-child td {
+  border-bottom: none;
 }
 
 /* ===================== Gate Palette ===================== */
