@@ -1193,6 +1193,10 @@ textarea:focus-visible {
   padding: 12px;
 }
 
+.results-tab-surface-sim {
+  padding-bottom: 4px;
+}
+
 .results-surface-head {
   display: grid;
   gap: 3px;

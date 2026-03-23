@@ -237,7 +237,7 @@ const buildGateOperator = (gate: PlacedGate, numQubits: number): ComplexMatrix |
     } else if (gate.gate === 'ZZ') {
       out = apply2QubitGate(basis, ZZ(gate.params[0] ?? 0), gate.targets[0], gate.targets[1], numQubits);
     } else if (gate.gate === 'CCX') {
-      out = apply3QubitGate(basis, CCX_GATE, gate.targets[0], gate.controls[0], gate.controls[1], numQubits);
+      out = apply3QubitGate(basis, CCX_GATE, gate.controls[0], gate.controls[1], gate.targets[0], numQubits);
     } else if (gate.gate === 'CNOT') {
       out = applyControlledGate(basis, X_GATE, gate.controls, gate.targets[0], numQubits);
     } else if (gate.gate === 'CZ') {
@@ -681,7 +681,7 @@ const evolveCircuitFromState = (
         continue;
       }
       if (g.gate === 'CCX') {
-        state = apply3QubitGate(state, CCX_GATE, g.targets[0], g.controls[0], g.controls[1], numQubits);
+        state = apply3QubitGate(state, CCX_GATE, g.controls[0], g.controls[1], g.targets[0], numQubits);
         continue;
       }
       if (g.gate === 'CNOT') {

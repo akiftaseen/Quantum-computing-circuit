@@ -1,9 +1,18 @@
 import type { CircuitState, PlacedGate, GateName } from './circuitTypes';
 import { newGateId } from './circuitTypes';
 
-const g = (gate: GateName, col: number, targets: number[], controls: number[] = [], params: number[] = [], cb?: number): PlacedGate => ({
+const g = (
+  gate: GateName,
+  col: number,
+  targets: number[],
+  controls: number[] = [],
+  params: number[] = [],
+  cb?: number,
+  cond?: number,
+): PlacedGate => ({
   id: newGateId(), gate, column: col, targets, controls, params,
   ...(cb !== undefined ? { classicalBit: cb } : {}),
+  ...(cond !== undefined ? { condition: cond } : {}),
 });
 
 export const bellPair = (): CircuitState => ({
@@ -22,6 +31,9 @@ export const teleportation = (): CircuitState => ({
     g('H', 0, [1]), g('CNOT', 1, [2], [1]),
     g('CNOT', 2, [1], [0]), g('H', 3, [0]),
     g('M', 4, [0], [], [], 0), g('M', 4, [1], [], [], 1),
+    // Classical feed-forward corrections on receiver q2.
+    g('Z', 5, [2], [], [], undefined, 0),
+    g('X', 5, [2], [], [], undefined, 1),
   ],
 });
 
@@ -150,7 +162,7 @@ export const phaseKickback2 = (): CircuitState => ({
   numQubits: 2, numColumns: 12,
   gates: [
     g('X', 0, [1]),
-    g('H', 1, [0]), g('H', 1, [1]),
+    g('H', 1, [0]),
     g('CZ', 2, [1], [0]),
     g('H', 3, [0]),
     g('M', 5, [0], [], [], 0), g('M', 5, [1], [], [], 1),
@@ -185,10 +197,12 @@ export const repetitionCode3 = (): CircuitState => ({
     // Encode logical qubit from q0 into 3-qubit repetition code
     g('H', 0, [0]),
     g('CNOT', 1, [1], [0]), g('CNOT', 2, [2], [0]),
-    // Inject a sample bit-flip error and decode
+    // Inject a sample bit-flip error and perform majority-vote correction
     g('X', 3, [1]),
-    g('CNOT', 4, [1], [0]), g('CNOT', 5, [2], [0]),
-    g('M', 7, [0], [], [], 0), g('M', 7, [1], [], [], 1), g('M', 7, [2], [], [], 2),
+    g('CCX', 4, [0], [1, 2]),
+    g('CCX', 5, [1], [0, 2]),
+    g('CCX', 6, [2], [0, 1]),
+    g('M', 8, [0], [], [], 0), g('M', 8, [1], [], [], 1), g('M', 8, [2], [], [], 2),
   ],
 });
 
