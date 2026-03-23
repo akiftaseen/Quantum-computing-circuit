@@ -134,8 +134,7 @@ const buildOperationalChecks = (
   return checks;
 };
 
-const Term: React.FC<{ enabled: boolean; term: keyof typeof GLOSSARY; children: React.ReactNode }> = ({ enabled, term, children }) => {
-  if (!enabled) return <>{children}</>;
+const Term: React.FC<{ term: keyof typeof GLOSSARY; children: React.ReactNode }> = ({ term, children }) => {
   return (
     <span className="wb-term" title={GLOSSARY[term]}>
       {children}
@@ -153,7 +152,6 @@ const ExperimentWorkbenchPanel: React.FC<Props> = ({
   noise,
   numShots,
 }) => {
-  const [glossaryHints, setGlossaryHints] = useState(true);
   const [snapshotA, setSnapshotA] = useState<Snapshot | null>(null);
   const [snapshotB, setSnapshotB] = useState<Snapshot | null>(null);
 
@@ -324,10 +322,6 @@ const ExperimentWorkbenchPanel: React.FC<Props> = ({
     <div className="wb-panel">
       <div className="wb-header-row">
         <h4 className="wb-title">Insights Workspace</h4>
-        <label className="wb-glossary-toggle">
-          <input type="checkbox" checked={glossaryHints} onChange={(e) => setGlossaryHints(e.target.checked)} />
-          <span>Glossary hints</span>
-        </label>
       </div>
 
       <section className="wb-card">
@@ -349,7 +343,7 @@ const ExperimentWorkbenchPanel: React.FC<Props> = ({
       </section>
 
       <section className="wb-card">
-        <div className="wb-card-title"><Term enabled={glossaryHints} term="confidence">Confidence Meter</Term></div>
+        <div className="wb-card-title"><Term term="confidence">Confidence Meter</Term></div>
         <div className="wb-confidence-wrap">
           <div className="wb-confidence-track">
             <div className="wb-confidence-fill" style={{ width: `${confidence.toFixed(1)}%` }} />
@@ -357,9 +351,9 @@ const ExperimentWorkbenchPanel: React.FC<Props> = ({
           <div className="wb-confidence-value">{confidence.toFixed(1)} / 100</div>
         </div>
         <div className="wb-metric-row">
-          <span><Term enabled={glossaryHints} term="topOutcome">Top outcome</Term>: |{topBasis}⟩</span>
-          <span><Term enabled={glossaryHints} term="dominance">Dominance</Term>: {(Math.max(0, top.prob - top.second) * 100).toFixed(2)}%</span>
-          <span><Term enabled={glossaryHints} term="tvDistance">TV distance</Term>: {tv.toFixed(4)}</span>
+          <span><Term term="topOutcome">Top outcome</Term>: |{topBasis}⟩</span>
+          <span><Term term="dominance">Dominance</Term>: {(Math.max(0, top.prob - top.second) * 100).toFixed(2)}%</span>
+          <span><Term term="tvDistance">TV distance</Term>: {tv.toFixed(4)}</span>
         </div>
       </section>
 
@@ -400,8 +394,8 @@ const ExperimentWorkbenchPanel: React.FC<Props> = ({
 
         {compareSummary && (
           <div className="wb-compare-summary">
-            <div><Term enabled={glossaryHints} term="fidelity">Fidelity</Term>: {compareSummary.fidelity.toFixed(4)}</div>
-            <div><Term enabled={glossaryHints} term="traceDistance">Trace distance (approx)</Term>: {compareSummary.traceDistance.toFixed(4)}</div>
+            <div><Term term="fidelity">Fidelity</Term>: {compareSummary.fidelity.toFixed(4)}</div>
+            <div><Term term="traceDistance">Trace distance (approx)</Term>: {compareSummary.traceDistance.toFixed(4)}</div>
             <div>Gate delta (B-A): {compareSummary.gateDelta}</div>
             <div>Depth delta (B-A): {compareSummary.depthDelta}</div>
             <div>Cost delta (B-A): {compareSummary.costDelta}</div>
