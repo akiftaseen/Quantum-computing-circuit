@@ -26,6 +26,7 @@ const DiracNotation = lazy(() => import('./components/DiracNotation'));
 const GateDescriptionsModal = lazy(() => import('./components/GateDescriptionsModal'));
 const CircuitAnalysisPanel = lazy(() => import('./components/CircuitAnalysisPanel'));
 const QuantumStateInsightsPanel = lazy(() => import('./components/QuantumStateInsightsPanel'));
+const ExperimentWorkbenchPanel = lazy(() => import('./components/ExperimentWorkbenchPanel'));
 const SimulatorLabPanel = lazy(() => import('./components/SimulatorLabPanel'));
 
 const INIT: CircuitState = { numQubits: 2, numColumns: 10, gates: [] };
@@ -914,6 +915,19 @@ const App: React.FC = () => {
                   
                   <Suspense fallback={<p className="empty-msg">Loading analysis...</p>}>
                     <CircuitAnalysisPanel circuit={circuit} />
+                  </Suspense>
+
+                  <div className="sidebar-divider" style={{ margin: '0' }} />
+
+                  <Suspense fallback={<p className="empty-msg">Loading insights workspace...</p>}>
+                    <ExperimentWorkbenchPanel
+                      circuit={circuit}
+                      state={simResult.state}
+                      shotsResult={shotsResult}
+                      noisyShotsResult={noisyShotsResult}
+                      noise={noise}
+                      numShots={numShots}
+                    />
                   </Suspense>
                 </div>
               )}

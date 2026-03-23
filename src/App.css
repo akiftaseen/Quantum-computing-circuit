@@ -1619,6 +1619,151 @@ textarea:focus-visible {
   gap: 20px;
 }
 
+.wb-panel {
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  gap: 12px;
+}
+
+.wb-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.wb-title {
+  margin: 0;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.wb-glossary-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.wb-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg) 30%, var(--card));
+}
+
+.wb-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wb-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.wb-list-warn {
+  color: color-mix(in srgb, #b45309 75%, var(--text));
+}
+
+.wb-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.wb-confidence-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wb-confidence-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 76%, var(--card));
+  overflow: hidden;
+}
+
+.wb-confidence-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, var(--primary));
+}
+
+.wb-confidence-value {
+  min-width: 92px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.wb-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.wb-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wb-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wb-compare-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.wb-compare-head {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wb-compare-summary {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.wb-term {
+  text-decoration: underline dotted color-mix(in srgb, var(--primary) 65%, transparent);
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
 .analysis-header-row {
   display: flex;
   align-items: center;
@@ -2088,6 +2233,29 @@ textarea:focus-visible {
   gap: 12px;
 }
 
+.sim-lab-feature-nav {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.sim-lab-feature-nav input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.sim-lab-feature-count {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
 .sim-lab-card {
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -2150,6 +2318,12 @@ textarea:focus-visible {
 .sim-lab-chip:hover {
   background: #fff;
   color: var(--text);
+}
+
+.sim-lab-chip.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
 }
 
 .sim-lab-results-wrap {

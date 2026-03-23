@@ -131,6 +131,40 @@ const ALGORITHMS: Array<{ name: string; summary: string; macro: string; steps: s
   },
 ];
 
+const FEATURE_RELATED_TERMS: Record<string, string[]> = {
+  'Symbolic Parameters': ['variables', 'symbols', 'constants', 'expressions'],
+  'Hardware Profile Presets': ['backend', 'native gates', 'connectivity', 'coupling map'],
+  'Live Transpilation Hints': ['optimize', 'optimization', 'cancellation', 'merge', 'depth'],
+  'Entanglement Map Visualization': ['correlation', 'pairwise', 'heatmap', 'entangled'],
+  'Batch Experiment Runner': ['batch', 'queue', 'jobs', 'sweep runs'],
+  'Hardware-Aware Auto-Layout Pass': ['routing', 'swap insertion', 'layout', 'mapping'],
+  'Golden Test Harness': ['regression', 'assertions', 'checks', 'pass fail'],
+  'Preset Benchmark Suites': ['benchmark', 'baseline', 'performance checks'],
+  'OpenQASM Round-Trip Verifier': ['qasm', 'roundtrip', 'import export', 'equivalence'],
+  'Noise Calibration Fitting': ['calibration', 'fit', 'kl divergence', 'noise model'],
+  'Multi-Objective Optimizer': ['tradeoff', 'objective', 'weights', 'score'],
+  'Qiskit OSS Toolkit (Free Local Features)': ['qiskit', 'transpile', 'openqasm', 'random circuit'],
+  'Parameter Optimizer (VQE-style Grid Search)': ['vqe', 'theta tuning', 'grid search', 'optimize parameter'],
+  'Noise Sweep Dashboard': ['depolarizing', 'damping', 'bit flip', 'phase flip', 'readout error'],
+  'Fidelity and Distance Metrics': ['trace distance', 'fidelity', 'kl', 'tv distance'],
+  'Stabilizer Fast Path': ['clifford', 'stabilizer', 'fast simulation'],
+  'Session and Project Save Packs': ['save', 'load', 'packs', 'project state'],
+  'Classroom and Assignment Mode': ['rubric', 'grading', 'education', 'assignment'],
+  'Observable Expectations': ['pauli', 'expectation value', 'operators', 'measurements'],
+  'State Preparation Wizard (Rz(phi)Ry(theta)|0⟩)': ['initial state', 'theta', 'phi', 'bloch sphere'],
+  'Initial-State Template Library': ['templates', 'ghz', 'bell', 'w state', 'haar'],
+  'Parametric Sweep Studio': ['scan', 'sweep', 'curve', 'parameter scan'],
+  'Measurement Basis Simulator': ['x basis', 'y basis', 'z basis', 'measurement axes'],
+  'Tomography Mode (Synthetic Shots)': ['tomography', 'reconstruction', 'synthetic shots'],
+  'Circuit Profiler': ['runtime', 'performance', 'cost', 'profiling'],
+  'Circuit Expression Macros': ['macro language', 'dsl', 'repeat syntax'],
+  'Circuit Equivalence Checker': ['equivalent', 'global phase', 'compare circuits'],
+  'Algorithm Gallery Walkthrough': ['guided', 'tutorial', 'bell', 'ghz', 'qft'],
+  'Reverse Engineering Assistant': ['state prep suggestion', 'inverse', 'derive circuit'],
+  'Export and Import Tools': ['json', 'qasm', 'download', 'upload'],
+  'Multi-Run Experiment Manager': ['compare runs', 'experiment history', 'saved runs'],
+};
+
 const SimulatorLabPanel: React.FC<Props> = ({
   state,
   numQubits,
@@ -260,6 +294,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [multiObjectiveTrace, setMultiObjectiveTrace] = useState<MultiObjectivePoint[]>([]);
   const [multiObjectiveMessage, setMultiObjectiveMessage] = useState('');
   const [assignmentPackName, setAssignmentPackName] = useState('classroom-pack-1');
+  const [featureQuery, setFeatureQuery] = useState('');
+  const [visibleFeatureCount, setVisibleFeatureCount] = useState(0);
   const observableInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -594,6 +630,36 @@ const SimulatorLabPanel: React.FC<Props> = ({
     }
     return rows;
   }, [circuit, entanglementPair, initialState, numQubits, performanceMode]);
+
+  const isFullLabView = true;
+
+  useEffect(() => {
+    const q = featureQuery.trim().toLowerCase();
+    const queryTokens = q.split(/\s+/).filter(Boolean);
+    const cards = Array.from(document.querySelectorAll('.sim-lab-card')) as HTMLElement[];
+    let visible = 0;
+
+    cards.forEach((card) => {
+      const title = (card.querySelector('.sim-lab-card-title')?.textContent ?? '').trim();
+      const noteText = Array.from(card.querySelectorAll('.sim-lab-note'))
+        .map((node) => node.textContent ?? '')
+        .join(' ')
+        .toLowerCase();
+      const relatedTerms = (FEATURE_RELATED_TERMS[title] ?? []).join(' ').toLowerCase();
+      const searchableText = `${title.toLowerCase()} ${noteText} ${relatedTerms}`;
+      const show = queryTokens.length === 0 || queryTokens.every((token) => searchableText.includes(token));
+      card.style.display = show ? '' : 'none';
+      if (show) visible += 1;
+    });
+
+    setVisibleFeatureCount(visible);
+
+    return () => {
+      cards.forEach((card) => {
+        card.style.display = '';
+      });
+    };
+  }, [featureQuery]);
 
   const applyWizard = () => {
     const exprs = Array.from({ length: numQubits }, (_, q) => {
@@ -1072,6 +1138,16 @@ const SimulatorLabPanel: React.FC<Props> = ({
   return (
     <div className="sim-lab-panel">
       <h4 className="sim-lab-title">Simulator Lab</h4>
+      <div className="sim-lab-feature-nav">
+        <input
+          type="search"
+          value={featureQuery}
+          onChange={(e) => setFeatureQuery(e.target.value)}
+          placeholder="Search features..."
+          aria-label="Search Simulator Lab features"
+        />
+        <span className="sim-lab-feature-count">{visibleFeatureCount} tool sections shown</span>
+      </div>
 
       <div className="sim-lab-grid">
         <section className="sim-lab-card">
@@ -1141,6 +1217,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
           </div>
         </section>
 
+        {isFullLabView && (
+        <>
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Entanglement Map Visualization</div>
           <p className="sim-lab-note">View pairwise connected correlations as a map and track one pair over time.</p>
@@ -1485,6 +1563,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <button type="button" className="btn" onClick={exportAssignmentPack}>Export Classroom Pack</button>
           </div>
         </section>
+        </>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Qiskit OSS Toolkit (Free Local Features)</div>
@@ -1549,6 +1629,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
           {transpileMessage && <p className="sim-lab-note">{transpileMessage}</p>}
         </section>
 
+        {isFullLabView && (
+        <>
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Circuit Diff View</div>
           <p className="sim-lab-note">Compare current circuit against a candidate macro and summarize changes.</p>
@@ -1626,6 +1708,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </div>
           )}
         </section>
+        </>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Noise Sweep Dashboard</div>
@@ -1674,6 +1758,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
           )}
         </section>
 
+        {isFullLabView && (
+        <>
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Fidelity and Distance Metrics</div>
           <p className="sim-lab-note">Compare ideal/noisy and optimized distributions using core quantum metrics.</p>
@@ -1711,6 +1797,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </div>
           )}
         </section>
+        </>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Session and Project Save Packs</div>
@@ -1743,6 +1831,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
           </div>
         </section>
 
+        {isFullLabView && (
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Classroom and Assignment Mode</div>
           <p className="sim-lab-note">Run rubric-based checks for educational assignments.</p>
@@ -1773,6 +1862,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </div>
           ))}
         </section>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Observable Expectations</div>
@@ -2005,6 +2095,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
           </div>
         </section>
 
+        {isFullLabView && (
+        <>
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Tomography Mode (Synthetic Shots)</div>
           <p className="sim-lab-note">Estimate single-qubit Bloch vector and 2-qubit correlations from simulated finite-shot measurements.</p>
@@ -2099,6 +2191,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
             ))}
           </div>
         </section>
+        </>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Circuit Expression Macros</div>
@@ -2115,6 +2209,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
           </div>
         </section>
 
+        {isFullLabView && (
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Circuit Equivalence Checker</div>
           <p className="sim-lab-note">Compare current circuit against a candidate (up to global phase).</p>
@@ -2153,6 +2248,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </div>
           )}
         </section>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Algorithm Gallery Walkthrough</div>
@@ -2177,6 +2273,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
           ))}
         </section>
 
+        {isFullLabView && (
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Reverse Engineering Assistant</div>
           <p className="sim-lab-note">Enter a target statevector expression to get a heuristic state-prep macro.</p>
@@ -2197,6 +2294,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </>
           )}
         </section>
+        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Export and Import Tools</div>
@@ -2217,6 +2315,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
           </div>
         </section>
 
+        {isFullLabView && (
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Multi-Run Experiment Manager</div>
           <p className="sim-lab-note">Save sweep runs with shot/noise settings and compare traces.</p>
@@ -2294,6 +2393,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </div>
           )}
         </section>
+        )}
 
       </div>
     </div>

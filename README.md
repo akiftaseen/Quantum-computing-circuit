@@ -45,6 +45,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - OpenQASM-lite import for bringing circuits back into the visual editor.
 
 ### Simulator Lab Advanced Suite
+- Feature search that live-filters visible tool sections by title, description text, and related terms.
 - Circuit diff view for comparing current and candidate circuits.
 - Hardware profile presets with compatibility scoring (native gates, coupling limits, and estimated SWAP overhead).
 - Live transpilation hints for cancellation, fusion, depth compaction, and backend decomposition warnings.
@@ -65,6 +66,14 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Session/project save packs (circuit + symbols + shots + notes).
 - Classroom assignment mode with rubric-based auto-checks.
 - Classroom assignment pack export for reusable instructor/student bundles.
+
+### Insights Workspace (Professional Analysis)
+- Universal operational interpretation panel that explains what is driving outcomes for any circuit shape.
+- Soft operational checks that flag likely pitfalls (measurement ordering, low-shot confidence, high-depth sensitivity).
+- Confidence meter combining shot volume, outcome dominance, and ideal-vs-noisy stability.
+- A/B snapshot workspace for side-by-side circuit state comparison (fidelity, trace-distance proxy, gate/depth/cost deltas).
+- Glossary hints for technical terms via inline hover definitions.
+- Professional report export (`.md` and `.json`) with timestamped metrics, checks, confidence, and A/B summary.
 
 ### Offline-First PWA Mode
 - Installable Progressive Web App (PWA) with service worker caching.
@@ -104,9 +113,27 @@ Theme preference is persisted in local storage.
 
 ## Run Locally
 
+### Prerequisites
+
+- Node.js `20.19+` (recommended: latest Node 20 LTS)
+- npm `10+`
+
+If you use `nvm`, run:
+
+```bash
+nvm use
+```
+
 ### 1. Install dependencies
 
 ```bash
+npm install
+```
+
+If this is your first time running the repo and install fails due to cache/lock issues, try:
+
+```bash
+rm -rf node_modules package-lock.json
 npm install
 ```
 
@@ -136,6 +163,7 @@ npm run preview
 - Serve `dist/` from any static host or local static server.
 - Open the app once online so the service worker caches assets.
 - After caching, the app is available offline (including navigation fallback).
+- No cloud backend is required. All simulation and analysis runs locally in your browser.
 
 Recommended open-source distribution flow:
 
@@ -145,6 +173,7 @@ Recommended open-source distribution flow:
 ```bash
 git clone <your-repo-url>
 cd Quantum-computing-circuit
+nvm use
 npm install
 npm run dev
 ```
@@ -162,8 +191,8 @@ npm run test:coverage
 ## Project Structure
 
 - `src/App.tsx`: Main application composition.
-- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `CircuitAnalysisPanel`, `LearningPanel`, `SaveSlotsPanel`, etc.).
-- `src/logic/`: Simulation core, gates, analysis, noise modeling, and URL loading utilities.
+- `src/components/`: UI components (`CircuitGrid`, `GatePalette`, `CircuitAnalysisPanel`, `SimulatorLabPanel`, etc.).
+- `src/logic/`: Simulation core, gates, analysis, noise modeling, calibration, and optimization logic.
 - `src/hooks/`: Reusable hooks (`useCircuitHistory`, `useTheme`).
 - `src/test/`: Test setup.
 
@@ -181,3 +210,8 @@ npm run test:coverage
 - `npm run test` - run Vitest
 - `npm run test:ui` - run Vitest UI
 - `npm run test:coverage` - test coverage
+
+## Quick Troubleshooting
+
+- If `vite` fails with Node version errors, make sure `node -v` is `>=20.19.0`.
+- If fonts look different offline, it means Google Fonts is blocked; the app automatically falls back to local system fonts.
