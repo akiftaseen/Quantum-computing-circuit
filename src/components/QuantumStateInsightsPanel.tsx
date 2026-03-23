@@ -136,7 +136,9 @@ const QuantumStateInsightsPanel: React.FC<Props> = ({
     <div className="state-insights-panel">
       <h4 className="state-insights-title">State Insights</h4>
 
-      <section className="state-insights-card">
+      <div className="state-insights-grid">
+
+      <section className="state-insights-card state-insights-card-wide">
         <div className="state-insights-card-title">Amplitude and Interference</div>
         <div className="state-inline-metrics">
           <div>Coherence: <strong>{(coherence * 100).toFixed(1)}%</strong></div>
@@ -307,6 +309,7 @@ const QuantumStateInsightsPanel: React.FC<Props> = ({
           <p className="shots-empty-note">Enable noise and run shots to view mixed-state purity decay proxies.</p>
         )}
       </section>
+      </div>
     </div>
   );
 };

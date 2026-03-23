@@ -4,7 +4,7 @@ import { formatComplex } from './logic/complex';
 import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
 import { loadFromURL } from './logic/circuitSerializer';
-import { TEMPLATES } from './logic/templates';
+import { TEMPLATE_GROUPS } from './logic/templates';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
 import { useTheme } from './hooks/useTheme';
 import type { CircuitState, PlacedGate } from './logic/circuitTypes';
@@ -304,18 +304,28 @@ const App: React.FC = () => {
         {/* ─── Left Sidebar ─── */}
         <aside className="sidebar" aria-hidden={sidebarCollapsed} style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}>
           <div className="sidebar-content">
-            <h3 className="sidebar-heading">Gate Library</h3>
-            <GatePalette />
+            <section className="sidebar-primary-section">
+              <h3 className="sidebar-heading">Gate Library</h3>
+              <GatePalette />
+            </section>
             
             <div className="sidebar-divider" />
             
-            <div className="sidebar-section">
+            <section className="sidebar-section sidebar-secondary-section">
               <h3 className="sidebar-heading">Templates</h3>
               <p className="sidebar-note">Start from a template, tweak gates, then run.</p>
-              {TEMPLATES.map(t => (
-                <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>{t.name}</button>
+              {TEMPLATE_GROUPS.map((group) => (
+                <div key={group.name} className="template-group">
+                  <div className="template-group-title">{group.name}</div>
+                  {group.templates.map((t) => (
+                    <button key={t.name} className="template-btn" onClick={() => handleTemplate(t.build)}>
+                      <span>{t.name}</span>
+                      <span className="template-badge">{t.qubits}q</span>
+                    </button>
+                  ))}
+                </div>
               ))}
-            </div>
+            </section>
           </div>
           <div 
             className={`sidebar-resizer ${isResizingSidebar ? 'resizing' : ''}`} 
@@ -555,7 +565,7 @@ const App: React.FC = () => {
               )}
 
               {tab === 'analysis' && (
-                <div className="analysis-tab-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="analysis-tab-wrap">
                   <Suspense fallback={<p className="empty-msg">Loading state insights...</p>}>
                     <QuantumStateInsightsPanel
                       state={simResult.state}
