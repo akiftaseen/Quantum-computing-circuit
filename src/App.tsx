@@ -3,7 +3,6 @@ import './App.css';
 import { formatComplex } from './logic/complex';
 import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
-import { loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATE_GROUPS } from './logic/templates';
 import { buildInitialStateFromInput, parseInitialQubitStateDetailed, type InitialStateInputMode } from './logic/initialQubitState';
 import type { MeasurementBasisAxis } from './logic/measurementBasis';
@@ -29,9 +28,26 @@ const CircuitAnalysisPanel = lazy(() => import('./components/CircuitAnalysisPane
 const QuantumStateInsightsPanel = lazy(() => import('./components/QuantumStateInsightsPanel'));
 const SimulatorLabPanel = lazy(() => import('./components/SimulatorLabPanel'));
 
-const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
+const INIT: CircuitState = { numQubits: 2, numColumns: 10, gates: [] };
 
 type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'sim';
+
+const TABS: { key: Tab; label: string; icon: string }[] = [
+  { key: 'prob', label: 'Probabilities', icon: '◎' },
+  { key: 'bloch', label: 'Bloch Spheres', icon: '◔' },
+  { key: 'dirac', label: 'Dirac ⟨ψ|', icon: 'ψ' },
+  { key: 'math', label: 'Math Lens', icon: 'U' },
+  { key: 'shots', label: 'Shots', icon: 'N' },
+  { key: 'analysis', label: 'Analysis & State', icon: '∆' },
+  { key: 'sim', label: 'Simulator Lab', icon: '⊕' },
+];
+
+const isTextEntryTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+};
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
@@ -54,6 +70,7 @@ const App: React.FC = () => {
   const [shotsBasisAxes, setShotsBasisAxes] = useState<MeasurementBasisAxis[]>(() => Array(INIT.numQubits).fill('Z'));
   const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => defaultSymbolBindings());
   const [performanceMode, setPerformanceMode] = useState(true);
+  const [liveMessage, setLiveMessage] = useState('');
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -204,6 +221,7 @@ const App: React.FC = () => {
     setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState, shotsBasisAxes));
     setNoise(effectiveNoise);
     setTab('shots');
+    setLiveMessage(`Shots completed with ${numShots} samples.`);
   };
 
   const applyStatevectorExpression = useCallback((expr: string) => {
@@ -298,7 +316,14 @@ const App: React.FC = () => {
     });
   };
 
-  const handleClear = () => { reset({ ...circuit, gates: [] }); setSelectedId(null); setShotsResult(null); setNoisyShotsResult(null); setStepCol(null); };
+  const handleClear = () => {
+    reset({ ...circuit, gates: [] });
+    setSelectedId(null);
+    setShotsResult(null);
+    setNoisyShotsResult(null);
+    setStepCol(null);
+    setLiveMessage('Circuit cleared.');
+  };
 
   const handleTemplate = (build: () => CircuitState) => {
     const c = build();
@@ -309,10 +334,13 @@ const App: React.FC = () => {
     setShotsResult(null);
     setNoisyShotsResult(null);
     setStepCol(null);
+    setLiveMessage('Template loaded.');
   };
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (isTextEntryTarget(e.target)) return;
+
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
     if ((e.metaKey || e.ctrlKey) && e.key === 'Z') { e.preventDefault(); redo(); }
@@ -347,6 +375,12 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (!liveMessage) return;
+    const timer = window.setTimeout(() => setLiveMessage(''), 2600);
+    return () => window.clearTimeout(timer);
+  }, [liveMessage]);
 
   const maxStepCol = circuit.numColumns - 1;
 
@@ -399,18 +433,25 @@ const App: React.FC = () => {
     };
   }, [shotsResult, noisyShotsResult, numShots, circuit.numQubits]);
 
-  const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'prob', label: 'Probabilities', icon: '◎' },
-    { key: 'bloch', label: 'Bloch Spheres', icon: '◔' },
-    { key: 'dirac', label: 'Dirac ⟨ψ|', icon: 'ψ' },
-    { key: 'math', label: 'Math Lens', icon: 'U' },
-    { key: 'shots', label: 'Shots', icon: 'N' },
-    { key: 'analysis', label: 'Analysis & State', icon: '∆' },
-    { key: 'sim', label: 'Simulator Lab', icon: '⊕' },
-  ];
+  const handleResultsTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    const key = e.key;
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return;
+    e.preventDefault();
+
+    let nextIdx = idx;
+    if (key === 'ArrowRight') nextIdx = (idx + 1) % TABS.length;
+    if (key === 'ArrowLeft') nextIdx = (idx - 1 + TABS.length) % TABS.length;
+    if (key === 'Home') nextIdx = 0;
+    if (key === 'End') nextIdx = TABS.length - 1;
+
+    const nextTab = TABS[nextIdx];
+    setTab(nextTab.key);
+    document.getElementById(`results-tab-${nextTab.key}`)?.focus();
+  };
 
   return (
     <div className={`app-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <AppHeader
         numQubits={circuit.numQubits}
         numColumns={circuit.numColumns}
@@ -433,7 +474,13 @@ const App: React.FC = () => {
       {/* ─── Body ─── */}
       <div className="app-body">
         {/* ─── Left Sidebar ─── */}
-        <aside className="sidebar" aria-hidden={sidebarCollapsed} style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}>
+        <aside
+          className="sidebar"
+          aria-hidden={sidebarCollapsed}
+          aria-label="Gate library and circuit templates"
+          hidden={sidebarCollapsed}
+          style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+        >
           <div className="sidebar-content">
             <section className="sidebar-primary-section">
               <h3 className="sidebar-heading">Gate Library</h3>
@@ -465,7 +512,7 @@ const App: React.FC = () => {
         </aside>
 
         {/* ─── Main Area ─── */}
-        <div className="main-area">
+        <main className="main-area" id="main-content" aria-label="Circuit workspace">
           {/* ─── Circuit Canvas ─── */}
           <div className="circuit-scroll">
             <CircuitGrid
@@ -649,12 +696,18 @@ const App: React.FC = () => {
 
           {/* ─── Results Panel ─── */}
           <div className="results-panel">
-            <div className="results-tabs">
-              {TABS.map(t => (
+            <div className="results-tabs" role="tablist" aria-label="Result views">
+              {TABS.map((t, idx) => (
                 <button
                   key={t.key}
+                  id={`results-tab-${t.key}`}
                   className={`results-tab${tab === t.key ? ' active' : ''}`}
                   onClick={() => setTab(t.key)}
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  aria-controls={tab === t.key ? 'results-panel-active' : undefined}
+                  tabIndex={tab === t.key ? 0 : -1}
+                  onKeyDown={(e) => handleResultsTabKeyDown(e, idx)}
                 >
                   <span className="results-tab-icon" aria-hidden="true">{t.icon}</span>
                   <span>{t.label}</span>
@@ -662,7 +715,12 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <div className="results-content">
+            <div
+              className="results-content"
+              id="results-panel-active"
+              role="tabpanel"
+              aria-labelledby={`results-tab-${tab}`}
+            >
               {tab === 'prob' && (
                 <ProbabilityChart state={simResult.state} numQubits={circuit.numQubits} />
               )}
@@ -888,8 +946,9 @@ const App: React.FC = () => {
 
             </div>
           </div>
-        </div>
+        </main>
       </div>
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{liveMessage}</p>
       <Suspense fallback={null}>
         <GateDescriptionsModal isOpen={showGateModal} onClose={() => setShowGateModal(false)} />
       </Suspense>

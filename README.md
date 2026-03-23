@@ -1,4 +1,4 @@
-# Quantum Circuit Tutor
+# Quantum Circuit Simulator
 
 Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
@@ -46,14 +46,25 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
 ### Simulator Lab Advanced Suite
 - Circuit diff view for comparing current and candidate circuits.
+- Hardware profile presets with compatibility scoring (native gates, coupling limits, and estimated SWAP overhead).
+- Live transpilation hints for cancellation, fusion, depth compaction, and backend decomposition warnings.
+- Hardware-aware auto-layout pass that inserts SWAP routing for constrained backends.
+- Entanglement map visualization (pairwise strength heatmap + pair trend over circuit depth).
 - Gate-fusion aware optimization reports and memoized simulation paths for faster local runs.
 - Parameter optimizer (VQE-style grid sweep) for single-parameter tuning.
 - Noise sweep dashboard with success-probability trend chart.
+- Batch experiment runner for queued multi-job sweeps with progress tracking and CSV export.
+- Golden test harness for regression assertions on basis probabilities and observables.
+- Preset benchmark suites (Bell/GHZ/plus baselines) with threshold-based pass/fail scoring.
+- OpenQASM round-trip verifier (export -> import -> structural diff summary).
+- Noise calibration fitting from observed histograms (KL-based coarse fit).
+- Multi-objective optimizer balancing success probability, depth cost, and two-qubit penalty.
 - Fidelity and distance metrics panel (state fidelity, trace distance approximation, KL divergence, TV distance).
 - Stabilizer fast-path eligibility detection for Clifford-like circuits.
 - OpenQASM interoperability diagnostics with decomposition suggestions.
 - Session/project save packs (circuit + symbols + shots + notes).
 - Classroom assignment mode with rubric-based auto-checks.
+- Classroom assignment pack export for reusable instructor/student bundles.
 
 ### Offline-First PWA Mode
 - Installable Progressive Web App (PWA) with service worker caching.
@@ -62,7 +73,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
 ### Noise Exploration
 - Toggle noise mode in Shots tab.
-- Configure depolarizing noise, amplitude damping, and readout error.
+- Configure depolarizing noise, amplitude damping, bit flip, phase flip, and readout error.
 - Side-by-side ideal vs noisy histogram comparison for intuition.
 
 ## Keyboard Shortcuts

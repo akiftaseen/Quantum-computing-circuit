@@ -1,4 +1,4 @@
-Quantum Circuit Tutor - Plain Language Guide
+Quantum Circuit Simulator - Plain Language Guide
 
 What this app is for
 This app is a hands-on playground for learning how quantum circuits behave.

@@ -62,7 +62,7 @@ const AppHeader: React.FC<Props> = ({
     <header className="app-header">
       <h1 className="app-title">
         <span className="app-title-emphasis">Quantum</span>
-        <span className="app-title-rest">Circuit Tutor</span>
+        <span className="app-title-rest">Circuit Simulator</span>
       </h1>
 
       <div className="header-adjuster" aria-label="Qubit count control">

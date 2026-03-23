@@ -1,5 +1,5 @@
 {
-  "name": "quantum-tutor",
+  "name": "quantum-circuit-simulator",
   "private": true,
   "version": "0.0.0",
   "type": "module",

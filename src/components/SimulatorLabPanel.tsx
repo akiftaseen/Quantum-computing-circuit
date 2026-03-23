@@ -26,6 +26,14 @@ import { diffCircuits } from '../logic/circuitDiff';
 import { optimizeSingleParameter } from '../logic/parameterOptimizer';
 import { ASSIGNMENTS, evaluateAssignment } from '../logic/classroomMode';
 import { histogramToProbArray, klDivergence, stateFidelity, traceDistanceApprox } from '../logic/stateMetrics';
+import { HARDWARE_PROFILES, evaluateCircuitAgainstHardware, type HardwareProfile } from '../logic/hardwareProfiles';
+import { buildLiveTranspileHints } from '../logic/transpileHints';
+import { findCorrelatedQubitPairs } from '../logic/entanglementAnalysis';
+import { routeCircuitForHardware, type HardwareLayoutReport } from '../logic/hardwareLayout';
+import { BENCHMARK_SUITES, runBenchmarkSuite, type BenchmarkResult } from '../logic/benchmarkSuites';
+import { runQasmRoundTrip, type QasmRoundTripReport } from '../logic/qasmRoundTrip';
+import { fitNoiseModelFromHistogram, parseHistogramText, type CalibrationResult } from '../logic/noiseCalibration';
+import { optimizeMultiObjective, type MultiObjectivePoint } from '../logic/multiObjectiveOptimizer';
 
 interface Props {
   state: Complex[];
@@ -161,7 +169,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [compareBasis, setCompareBasis] = useState(() => '0'.repeat(numQubits));
   const [importExpr, setImportExpr] = useState('');
   const [importMessage, setImportMessage] = useState('');
-  const [timelineLimit, setTimelineLimit] = useState('24');
   const [activeAlgorithm, setActiveAlgorithm] = useState(ALGORITHMS[0]?.name ?? '');
   const [tomoQubit, setTomoQubit] = useState('0');
   const [tomoPair, setTomoPair] = useState('0,1');
@@ -180,7 +187,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
     cyy?: number;
     czz?: number;
   } | null>(null);
-  const [benchmarkPreset, setBenchmarkPreset] = useState('none');
   const [transpileLevel, setTranspileLevel] = useState<TranspileLevel>(1);
   const [transpileMessage, setTranspileMessage] = useState('');
   const [randomDepth, setRandomDepth] = useState('18');
@@ -224,16 +230,37 @@ const SimulatorLabPanel: React.FC<Props> = ({
     basis: MeasurementBasisAxis[];
   }>>([]);
   const [selectedExperimentIds, setSelectedExperimentIds] = useState<string[]>([]);
-  const shareLoadedRef = useRef(false);
+  const [hardwareProfileId, setHardwareProfileId] = useState(HARDWARE_PROFILES[0]?.id ?? 'all-to-all-ideal');
+  const [entanglementPair, setEntanglementPair] = useState('0,1');
+  const [batchSweepParam, setBatchSweepParam] = useState<'theta' | 'depolarizing1q' | 'amplitudeDamping' | 'bitFlip' | 'phaseFlip' | 'readoutError'>('depolarizing1q');
+  const [batchStart, setBatchStart] = useState('0');
+  const [batchEnd, setBatchEnd] = useState('0.12');
+  const [batchSteps, setBatchSteps] = useState('8');
+  const [batchTargetBasis, setBatchTargetBasis] = useState(() => '0'.repeat(numQubits));
+  const [batchRunnerMessage, setBatchRunnerMessage] = useState('');
+  const [batchRunnerProgress, setBatchRunnerProgress] = useState(0);
+  const [batchRunnerRunning, setBatchRunnerRunning] = useState(false);
+  const [batchRunnerRows, setBatchRunnerRows] = useState<Array<{ job: string; parameter: number; successRate: number; fidelity: number; runtimeMs: number }>>([]);
+  const [layoutReport, setLayoutReport] = useState<HardwareLayoutReport | null>(null);
+  const [goldenSpec, setGoldenSpec] = useState('prob|00|>=|0.45\nprob|11|>=|0.45\nobs|Z0*Z1|>=|0.8');
+  const [goldenResults, setGoldenResults] = useState<Array<{ ok: boolean; text: string }>>([]);
+  const [benchmarkSuiteId, setBenchmarkSuiteId] = useState(BENCHMARK_SUITES[0]?.id ?? 'bell-baseline');
+  const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
+  const [roundTripReport, setRoundTripReport] = useState<QasmRoundTripReport | null>(null);
+  const [observedHistogramInput, setObservedHistogramInput] = useState('00: 520\n11: 504');
+  const [calibrationResult, setCalibrationResult] = useState<CalibrationResult | null>(null);
+  const [multiObjectiveGateId, setMultiObjectiveGateId] = useState('');
+  const [multiObjectiveBasis, setMultiObjectiveBasis] = useState(() => '0'.repeat(numQubits));
+  const [multiObjectiveStart, setMultiObjectiveStart] = useState('-pi');
+  const [multiObjectiveEnd, setMultiObjectiveEnd] = useState('pi');
+  const [multiObjectiveSteps, setMultiObjectiveSteps] = useState('24');
+  const [weightProbability, setWeightProbability] = useState('1.0');
+  const [weightDepth, setWeightDepth] = useState('0.08');
+  const [weightTwoQ, setWeightTwoQ] = useState('0.12');
+  const [multiObjectiveTrace, setMultiObjectiveTrace] = useState<MultiObjectivePoint[]>([]);
+  const [multiObjectiveMessage, setMultiObjectiveMessage] = useState('');
+  const [assignmentPackName, setAssignmentPackName] = useState('classroom-pack-1');
   const observableInputRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const noisePresets: Array<{ key: string; label: string; config: NoiseConfig }> = useMemo(() => [
-    { key: 'none', label: 'No noise', config: { enabled: false, depolarizing1q: 0, amplitudeDamping: 0, bitFlip: 0, phaseFlip: 0, readoutError: 0 } },
-    { key: 'nISQ-lite', label: 'NISQ Lite', config: { enabled: true, depolarizing1q: 0.01, amplitudeDamping: 0.01, bitFlip: 0.004, phaseFlip: 0.004, readoutError: 0.01 } },
-    { key: 'decoherence', label: 'Decoherence heavy', config: { enabled: true, depolarizing1q: 0.02, amplitudeDamping: 0.08, bitFlip: 0.01, phaseFlip: 0.03, readoutError: 0.015 } },
-    { key: 'readout-heavy', label: 'Readout heavy', config: { enabled: true, depolarizing1q: 0.006, amplitudeDamping: 0.006, bitFlip: 0.003, phaseFlip: 0.005, readoutError: 0.08 } },
-    { key: 'drift', label: 'Calibration drift', config: { enabled: true, depolarizing1q: 0.03, amplitudeDamping: 0.025, bitFlip: 0.012, phaseFlip: 0.02, readoutError: 0.03 } },
-  ], []);
 
   useEffect(() => {
     try {
@@ -317,6 +344,23 @@ const SimulatorLabPanel: React.FC<Props> = ({
       if (prev.length === numQubits) return prev;
       return '0'.repeat(numQubits);
     });
+
+    setBatchTargetBasis((prev) => {
+      if (prev.length === numQubits) return prev;
+      return '0'.repeat(numQubits);
+    });
+
+    setEntanglementPair((prev) => {
+      const parts = prev.split(',').map((x) => Number(x.trim()));
+      const a = Number.isInteger(parts[0]) ? Math.max(0, Math.min(numQubits - 1, parts[0])) : 0;
+      const b = Number.isInteger(parts[1]) ? Math.max(0, Math.min(numQubits - 1, parts[1])) : Math.min(1, numQubits - 1);
+      return `${a},${b}`;
+    });
+
+    setMultiObjectiveBasis((prev) => {
+      if (prev.length === numQubits) return prev;
+      return '0'.repeat(numQubits);
+    });
   }, [numQubits]);
 
   const parametricGates = useMemo(() => circuit.gates.filter((g) => isParametric(g.gate)), [circuit.gates]);
@@ -342,37 +386,14 @@ const SimulatorLabPanel: React.FC<Props> = ({
   }, [parametricGates, sweepGateId]);
 
   useEffect(() => {
-    if (shareLoadedRef.current) return;
-    shareLoadedRef.current = true;
-
-    const raw = new URLSearchParams(window.location.search).get('simcfg');
-    if (!raw) return;
-
-    try {
-      const decoded = JSON.parse(decodeURIComponent(atob(raw))) as {
-        symbols?: SymbolBinding[];
-        performanceMode?: boolean;
-        sweep?: { start?: string; end?: string; steps?: string; metric?: 'prob' | 'obs'; basis?: string; observable?: string };
-        shots?: { numShots?: number; basis?: MeasurementBasisAxis[]; noise?: NoiseConfig };
-      };
-
-      if (decoded.symbols) onSetSymbolBindings(decoded.symbols);
-      if (typeof decoded.performanceMode === 'boolean') onSetPerformanceMode(decoded.performanceMode);
-      if (decoded.sweep) {
-        setSweepStart(decoded.sweep.start ?? sweepStart);
-        setSweepEnd(decoded.sweep.end ?? sweepEnd);
-        setSweepSteps(decoded.sweep.steps ?? sweepSteps);
-        setSweepMetric(decoded.sweep.metric ?? sweepMetric);
-        setSweepBasis(decoded.sweep.basis ?? sweepBasis);
-        setSweepObservable(decoded.sweep.observable ?? sweepObservable);
-      }
-      if (decoded.shots?.noise && decoded.shots?.basis && decoded.shots?.numShots) {
-        onApplyShotsConfig({ numShots: decoded.shots.numShots, noise: decoded.shots.noise, shotsBasisAxes: decoded.shots.basis });
-      }
-    } catch {
-      // Ignore malformed shared config links.
+    if (parametricGates.length === 0) {
+      setMultiObjectiveGateId('');
+      return;
     }
-  }, [onApplyShotsConfig, onSetPerformanceMode, onSetSymbolBindings, sweepBasis, sweepEnd, sweepMetric, sweepObservable, sweepStart, sweepSteps]);
+    if (!parametricGates.some((g) => g.id === multiObjectiveGateId)) {
+      setMultiObjectiveGateId(parametricGates[0].id);
+    }
+  }, [parametricGates, multiObjectiveGateId]);
 
   const profilerRows = useMemo(() => {
     const limit = Math.max(4, Math.min(circuit.numColumns, Math.round(Number(profilerLimit) || 40)));
@@ -436,6 +457,21 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const topOutcomes = basisDist.slice(0, 8);
   const hasObservableErrors = evaluations.some((e) => !e.valid);
   const cliffordStatus = useMemo(() => isCliffordLikeCircuit(circuit), [circuit]);
+  const hardwareProfile = useMemo<HardwareProfile>(() => {
+    return HARDWARE_PROFILES.find((profile) => profile.id === hardwareProfileId) ?? HARDWARE_PROFILES[0];
+  }, [hardwareProfileId]);
+  const hardwareReport = useMemo(() => evaluateCircuitAgainstHardware(circuit, hardwareProfile), [circuit, hardwareProfile]);
+  const liveTranspileHints = useMemo(() => buildLiveTranspileHints(circuit, hardwareProfile), [circuit, hardwareProfile]);
+  const entanglementPairs = useMemo(() => findCorrelatedQubitPairs(state, numQubits), [state, numQubits]);
+  const entanglementLookup = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const pair of entanglementPairs) {
+      const [a, b] = pair.pair;
+      const key = `${Math.min(a, b)}-${Math.max(a, b)}`;
+      map.set(key, pair.strength);
+    }
+    return map;
+  }, [entanglementPairs]);
 
   const distributionMetrics = useMemo(() => {
     const ideal = runWithShots(circuit, Math.max(256, Math.min(4096, numShots)), initialState, shotsBasisAxes);
@@ -539,38 +575,25 @@ const SimulatorLabPanel: React.FC<Props> = ({
     return rows;
   }, [savedExperiments, selectedExperimentIds, sweepData]);
 
-  const timelineRows = useMemo(() => {
-    const rawLimit = Math.max(4, Math.min(200, Math.round(Number(timelineLimit) || 24)));
-    const stride = performanceMode ? 2 : 1;
-    const rows: Array<{ col: number; topBasis: string; topProb: number; zAvg: number }> = [];
-    const limit = Math.min(circuit.numColumns, rawLimit * stride);
+  const entanglementTrendData = useMemo(() => {
+    const rawPair = entanglementPair.split(',').map((x) => Math.round(Number(x.trim())));
+    const qA = Number.isInteger(rawPair[0]) ? Math.max(0, Math.min(numQubits - 1, rawPair[0])) : 0;
+    const qB = Number.isInteger(rawPair[1]) ? Math.max(0, Math.min(numQubits - 1, rawPair[1])) : Math.min(1, numQubits - 1);
+    if (qA === qB) return [] as Array<{ col: number; strength: number }>;
 
-    for (let col = 0; col < limit; col += stride) {
-      const s = runCircuit(circuit, col, true, initialState).state;
-      let topIdx = 0;
-      let top = 0;
-      for (let i = 0; i < s.length; i += 1) {
-        const p = cAbs2(s[i]);
-        if (p > top) {
-          top = p;
-          topIdx = i;
-        }
-      }
-
-      let zSum = 0;
-      for (let q = 0; q < numQubits; q += 1) {
-        zSum += getBlochVector(s, q, numQubits)[2];
-      }
-
-      rows.push({
-        col,
-        topBasis: topIdx.toString(2).padStart(numQubits, '0'),
-        topProb: top,
-        zAvg: zSum / Math.max(1, numQubits),
+    const limit = Math.max(2, Math.min(circuit.numColumns, performanceMode ? 40 : 100));
+    const rows: Array<{ col: number; strength: number }> = [];
+    for (let col = 0; col < limit; col += 1) {
+      const partial = runCircuit(circuit, col, true, initialState).state;
+      const pairs = findCorrelatedQubitPairs(partial, numQubits);
+      const entry = pairs.find((pair) => {
+        const [a, b] = pair.pair;
+        return (a === qA && b === qB) || (a === qB && b === qA);
       });
+      rows.push({ col, strength: entry?.strength ?? 0 });
     }
     return rows;
-  }, [circuit, initialState, numQubits, performanceMode, timelineLimit]);
+  }, [circuit, entanglementPair, initialState, numQubits, performanceMode]);
 
   const applyWizard = () => {
     const exprs = Array.from({ length: numQubits }, (_, q) => {
@@ -859,6 +882,176 @@ const SimulatorLabPanel: React.FC<Props> = ({
     setAssignmentFeedback(`${result.passed ? 'Passed' : 'Not passed'}: ${result.feedback.join(' | ')}`);
   };
 
+  const runBatchRunner = async () => {
+    const start = parseAngle(applySymbolBindings(batchStart, symbolBindings), 0);
+    const end = parseAngle(applySymbolBindings(batchEnd, symbolBindings), 0.12);
+    const steps = Math.max(2, Math.min(40, Math.round(Number(batchSteps) || 8)));
+    const targetBits = batchTargetBasis.replace(/[^01]/g, '').padEnd(numQubits, '0').slice(0, numQubits);
+    const targetIdx = Number.parseInt(targetBits, 2) || 0;
+    const thetaGate = parametricGates.find((g) => g.id === sweepGateId || g.id === optimizerGateId) ?? parametricGates[0];
+
+    if (batchSweepParam === 'theta' && !thetaGate) {
+      setBatchRunnerMessage('No parametric gate available for theta batch sweep.');
+      return;
+    }
+
+    const rows: Array<{ job: string; parameter: number; successRate: number; fidelity: number; runtimeMs: number }> = [];
+    setBatchRunnerRunning(true);
+    setBatchRunnerProgress(0);
+
+    try {
+      for (let i = 0; i < steps; i += 1) {
+        const alpha = steps === 1 ? 0 : i / (steps - 1);
+        const paramValue = start + (end - start) * alpha;
+        const t0 = performance.now();
+
+        let variedCircuit = circuit;
+        let variedNoise = noise;
+        if (batchSweepParam === 'theta' && thetaGate) {
+          variedCircuit = {
+            ...circuit,
+            gates: circuit.gates.map((g) => (g.id === thetaGate.id ? { ...g, params: [paramValue] } : g)),
+          };
+        } else {
+          variedNoise = { ...noise, enabled: true, [batchSweepParam]: Math.max(0, paramValue) };
+        }
+
+        const hist = runWithNoiseShots(variedCircuit, Math.max(256, Math.min(8192, numShots)), variedNoise, initialState, shotsBasisAxes);
+        const total = Array.from(hist.values()).reduce((sum, val) => sum + val, 0) || 1;
+        const success = (hist.get(targetIdx.toString(2).padStart(numQubits, '0')) ?? 0) / total;
+
+        const idealState = runCircuit(circuit, undefined, true, initialState).state;
+        const variedState = runCircuit(variedCircuit, undefined, true, initialState).state;
+        const fidelity = stateFidelity(idealState, variedState);
+
+        rows.push({
+          job: `job-${i + 1}`,
+          parameter: paramValue,
+          successRate: success,
+          fidelity,
+          runtimeMs: performance.now() - t0,
+        });
+        setBatchRunnerProgress((i + 1) / steps);
+
+        if (i % 3 === 2) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    } finally {
+      setBatchRunnerRunning(false);
+    }
+
+    setBatchRunnerRows(rows);
+    const best = [...rows].sort((a, b) => b.successRate - a.successRate)[0];
+    if (best) {
+      setBatchRunnerMessage(`Completed ${rows.length} jobs. Best success ${(best.successRate * 100).toFixed(2)}% at ${best.parameter.toFixed(5)}.`);
+    } else {
+      setBatchRunnerMessage('Batch runner finished with no rows.');
+    }
+  };
+
+  const runAutoLayoutPass = () => {
+    const report = routeCircuitForHardware(circuit, hardwareProfile);
+    setLayoutReport(report);
+  };
+
+  const runGoldenHarness = () => {
+    const lines = goldenSpec.split('\n').map((line) => line.trim()).filter(Boolean);
+    const sim = runCircuit(circuit, undefined, true, initialState).state;
+    const results: Array<{ ok: boolean; text: string }> = [];
+
+    for (const line of lines) {
+      const parts = line.split('|').map((x) => x.trim());
+      if (parts.length !== 4) {
+        results.push({ ok: false, text: `${line} -> invalid format (use kind|target|op|value)` });
+        continue;
+      }
+      const [kind, target, op, rawValue] = parts;
+      const expected = Number(rawValue);
+      if (!Number.isFinite(expected)) {
+        results.push({ ok: false, text: `${line} -> invalid numeric threshold` });
+        continue;
+      }
+
+      let observed = 0;
+      if (kind === 'prob') {
+        const idx = Number.parseInt(target, 2);
+        observed = cAbs2(sim[idx] ?? sim[0]);
+      } else if (kind === 'obs') {
+        const row = evaluateSingleObservable(applySymbolBindings(target, symbolBindings), numQubits, sim);
+        observed = row.valid && row.value !== null ? row.value : Number.NaN;
+      } else {
+        results.push({ ok: false, text: `${line} -> unknown kind '${kind}' (use prob or obs)` });
+        continue;
+      }
+
+      const pass =
+        (op === '>=' && observed >= expected) ||
+        (op === '<=' && observed <= expected) ||
+        (op === '>' && observed > expected) ||
+        (op === '<' && observed < expected) ||
+        (op === '==' && Math.abs(observed - expected) < 1e-6);
+
+      results.push({
+        ok: pass,
+        text: `${line} -> observed ${Number.isFinite(observed) ? observed.toFixed(6) : 'NaN'}`,
+      });
+    }
+
+    setGoldenResults(results);
+  };
+
+  const runSelectedBenchmark = () => {
+    const suite = BENCHMARK_SUITES.find((s) => s.id === benchmarkSuiteId) ?? BENCHMARK_SUITES[0];
+    if (!suite) return;
+    const result = runBenchmarkSuite(suite, numQubits, initialState);
+    setBenchmarkResult(result);
+  };
+
+  const runRoundTripVerifier = () => {
+    const report = runQasmRoundTrip(circuit);
+    setRoundTripReport(report);
+  };
+
+  const runNoiseCalibration = () => {
+    const observed = parseHistogramText(observedHistogramInput);
+    const fitted = fitNoiseModelFromHistogram(circuit, initialState, observed, shotsBasisAxes, numShots);
+    setCalibrationResult(fitted);
+  };
+
+  const runMultiObjective = () => {
+    if (!multiObjectiveGateId) {
+      setMultiObjectiveMessage('No parametric gate available.');
+      return;
+    }
+    const result = optimizeMultiObjective(circuit, initialState, {
+      gateId: multiObjectiveGateId,
+      basisBits: multiObjectiveBasis,
+      start: parseAngle(applySymbolBindings(multiObjectiveStart, symbolBindings), -Math.PI),
+      end: parseAngle(applySymbolBindings(multiObjectiveEnd, symbolBindings), Math.PI),
+      steps: Math.max(8, Number(multiObjectiveSteps) || 24),
+      weightProbability: Math.max(0, Number(weightProbability) || 1),
+      weightDepth: Math.max(0, Number(weightDepth) || 0),
+      weightTwoQ: Math.max(0, Number(weightTwoQ) || 0),
+    });
+    setMultiObjectiveTrace(result.trace);
+    setMultiObjectiveMessage(`Best θ=${result.bestTheta.toFixed(5)}, score=${result.bestScore.toFixed(6)}.`);
+  };
+
+  const exportAssignmentPack = () => {
+    const payload = {
+      name: assignmentPackName,
+      createdAt: Date.now(),
+      selectedAssignment: assignmentId,
+      assignments: ASSIGNMENTS,
+      circuit,
+      symbols: symbolBindings,
+      shots: { numShots, noise, shotsBasisAxes },
+      notes: 'Classroom pack exported from Simulator Lab',
+    };
+    downloadText(`${assignmentPackName || 'classroom-pack'}.json`, JSON.stringify(payload, null, 2));
+  };
+
   const insertObservableToken = (token: string) => {
     const input = observableInputRef.current;
     if (!input) {
@@ -905,35 +1098,391 @@ const SimulatorLabPanel: React.FC<Props> = ({
         </section>
 
         <section className="sim-lab-card">
-          <div className="sim-lab-card-title">Drift and Noise Benchmark Presets</div>
-          <p className="sim-lab-note">Apply realistic noise profiles quickly to benchmark circuit robustness.</p>
+          <div className="sim-lab-card-title">Hardware Profile Presets</div>
+          <p className="sim-lab-note">Score your circuit against backend-native gates and coupling constraints.</p>
           <div className="sim-sweep-controls">
             <label>
-              Preset
-              <select value={benchmarkPreset} onChange={(e) => setBenchmarkPreset(e.target.value)}>
-                {noisePresets.map((preset) => (
-                  <option key={preset.key} value={preset.key}>{preset.label}</option>
+              Hardware backend
+              <select value={hardwareProfileId} onChange={(e) => setHardwareProfileId(e.target.value)}>
+                {HARDWARE_PROFILES.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
                 ))}
               </select>
             </label>
+          </div>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Metric</span><span>Value</span></div>
+            <div className="sim-lab-row"><span>Compatibility score</span><span>{hardwareReport.compatibilityScore.toFixed(1)} / 100</span></div>
+            <div className="sim-lab-row"><span>Unsupported gates</span><span>{hardwareReport.unsupportedTotal}</span></div>
+            <div className="sim-lab-row"><span>Coupling violations</span><span>{hardwareReport.edgeViolations}</span></div>
+            <div className="sim-lab-row"><span>Estimated SWAP overhead</span><span>{hardwareReport.estimatedSwapOverhead}</span></div>
+          </div>
+          {Object.keys(hardwareReport.unsupportedGateCounts).length > 0 && (
+            <p className="sim-lab-note">
+              Non-native: {Object.entries(hardwareReport.unsupportedGateCounts).map(([gate, count]) => `${gate}x${count}`).join(', ')}
+            </p>
+          )}
+          <div className="sim-lab-inline-metrics">
+            {hardwareReport.notes.map((note) => <span key={note}>{note}</span>)}
+          </div>
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Live Transpilation Hints</div>
+          <p className="sim-lab-note">Inline optimization and hardware-compat hints while editing the circuit.</p>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Hint</span><span>Severity</span></div>
+            {liveTranspileHints.map((hint, idx) => (
+              <div key={`${hint.title}-${idx}`} className="sim-lab-row">
+                <span><strong>{hint.title}</strong>: {hint.detail}</span>
+                <span className={`sim-hint-badge ${hint.severity}`}>{hint.severity}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Entanglement Map Visualization</div>
+          <p className="sim-lab-note">View pairwise connected correlations as a map and track one pair over time.</p>
+          <div className="sim-sweep-controls">
             <label>
-              Shots
-              <input value={String(numShots)} onChange={(e) => onApplyShotsConfig({ numShots: Math.max(1, Math.min(100000, Number(e.target.value) || numShots)), noise, shotsBasisAxes })} />
+              Focus pair (a,b)
+              <input value={entanglementPair} onChange={(e) => setEntanglementPair(e.target.value)} />
+            </label>
+          </div>
+          <div className="sim-heatmap-matrix">
+            <div className="sim-lab-note">Pairwise Strength Heatmap</div>
+            <div className="sim-ent-grid" style={{ gridTemplateColumns: `repeat(${numQubits}, minmax(0, 1fr))` }}>
+              {Array.from({ length: numQubits }, (_, r) =>
+                Array.from({ length: numQubits }, (_, c) => {
+                  if (r === c) {
+                    return <div key={`ent-${r}-${c}`} className="sim-ent-cell diag">q{r}</div>;
+                  }
+                  const key = `${Math.min(r, c)}-${Math.max(r, c)}`;
+                  const value = entanglementLookup.get(key) ?? 0;
+                  const alpha = Math.min(1, value);
+                  return (
+                    <div
+                      key={`ent-${r}-${c}`}
+                      className="sim-ent-cell"
+                      style={{ background: `color-mix(in srgb, #ef4444 ${Math.round(alpha * 70)}%, var(--card))` }}
+                    >
+                      {value.toFixed(3)}
+                    </div>
+                  );
+                }),
+              )}
+            </div>
+          </div>
+          {entanglementTrendData.length > 0 && (
+            <div className="sim-sweep-chart">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={entanglementTrendData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="col" stroke="var(--text-3)" />
+                  <YAxis stroke="var(--text-3)" />
+                  <Tooltip formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)} />
+                  <Line type="monotone" dataKey="strength" stroke="#ef4444" dot={false} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {entanglementPairs.length > 0 && (
+            <div className="sim-lab-inline-metrics">
+              <span>Strongest pair: q{entanglementPairs[0].pair[0]}-q{entanglementPairs[0].pair[1]} ({entanglementPairs[0].strength.toFixed(4)})</span>
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Batch Experiment Runner</div>
+          <p className="sim-lab-note">Queue many parameter/noise jobs and summarize best-performing configurations.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Sweep parameter
+              <select value={batchSweepParam} onChange={(e) => setBatchSweepParam(e.target.value as 'theta' | 'depolarizing1q' | 'amplitudeDamping' | 'bitFlip' | 'phaseFlip' | 'readoutError')}>
+                <option value="theta">Gate θ (parametric)</option>
+                <option value="depolarizing1q">Depolarizing</option>
+                <option value="amplitudeDamping">Amplitude damping</option>
+                <option value="bitFlip">Bit flip</option>
+                <option value="phaseFlip">Phase flip</option>
+                <option value="readoutError">Readout error</option>
+              </select>
+            </label>
+            <label>
+              Start
+              <input value={batchStart} onChange={(e) => setBatchStart(e.target.value)} />
+            </label>
+            <label>
+              End
+              <input value={batchEnd} onChange={(e) => setBatchEnd(e.target.value)} />
+            </label>
+            <label>
+              Jobs
+              <input value={batchSteps} onChange={(e) => setBatchSteps(e.target.value)} />
+            </label>
+            <label>
+              Target basis
+              <input value={batchTargetBasis} onChange={(e) => setBatchTargetBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
             </label>
           </div>
           <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={() => void runBatchRunner()} disabled={batchRunnerRunning}>
+              {batchRunnerRunning ? 'Running...' : 'Run Batch Jobs'}
+            </button>
             <button
               type="button"
               className="btn"
               onClick={() => {
-                const preset = noisePresets.find((p) => p.key === benchmarkPreset);
-                if (!preset) return;
-                onApplyShotsConfig({ numShots, noise: preset.config, shotsBasisAxes });
+                const exported = batchRunnerRows.map((row) => `${row.job},${row.parameter},${row.successRate},${row.fidelity},${row.runtimeMs}`).join('\n');
+                if (!exported) return;
+                downloadText('batch-runner-results.csv', `job,parameter,successRate,fidelity,runtimeMs\n${exported}\n`);
+              }}
+              disabled={batchRunnerRows.length === 0}
+            >
+              Export Batch CSV
+            </button>
+            {batchRunnerMessage && <span>{batchRunnerMessage}</span>}
+          </div>
+          {batchRunnerRunning && (
+            <div className="sim-progress-wrap">
+              <div className="sim-progress-bar" style={{ width: `${Math.round(batchRunnerProgress * 100)}%` }} />
+            </div>
+          )}
+          {batchRunnerRows.length > 0 && (
+            <div className="sim-lab-results-wrap">
+              <div className="sim-lab-results-head"><span>Job</span><span>Result</span></div>
+              {batchRunnerRows.map((row) => (
+                <div key={row.job} className="sim-lab-row">
+                  <span>{row.job} ({row.parameter.toFixed(5)})</span>
+                  <span>success {(row.successRate * 100).toFixed(2)}%, fid {row.fidelity.toFixed(4)}, {row.runtimeMs.toFixed(2)}ms</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Hardware-Aware Auto-Layout Pass</div>
+          <p className="sim-lab-note">Route illegal two-qubit interactions through SWAP chains for the selected backend.</p>
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runAutoLayoutPass}>Analyze Routing</button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!layoutReport}
+              onClick={() => {
+                if (!layoutReport) return;
+                onApplyMacroCircuit(layoutReport.routedCircuit);
               }}
             >
-              Apply Preset
+              Apply Routed Circuit
             </button>
-            <span>Current: dep {noise.depolarizing1q.toFixed(3)}, damp {noise.amplitudeDamping.toFixed(3)}, bit {noise.bitFlip.toFixed(3)}, phase {noise.phaseFlip.toFixed(3)}, readout {noise.readoutError.toFixed(3)}</span>
+          </div>
+          {layoutReport && (
+            <div className="sim-lab-results-wrap">
+              <div className="sim-lab-results-head"><span>Routing Metric</span><span>Value</span></div>
+              <div className="sim-lab-row"><span>Inserted SWAP gates</span><span>{layoutReport.swapInserted}</span></div>
+              <div className="sim-lab-row"><span>Unroutable gates</span><span>{layoutReport.unroutableGates}</span></div>
+              <div className="sim-lab-row"><span>Depth before/after</span><span>{layoutReport.depthBefore} {'->'} {layoutReport.depthAfter}</span></div>
+              {layoutReport.notes.map((note, idx) => (
+                <div key={`${note}-${idx}`} className="sim-lab-row"><span>Note</span><span>{note}</span></div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Golden Test Harness</div>
+          <p className="sim-lab-note">Define expected probabilities/observables and regression-check the current circuit.</p>
+          <textarea
+            className="sim-lab-textarea"
+            value={goldenSpec}
+            onChange={(e) => setGoldenSpec(e.target.value)}
+            placeholder="prob|00|>=|0.45\nobs|Z0*Z1|>=|0.8"
+          />
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runGoldenHarness}>Run Golden Tests</button>
+          </div>
+          {goldenResults.length > 0 && (
+            <div className="sim-lab-results-wrap">
+              <div className="sim-lab-results-head"><span>Expectation</span><span>Status</span></div>
+              {goldenResults.map((row, idx) => (
+                <div key={`${row.text}-${idx}`} className={`sim-lab-row${row.ok ? '' : ' invalid'}`}>
+                  <span>{row.text}</span>
+                  <span>{row.ok ? 'PASS' : 'FAIL'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Preset Benchmark Suites</div>
+          <p className="sim-lab-note">Run baseline algorithm suites and compare against expected quality thresholds.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Suite
+              <select value={benchmarkSuiteId} onChange={(e) => setBenchmarkSuiteId(e.target.value)}>
+                {BENCHMARK_SUITES.map((suite) => (
+                  <option key={suite.id} value={suite.id}>{suite.title}</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn" onClick={runSelectedBenchmark}>Run Suite</button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                const suite = BENCHMARK_SUITES.find((s) => s.id === benchmarkSuiteId);
+                if (!suite) return;
+                const parsed = parseCircuitMacro(applySymbolBindings(suite.macro, symbolBindings), numQubits);
+                if (parsed.valid) onApplyMacroCircuit(parsed.circuit);
+              }}
+            >
+              Load Suite Circuit
+            </button>
+          </div>
+          {benchmarkResult && (
+            <div className="sim-lab-results-wrap">
+              <div className="sim-lab-results-head"><span>Benchmark</span><span>Result</span></div>
+              <div className="sim-lab-row"><span>Status</span><span>{benchmarkResult.passed ? 'PASS' : 'FAIL'}</span></div>
+              <div className="sim-lab-row"><span>Score</span><span>{benchmarkResult.score.toFixed(4)}</span></div>
+              {benchmarkResult.details.map((detail, idx) => (
+                <div key={`${detail}-${idx}`} className="sim-lab-row"><span>Detail</span><span>{detail}</span></div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">OpenQASM Round-Trip Verifier</div>
+          <p className="sim-lab-note">Export to QASM, re-import, and verify structural equivalence against the source circuit.</p>
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runRoundTripVerifier}>Run Round-Trip Check</button>
+          </div>
+          {roundTripReport && (
+            <>
+              <p className="sim-lab-note">{roundTripReport.message}</p>
+              <div className="sim-lab-results-wrap">
+                <div className="sim-lab-results-head"><span>Diff Summary</span><span>Count</span></div>
+                <div className="sim-lab-row"><span>Changed</span><span>{roundTripReport.diffSummary.changed}</span></div>
+                <div className="sim-lab-row"><span>Added</span><span>{roundTripReport.diffSummary.added}</span></div>
+                <div className="sim-lab-row"><span>Removed</span><span>{roundTripReport.diffSummary.removed}</span></div>
+                <div className="sim-lab-row"><span>Depth delta</span><span>{roundTripReport.diffSummary.depthDelta}</span></div>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Noise Calibration Fitting</div>
+          <p className="sim-lab-note">Fit simulator noise params from observed histogram samples using KL minimization.</p>
+          <textarea
+            className="sim-lab-textarea"
+            value={observedHistogramInput}
+            onChange={(e) => setObservedHistogramInput(e.target.value)}
+            placeholder="00: 520\n11: 504"
+          />
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runNoiseCalibration}>Fit Noise</button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!calibrationResult}
+              onClick={() => {
+                if (!calibrationResult) return;
+                onApplyShotsConfig({ numShots, noise: calibrationResult.bestNoise, shotsBasisAxes });
+              }}
+            >
+              Apply Fitted Noise
+            </button>
+          </div>
+          {calibrationResult && (
+            <div className="sim-lab-results-wrap">
+              <div className="sim-lab-results-head"><span>Parameter</span><span>Fitted</span></div>
+              <div className="sim-lab-row"><span>depolarizing1q</span><span>{calibrationResult.bestNoise.depolarizing1q.toFixed(4)}</span></div>
+              <div className="sim-lab-row"><span>amplitudeDamping</span><span>{calibrationResult.bestNoise.amplitudeDamping.toFixed(4)}</span></div>
+              <div className="sim-lab-row"><span>bitFlip</span><span>{calibrationResult.bestNoise.bitFlip.toFixed(4)}</span></div>
+              <div className="sim-lab-row"><span>phaseFlip</span><span>{calibrationResult.bestNoise.phaseFlip.toFixed(4)}</span></div>
+              <div className="sim-lab-row"><span>readoutError</span><span>{calibrationResult.bestNoise.readoutError.toFixed(4)}</span></div>
+              <div className="sim-lab-row"><span>KL score / tried</span><span>{calibrationResult.bestScore.toFixed(6)} / {calibrationResult.tried}</span></div>
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Multi-Objective Optimizer</div>
+          <p className="sim-lab-note">Optimize success probability while penalizing depth and two-qubit cost.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Parametric gate
+              <select value={multiObjectiveGateId} onChange={(e) => setMultiObjectiveGateId(e.target.value)}>
+                {parametricGates.map((g) => (
+                  <option key={g.id} value={g.id}>{g.gate}@col{g.column}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Basis bits
+              <input value={multiObjectiveBasis} onChange={(e) => setMultiObjectiveBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+            </label>
+            <label>
+              Start
+              <input value={multiObjectiveStart} onChange={(e) => setMultiObjectiveStart(e.target.value)} />
+            </label>
+            <label>
+              End
+              <input value={multiObjectiveEnd} onChange={(e) => setMultiObjectiveEnd(e.target.value)} />
+            </label>
+            <label>
+              Steps
+              <input value={multiObjectiveSteps} onChange={(e) => setMultiObjectiveSteps(e.target.value)} />
+            </label>
+          </div>
+          <div className="sim-sweep-controls">
+            <label>
+              w(probability)
+              <input value={weightProbability} onChange={(e) => setWeightProbability(e.target.value)} />
+            </label>
+            <label>
+              w(depth)
+              <input value={weightDepth} onChange={(e) => setWeightDepth(e.target.value)} />
+            </label>
+            <label>
+              w(two-qubit)
+              <input value={weightTwoQ} onChange={(e) => setWeightTwoQ(e.target.value)} />
+            </label>
+            <button type="button" className="btn" onClick={runMultiObjective}>Run Multi-Objective</button>
+          </div>
+          {multiObjectiveMessage && <p className="sim-lab-note">{multiObjectiveMessage}</p>}
+          {multiObjectiveTrace.length > 0 && (
+            <div className="sim-sweep-chart">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={multiObjectiveTrace} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="theta" stroke="var(--text-3)" tickFormatter={(v) => Number(v).toFixed(2)} />
+                  <YAxis stroke="var(--text-3)" />
+                  <Tooltip formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)} />
+                  <Line type="monotone" dataKey="score" stroke="#0ea5e9" dot={false} strokeWidth={2} name="score" />
+                  <Line type="monotone" dataKey="probability" stroke="#22c55e" dot={false} strokeWidth={1.6} name="probability" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Classroom Assignment Pack Export</div>
+          <p className="sim-lab-note">Export reusable instructor/student pack with rubric, circuit, symbols, and shot config.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Pack name
+              <input value={assignmentPackName} onChange={(e) => setAssignmentPackName(e.target.value)} />
+            </label>
+          </div>
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={exportAssignmentPack}>Export Classroom Pack</button>
           </div>
         </section>
 
@@ -1411,36 +1960,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
         </section>
 
         <section className="sim-lab-card">
-          <div className="sim-lab-card-title">Gate Timeline Inspector</div>
-          <p className="sim-lab-note">Inspect state evolution column-by-column (top basis, probability, and average ⟨Z⟩).</p>
-          <div className="sim-sweep-controls">
-            <label>
-              Rows
-              <input value={timelineLimit} onChange={(e) => setTimelineLimit(e.target.value)} />
-            </label>
-            <label>
-              Mode
-              <select value={performanceMode ? 'fast' : 'full'} onChange={(e) => onSetPerformanceMode(e.target.value === 'fast')}>
-                <option value="fast">Fast (sampled)</option>
-                <option value="full">Full</option>
-              </select>
-            </label>
-          </div>
-          <div className="sim-lab-results-wrap">
-            <div className="sim-lab-results-head">
-              <span>Column</span>
-              <span>Top basis / P / ⟨Z⟩avg</span>
-            </div>
-            {timelineRows.map((row) => (
-              <div key={row.col} className="sim-lab-row">
-                <span>{row.col}</span>
-                <span>|{row.topBasis}⟩ / {(row.topProb * 100).toFixed(2)}% / {row.zAvg.toFixed(3)}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="sim-lab-card">
           <div className="sim-lab-card-title">Measurement Basis Simulator</div>
           <p className="sim-lab-note">Set each qubit measurement axis, then inspect predicted basis outcome probabilities.</p>
 
@@ -1776,30 +2295,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
           )}
         </section>
 
-        <section className="sim-lab-card">
-          <div className="sim-lab-card-title">Shareable Experiment Links</div>
-          <p className="sim-lab-note">Create links that encode symbols, sweep setup, and shots/noise configuration.</p>
-          <div className="sim-lab-inline-metrics">
-            <button
-              type="button"
-              className="btn"
-              onClick={async () => {
-                const payload = {
-                  symbols: symbolBindings,
-                  performanceMode,
-                  sweep: { start: sweepStart, end: sweepEnd, steps: sweepSteps, metric: sweepMetric, basis: sweepBasis, observable: sweepObservable },
-                  shots: { numShots, noise, basis: shotsBasisAxes },
-                };
-                const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
-                const url = new URL(window.location.href);
-                url.searchParams.set('simcfg', encoded);
-                await navigator.clipboard.writeText(url.toString());
-              }}
-            >
-              Copy Share Link
-            </button>
-          </div>
-        </section>
       </div>
     </div>
   );

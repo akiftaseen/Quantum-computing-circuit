@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['vite.svg'],
       manifest: {
-        name: 'Quantum Circuit Tutor',
-        short_name: 'Quantum Tutor',
+        name: 'Quantum Circuit Simulator',
+        short_name: 'QCSim',
         description: 'Offline-friendly open-source quantum circuit simulator',
         theme_color: '#1f2937',
         background_color: '#ffffff',

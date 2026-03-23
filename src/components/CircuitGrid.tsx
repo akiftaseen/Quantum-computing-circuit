@@ -64,6 +64,30 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   const qy = (q: number) => PAD_T + q * ROW_H + BOX / 2;
   const sx = (s: number) => PAD_L + s * COL_W + COL_W / 2;
 
+  const formatQubitTargets = (qs: number[]) => qs.map((q) => `q${q}`).join(', ');
+
+  const gateAriaLabel = useCallback((g: PlacedGate) => {
+    const gateName = gateDisplayName[g.gate] ?? g.gate;
+    const controls = g.controls.length > 0 ? `, controls ${formatQubitTargets(g.controls)}` : '';
+    return `${gateName} gate at column ${g.column}, targets ${formatQubitTargets(g.targets)}${controls}`;
+  }, []);
+
+  const handleGateKeyDown = useCallback((e: React.KeyboardEvent<SVGGElement>, id: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(id);
+    }
+  }, [onSelect]);
+
+  const gateInteractionProps = useCallback((g: PlacedGate) => ({
+    onClick: () => onSelect(g.id),
+    onKeyDown: (e: React.KeyboardEvent<SVGGElement>) => handleGateKeyDown(e, g.id),
+    tabIndex: 0,
+    role: 'button' as const,
+    'aria-pressed': g.id === selectedId,
+    'aria-label': gateAriaLabel(g),
+  }), [gateAriaLabel, handleGateKeyDown, onSelect, selectedId]);
+
   /* ---- Drag and drop ---- */
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -170,7 +194,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const cy = qy(g.controls[0]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
             <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={sw} />
             <circle cx={x} cy={cy} r={5} fill={accent ?? '#1e40af'} />
             <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#1e40af'} strokeWidth={sw} />
@@ -186,7 +210,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const cy = qy(g.controls[0]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
             <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#4527a0'} strokeWidth={sw} />
             <circle cx={x} cy={cy} r={5} fill={accent ?? '#4527a0'} />
             <circle cx={x} cy={ty} r={5} fill={accent ?? '#4527a0'} />
@@ -201,7 +225,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const y2 = qy(g.targets[1]);
         const d = 7;
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
             <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#c2410c'} strokeWidth={sw} />
             <line x1={x - d} y1={y1 - d} x2={x + d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
             <line x1={x + d} y1={y1 - d} x2={x - d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
@@ -219,7 +243,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const mid = (y1 + y2) / 2;
         const label = gateDisplayName[g.gate] ?? g.gate;
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
             <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#0f766e'} strokeWidth={sw} />
             <circle cx={x} cy={y1} r={4.5} fill={accent ?? '#0f766e'} />
             <circle cx={x} cy={y2} r={4.5} fill={accent ?? '#0f766e'} />
@@ -236,7 +260,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const c2 = qy(g.controls[1]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
             <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={Math.max(c1, c2)} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
             <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={ty} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
             <circle cx={x} cy={c1} r={5} fill={accent ?? '#5b21b6'} />
@@ -257,7 +281,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       const fontSize = label.length > 2 ? 10 : 14;
 
       els.push(
-        <g key={g.id} className="qgate" onClick={() => onSelect(g.id)}>
+        <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX}
             fill="var(--card, #fff)" />
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX} rx={4}
@@ -308,8 +332,14 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
       onClick={handleBgClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onSelect(null);
+      }}
       className="circuit-svg"
+      role="img"
+      aria-label="Quantum circuit grid. Drag a gate to place it. Press Enter on a focused gate to select it."
     >
+      <title>Quantum circuit grid</title>
       <rect className="bg-rect" width={W} height={H} fill="var(--card, #fff)" rx={10} />
       {stepHighlight}
       {dropZones}
