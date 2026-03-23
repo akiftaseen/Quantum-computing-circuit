@@ -107,6 +107,8 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   const [showDiscardHint, setShowDiscardHint] = useState(false);
   const [pointerMoveGateId, setPointerMoveGateId] = useState<string | null>(null);
   const [pointerDragBehavior, setPointerDragBehavior] = useState<'move' | 'copy'>('move');
+  const pointerDragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerDragMovedRef = useRef(false);
 
   const W = PAD_L + numColumns * COL_W + PAD_R;
   const H = PAD_T + Math.max(numQubits - 1, 0) * ROW_H + BOX + PAD_B;
@@ -303,6 +305,16 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     if (!pointerMoveGateId) return;
 
     const onPointerMove = (e: PointerEvent) => {
+      const start = pointerDragStartRef.current;
+      if (start) {
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        if (!pointerDragMovedRef.current && Math.hypot(dx, dy) < 4) {
+          return;
+        }
+        pointerDragMovedRef.current = true;
+      }
+
       const gridPoint = getGridAnchorFromClientPoint(e.clientX, e.clientY);
       if (!gridPoint) return;
 
@@ -313,6 +325,18 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     const onPointerUp = (e: PointerEvent) => {
       const existing = gates.find((gate) => gate.id === pointerMoveGateId);
       const gridPoint = getGridAnchorFromClientPoint(e.clientX, e.clientY);
+
+      if (!pointerDragMovedRef.current) {
+        setPointerMoveGateId(null);
+        setDraggingGateId(null);
+        setDragHover(null);
+        setDragMeta(null);
+        setShowDiscardHint(false);
+        setPointerDragBehavior('move');
+        pointerDragStartRef.current = null;
+        pointerDragMovedRef.current = false;
+        return;
+      }
 
       if (existing && gridPoint) {
         if (gridPoint.outsideRect && pointerDragBehavior === 'move') {
@@ -344,6 +368,8 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       setDragMeta(null);
       setShowDiscardHint(false);
       setPointerDragBehavior('move');
+      pointerDragStartRef.current = null;
+      pointerDragMovedRef.current = false;
     };
 
     window.addEventListener('pointermove', onPointerMove);
@@ -424,6 +450,8 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
           if (e.button !== 0) return;
           e.preventDefault();
           onSelect(g.id);
+          pointerDragStartRef.current = { x: e.clientX, y: e.clientY };
+          pointerDragMovedRef.current = false;
           setDraggingGateId(g.id);
           setPointerMoveGateId(g.id);
           setPointerDragBehavior(e.altKey ? 'copy' : 'move');
