@@ -8,6 +8,7 @@ import { buildInitialStateFromInput, parseInitialQubitStateDetailed, type Initia
 import type { MeasurementBasisAxis } from './logic/measurementBasis';
 import { applySymbolBindings, defaultSymbolBindings, type SymbolBinding } from './logic/symbolBindings';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
+import { useCircuitDrafts, loadDraftWorkspace } from './hooks/useCircuitDrafts';
 import { useTheme } from './hooks/useTheme';
 import type { CircuitState, PlacedGate } from './logic/circuitTypes';
 import { isParametric, newGateId, gateDisplayName, isSingleQubit } from './logic/circuitTypes';
@@ -30,13 +31,6 @@ const ExperimentWorkbenchPanel = lazy(() => import('./components/ExperimentWorkb
 const SimulatorLabPanel = lazy(() => import('./components/SimulatorLabPanel'));
 
 const INIT: CircuitState = { numQubits: 2, numColumns: 10, gates: [] };
-const INITIAL_DRAFT_ID = 'draft-initial';
-
-interface CircuitDraft {
-  id: string;
-  name: string;
-  circuit: CircuitState;
-}
 
 type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'sim';
 
@@ -57,15 +51,13 @@ const isTextEntryTarget = (target: EventTarget | null): boolean => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 };
 
-const createDraftId = () => `draft-${Math.random().toString(36).slice(2, 10)}`;
+const fitArray = <T,>(source: T[], len: number, fill: T): T[] =>
+  Array.from({ length: len }, (_, i) => source[i] ?? fill);
 
 const App: React.FC = () => {
-  const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
+  const initialWorkspace = loadDraftWorkspace(INIT);
+  const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(initialWorkspace.activeCircuit);
   const { mode: themeMode, cycleThemeMode } = useTheme();
-  const [drafts, setDrafts] = useState<CircuitDraft[]>([
-    { id: INITIAL_DRAFT_ID, name: 'Circuit 1', circuit: INIT },
-  ]);
-  const [activeDraftId, setActiveDraftId] = useState(INITIAL_DRAFT_ID);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [stepCol, setStepCol] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -117,23 +109,19 @@ const App: React.FC = () => {
     }
   }, [isResizingSidebar, resizeSidebar, stopResizingSidebar]);
 
-  useEffect(() => {
-    setInitialQubitExprs((prev) => {
-      if (prev.length === circuit.numQubits) return prev;
-      if (prev.length > circuit.numQubits) return prev.slice(0, circuit.numQubits);
-      return [...prev, ...Array(circuit.numQubits - prev.length).fill('0')];
-    });
+  const normalizedQubitExprs = useMemo(
+    () => fitArray(initialQubitExprs, circuit.numQubits, '0'),
+    [initialQubitExprs, circuit.numQubits],
+  );
 
-    setShotsBasisAxes((prev) => {
-      if (prev.length === circuit.numQubits) return prev;
-      if (prev.length > circuit.numQubits) return prev.slice(0, circuit.numQubits);
-      return [...prev, ...Array(circuit.numQubits - prev.length).fill('Z')];
-    });
-  }, [circuit.numQubits]);
+  const normalizedShotsBasisAxes = useMemo(
+    () => fitArray(shotsBasisAxes, circuit.numQubits, 'Z' as MeasurementBasisAxis),
+    [shotsBasisAxes, circuit.numQubits],
+  );
 
   const boundInitialQubitExprs = useMemo(
-    () => initialQubitExprs.map((expr) => applySymbolBindings(expr, symbolBindings)),
-    [initialQubitExprs, symbolBindings],
+    () => normalizedQubitExprs.map((expr) => applySymbolBindings(expr, symbolBindings)),
+    [normalizedQubitExprs, symbolBindings],
   );
 
   const boundStatevectorExpr = useMemo(
@@ -171,14 +159,30 @@ const App: React.FC = () => {
     circuit.gates.find(g => g.id === selectedId) ?? null,
   [circuit.gates, selectedId]);
 
-  const activeDraft = useMemo(
-    () => drafts.find((d) => d.id === activeDraftId) ?? drafts[0],
-    [drafts, activeDraftId],
-  );
+  const clearTransientResults = useCallback(() => {
+    setSelectedId(null);
+    setShotsResult(null);
+    setNoisyShotsResult(null);
+    setStepCol(null);
+  }, []);
 
-  useEffect(() => {
-    setDrafts((prev) => prev.map((d) => (d.id === activeDraftId ? { ...d, circuit } : d)));
-  }, [activeDraftId, circuit]);
+  const {
+    drafts,
+    activeDraft,
+    activeDraftId,
+    switchDraft,
+    createNewDraft,
+    duplicateActiveDraft,
+    renameActiveDraft,
+    deleteActiveDraft,
+  } = useCircuitDrafts({
+    initialDrafts: initialWorkspace.drafts,
+    initialActiveDraftId: initialWorkspace.activeDraftId,
+    activeCircuit: circuit,
+    resetCircuit: reset,
+    clearTransient: clearTransientResults,
+    announce: setLiveMessage,
+  });
 
   const paramEdit = useMemo(() => {
     if (!selectedGate || !isParametric(selectedGate.gate)) return null;
@@ -255,9 +259,9 @@ const App: React.FC = () => {
         noise.t1Microseconds > 0 ||
         noise.t2Microseconds > 0,
     };
-    const hist = runWithShots(circuit, numShots, initialState, shotsBasisAxes, samplingOptions);
+    const hist = runWithShots(circuit, numShots, initialState, normalizedShotsBasisAxes, samplingOptions);
     setShotsResult(hist);
-    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState, shotsBasisAxes, samplingOptions));
+    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState, normalizedShotsBasisAxes, samplingOptions));
     setNoise(effectiveNoise);
     setTab('shots');
     setLiveMessage(`Shots completed with ${numShots} samples${hasSeed ? ` (seed ${Math.trunc(parsedSeed)})` : ''}.`);
@@ -377,81 +381,6 @@ const App: React.FC = () => {
     setNoisyShotsResult(null);
     setStepCol(null);
     setLiveMessage('Template loaded.');
-  };
-
-  const clearTransientResults = () => {
-    setSelectedId(null);
-    setShotsResult(null);
-    setNoisyShotsResult(null);
-    setStepCol(null);
-  };
-
-  const switchDraft = (id: string) => {
-    if (id === activeDraftId) return;
-    const next = drafts.find((d) => d.id === id);
-    if (!next) return;
-    setActiveDraftId(id);
-    reset(next.circuit);
-    clearTransientResults();
-    setLiveMessage(`Switched to ${next.name}.`);
-  };
-
-  const createNewDraft = () => {
-    const nextName = `Circuit ${drafts.length + 1}`;
-    const nextCircuit: CircuitState = {
-      numQubits: circuit.numQubits,
-      numColumns: Math.max(10, circuit.numColumns),
-      gates: [],
-    };
-    const next: CircuitDraft = { id: createDraftId(), name: nextName, circuit: nextCircuit };
-    setDrafts((prev) => [...prev, next]);
-    setActiveDraftId(next.id);
-    reset(next.circuit);
-    clearTransientResults();
-    setLiveMessage(`${nextName} created.`);
-  };
-
-  const duplicateActiveDraft = () => {
-    const base = activeDraft;
-    if (!base) return;
-    const next: CircuitDraft = {
-      id: createDraftId(),
-      name: `${base.name} Copy`,
-      circuit: {
-        ...circuit,
-        gates: circuit.gates.map((g) => ({ ...g })),
-      },
-    };
-    setDrafts((prev) => [...prev, next]);
-    setActiveDraftId(next.id);
-    reset(next.circuit);
-    clearTransientResults();
-    setLiveMessage(`${next.name} created.`);
-  };
-
-  const renameActiveDraft = () => {
-    const current = activeDraft;
-    if (!current) return;
-    const nextName = window.prompt('Rename circuit', current.name)?.trim();
-    if (!nextName) return;
-    setDrafts((prev) => prev.map((d) => (d.id === current.id ? { ...d, name: nextName } : d)));
-    setLiveMessage(`Renamed to ${nextName}.`);
-  };
-
-  const deleteActiveDraft = () => {
-    if (drafts.length <= 1) {
-      handleClear();
-      return;
-    }
-    const current = activeDraft;
-    if (!current) return;
-    const idx = drafts.findIndex((d) => d.id === current.id);
-    const fallback = drafts[idx > 0 ? idx - 1 : 1];
-    setDrafts((prev) => prev.filter((d) => d.id !== current.id));
-    setActiveDraftId(fallback.id);
-    reset(fallback.circuit);
-    clearTransientResults();
-    setLiveMessage(`${current.name} deleted.`);
   };
 
   // Keyboard shortcuts
@@ -649,7 +578,6 @@ const App: React.FC = () => {
               circuit={circuit}
               onPlace={handlePlaceGate}
               onRemove={handleRemoveGate}
-              onUpdate={handleUpdateGate}
               selectedId={selectedId}
               onSelect={setSelectedId}
               stepCol={stepCol}
@@ -720,7 +648,7 @@ const App: React.FC = () => {
                       <span>q{q}</span>
                       <input
                         ref={(el) => { qubitInputRefs.current[q] = el; }}
-                        value={initialQubitExprs[q] ?? '0'}
+                        value={normalizedQubitExprs[q] ?? '0'}
                         onFocus={() => setActiveInitTarget({ mode: 'qubit', qubit: q })}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -918,7 +846,7 @@ const App: React.FC = () => {
                         <label key={q} className="shots-basis-item">
                           <span>q{q}</span>
                           <select
-                            value={shotsBasisAxes[q] ?? 'Z'}
+                            value={normalizedShotsBasisAxes[q] ?? 'Z'}
                             onChange={(e) => {
                               const axis = e.target.value as MeasurementBasisAxis;
                               setShotsBasisAxes((prev) => {

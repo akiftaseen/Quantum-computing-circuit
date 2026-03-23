@@ -2,6 +2,8 @@
 
 Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
+Product direction and simplification plan: see `PRODUCT_ROADMAP.md`.
+
 ## What This App Does
 
 - Build quantum circuits with drag-and-drop gates.
@@ -12,12 +14,20 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 
 ## Features
 
+The app follows a core-first UX approach:
+- Core features stay visible and quick to use.
+- Advanced tools are available but progressively disclosed to reduce clutter.
+
 ### Circuit Building
 - Gate palette with basic, phase, rotation, multi-qubit, and interaction gates.
 - Supports up to 6 qubits.
 - Auto-expands columns when placing gates near the end.
+- Drag placed gates to move them; drag outside canvas to delete.
+- Hold `Option` while dragging a placed gate to duplicate it.
+- Invalid drag footprints are highlighted and include an inline reason label.
 - Undo/redo history.
 - Multi-circuit drafts: create, switch, duplicate, rename, and delete circuits without clearing current work.
+- Drafts and active circuit selection are persisted to local storage.
 
 ### Quantum Gates
 - Single-qubit: `I H X Y Z S Sdg T Tdg Rx Ry Rz P`
@@ -46,6 +56,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - OpenQASM-lite import for bringing circuits back into the visual editor.
 
 ### Simulator Lab Advanced Suite
+- Core/Advanced mode toggle to keep common workflows lightweight while still exposing power tools.
 - Feature search that live-filters visible tool sections by title, description text, and related terms.
 - Circuit diff view for comparing current and candidate circuits.
 - Hardware profile presets with compatibility scoring (native gates, coupling limits, and estimated SWAP overhead).
@@ -99,6 +110,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - `Delete` / `Backspace`: Remove selected gate
 - `Arrow Left` / `Arrow Right`: Move step cursor
 - `1..6` with a gate selected: quick place `H X Y Z S T` on next column
+- Hold `Option` while dragging a placed gate: duplicate instead of move
 
 ## Theme
 

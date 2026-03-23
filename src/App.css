@@ -664,11 +664,20 @@ textarea:focus-visible {
   fill: color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
+.circuit-svg .drop-preview.invalid {
+  fill: color-mix(in srgb, #ef4444 14%, transparent);
+  stroke: color-mix(in srgb, #ef4444 78%, #fecaca);
+}
+
 .circuit-svg .drop-preview-link {
   stroke: color-mix(in srgb, var(--primary) 70%, var(--text-3));
   stroke-width: 1.8;
   stroke-dasharray: 4 3;
   animation: drop-preview-pulse 520ms ease-in-out infinite alternate;
+}
+
+.circuit-svg .drop-preview-link.invalid {
+  stroke: color-mix(in srgb, #ef4444 75%, #fecaca);
 }
 
 .circuit-svg .drag-discard-hint rect {
@@ -678,6 +687,15 @@ textarea:focus-visible {
 
 .circuit-svg .drag-discard-hint text {
   fill: color-mix(in srgb, #b91c1c 88%, var(--text));
+}
+
+.circuit-svg .drag-invalid-hint rect {
+  fill: color-mix(in srgb, #ef4444 14%, var(--card));
+  stroke: color-mix(in srgb, #ef4444 60%, var(--border));
+}
+
+.circuit-svg .drag-invalid-hint text {
+  fill: color-mix(in srgb, #b91c1c 90%, var(--text));
 }
 
 @keyframes drop-preview-pulse {
@@ -2308,8 +2326,14 @@ textarea:focus-visible {
 
 .sim-lab-feature-nav {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
   gap: 8px;
+  align-items: center;
+}
+
+.sim-lab-mode-switch {
+  display: inline-flex;
+  gap: 6px;
   align-items: center;
 }
 

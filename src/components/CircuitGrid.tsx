@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import type { CircuitState, PlacedGate, GateName } from '../logic/circuitTypes';
 import { isMultiQubit, isParametric, gateDisplayName } from '../logic/circuitTypes';
+import { isPlacementValid, offsetsFromGate, projectOffsetsAtQubit } from '../logic/circuitEditing';
 
 /* ------------------------------------------------------------------ */
 /*  Props - aligned with App.tsx                                       */
@@ -9,7 +10,6 @@ interface CircuitGridProps {
   circuit: CircuitState;
   onPlace: (gate: Omit<PlacedGate, 'id'>) => void;
   onRemove: (id: string) => void;
-  onUpdate: (id: string, updates: Partial<PlacedGate>) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   stepCol: number | null;
@@ -47,12 +47,21 @@ const DEFAULT_C: [string, string, string] = ['#f3f4f6', '#d1d5db', '#374151'];
 const gc = (g: string) => COLORS[g] ?? DEFAULT_C;
 
 interface DragMeta {
-  mode: 'palette' | 'move';
   gateId?: string;
   gateName?: GateName;
   targetOffsets: number[];
   controlOffsets: number[];
 }
+
+const placementIssue = (occupied: number[], numQubits: number): string | null => {
+  if (occupied.some((q) => q < 0 || q >= numQubits)) {
+    return 'Invalid drop: gate footprint exceeds qubit range.';
+  }
+  if (new Set(occupied).size !== occupied.length) {
+    return 'Invalid drop: control and target lines overlap.';
+  }
+  return null;
+};
 
 /* ================================================================== */
 const CircuitGrid: React.FC<CircuitGridProps> = ({
@@ -71,6 +80,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   const [dragMeta, setDragMeta] = useState<DragMeta | null>(null);
   const [showDiscardHint, setShowDiscardHint] = useState(false);
   const [pointerMoveGateId, setPointerMoveGateId] = useState<string | null>(null);
+  const [pointerDragBehavior, setPointerDragBehavior] = useState<'move' | 'copy'>('move');
 
   const W = PAD_L + numColumns * COL_W + PAD_R;
   const H = PAD_T + Math.max(numQubits - 1, 0) * ROW_H + BOX + PAD_B;
@@ -126,27 +136,16 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   }, [numColumns, numQubits]);
 
   const movePlacedGate = useCallback((existing: PlacedGate, col: number, anchorQubit: number) => {
-    const occupied = [...existing.targets, ...existing.controls];
-    const anchor = Math.min(...occupied);
-    const targetOffsets = existing.targets.map((t) => t - anchor);
-    const controlOffsets = existing.controls.map((c) => c - anchor);
-
-    const nextTargets = targetOffsets.map((off) => anchorQubit + off);
-    const nextControls = controlOffsets.map((off) => anchorQubit + off);
-    const nextOccupied = [...nextTargets, ...nextControls];
-
-    const inBounds = nextOccupied.every((qLine) => qLine >= 0 && qLine < numQubits);
-    if (!inBounds) return false;
-
-    const noDuplicates = new Set(nextOccupied).size === nextOccupied.length;
-    if (!noDuplicates) return false;
+    const offsets = offsetsFromGate(existing);
+    const placement = projectOffsetsAtQubit(offsets, anchorQubit);
+    if (!isPlacementValid(placement, numQubits)) return false;
 
     onRemove(existing.id);
     onPlace({
       gate: existing.gate,
       column: col,
-      targets: nextTargets,
-      controls: nextControls,
+      targets: placement.targets,
+      controls: placement.controls,
       params: [...existing.params],
       classicalBit: existing.classicalBit,
       condition: existing.condition,
@@ -230,7 +229,6 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const occupied = [...existing.targets, ...existing.controls];
         const anchor = Math.min(...occupied);
         setDragMeta({
-          mode: 'move',
           gateId: moveGateId,
           gateName: existing.gate,
           targetOffsets: existing.targets.map((t) => t - anchor),
@@ -240,7 +238,6 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     } else if (paletteGateId) {
       const offsets = getPaletteOffsets(paletteGateId);
       setDragMeta({
-        mode: 'palette',
         gateName: paletteGateId,
         targetOffsets: offsets.targetOffsets,
         controlOffsets: offsets.controlOffsets,
@@ -284,7 +281,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       if (!gridPoint) return;
 
       setDragHover(gridPoint.inBounds ? { col: gridPoint.col, qubit: gridPoint.qubit } : null);
-      setShowDiscardHint(gridPoint.outsideRect);
+      setShowDiscardHint(pointerDragBehavior === 'move' && gridPoint.outsideRect);
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -292,11 +289,26 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       const gridPoint = getGridAnchorFromClientPoint(e.clientX, e.clientY);
 
       if (existing && gridPoint) {
-        if (gridPoint.outsideRect) {
+        if (gridPoint.outsideRect && pointerDragBehavior === 'move') {
           onRemove(existing.id);
           onSelect(null);
         } else if (gridPoint.inBounds) {
-          movePlacedGate(existing, gridPoint.col, gridPoint.qubit);
+          if (pointerDragBehavior === 'copy') {
+            const placement = projectOffsetsAtQubit(offsetsFromGate(existing), gridPoint.qubit);
+            if (isPlacementValid(placement, numQubits)) {
+              onPlace({
+                gate: existing.gate,
+                column: gridPoint.col,
+                targets: placement.targets,
+                controls: placement.controls,
+                params: [...existing.params],
+                classicalBit: existing.classicalBit,
+                condition: existing.condition,
+              });
+            }
+          } else {
+            movePlacedGate(existing, gridPoint.col, gridPoint.qubit);
+          }
         }
       }
 
@@ -305,6 +317,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       setDragHover(null);
       setDragMeta(null);
       setShowDiscardHint(false);
+      setPointerDragBehavior('move');
     };
 
     window.addEventListener('pointermove', onPointerMove);
@@ -313,7 +326,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [gates, getGridAnchorFromClientPoint, movePlacedGate, onRemove, onSelect, pointerMoveGateId]);
+  }, [gates, getGridAnchorFromClientPoint, movePlacedGate, numQubits, onPlace, onRemove, onSelect, pointerDragBehavior, pointerMoveGateId]);
 
   /* ---- Deselect on blank click ---- */
   const handleBgClick = useCallback(
@@ -387,8 +400,8 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
           onSelect(g.id);
           setDraggingGateId(g.id);
           setPointerMoveGateId(g.id);
+          setPointerDragBehavior(e.altKey ? 'copy' : 'move');
           setDragMeta({
-            mode: 'move',
             gateId: g.id,
             gateName: g.gate,
             targetOffsets,
@@ -509,19 +522,29 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
 
   const dragPreview = useMemo(() => {
     if (!dragHover || !dragMeta) return null;
-    const previewRows = [...dragMeta.targetOffsets, ...dragMeta.controlOffsets].map((off) => dragHover.qubit + off);
-    const rowsInBounds = previewRows.every((q) => q >= 0 && q < numQubits);
-    if (!rowsInBounds) return null;
+    const placement = projectOffsetsAtQubit(
+      { targetOffsets: dragMeta.targetOffsets, controlOffsets: dragMeta.controlOffsets },
+      dragHover.qubit,
+    );
+    const issue = placementIssue(placement.occupied, numQubits);
+    const valid = issue === null;
 
-    const targets = new Set(dragMeta.targetOffsets.map((off) => dragHover.qubit + off));
-    const controls = new Set(dragMeta.controlOffsets.map((off) => dragHover.qubit + off));
+    const previewRows = placement.occupied.filter((q) => q >= 0 && q < numQubits);
+    if (previewRows.length === 0) return null;
+
+    const targets = new Set(placement.targets);
+    const controls = new Set(placement.controls);
+    const previewClass = (isTarget: boolean) => `drop-preview ${isTarget ? 'target' : 'control'}${valid ? '' : ' invalid'}`;
+
+    const visibleControls = [...controls].filter((q) => q >= 0 && q < numQubits);
+    const visibleTargets = [...targets].filter((q) => q >= 0 && q < numQubits);
 
     return (
       <g className="drop-preview-group" pointerEvents="none">
         {previewRows.map((q) => (
           <rect
             key={`preview-${q}`}
-            className={`drop-preview ${targets.has(q) ? 'target' : 'control'}`}
+            className={previewClass(targets.has(q))}
             x={sx(dragHover.col) - COL_W / 2 + 2}
             y={qy(q) - ROW_H / 2 + 2}
             width={COL_W - 4}
@@ -529,15 +552,34 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
             rx={7}
           />
         ))}
-        {controls.size > 0 && targets.size > 0 && (
+        {visibleControls.length > 0 && visibleTargets.length > 0 && (
           <line
-            className="drop-preview-link"
+            className={`drop-preview-link${valid ? '' : ' invalid'}`}
             x1={sx(dragHover.col)}
-            y1={qy(Math.min(...controls))}
+            y1={qy(Math.min(...visibleControls))}
             x2={sx(dragHover.col)}
-            y2={qy(Math.max(...targets))}
+            y2={qy(Math.max(...visibleTargets))}
           />
         )}
+      </g>
+    );
+  }, [dragHover, dragMeta, numQubits]);
+
+  const invalidHint = useMemo(() => {
+    if (!dragHover || !dragMeta) return null;
+    const placement = projectOffsetsAtQubit(
+      { targetOffsets: dragMeta.targetOffsets, controlOffsets: dragMeta.controlOffsets },
+      dragHover.qubit,
+    );
+    const issue = placementIssue(placement.occupied, numQubits);
+    if (!issue) return null;
+
+    return (
+      <g className="drag-invalid-hint" pointerEvents="none">
+        <rect x={12} y={10} width={320} height={24} rx={12} />
+        <text x={172} y={22} textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700}>
+          {issue}
+        </text>
       </g>
     );
   }, [dragHover, dragMeta, numQubits]);
@@ -601,6 +643,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       <rect className="bg-rect" width={W} height={H} fill="var(--card, #fff)" rx={10} />
       {stepHighlight}
       {dragPreview}
+      {invalidHint}
       {discardHint}
       {dropZones}
       {wires}

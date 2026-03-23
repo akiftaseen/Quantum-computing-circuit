@@ -163,6 +163,25 @@ const FEATURE_RELATED_TERMS: Record<string, string[]> = {
   'Multi-Run Experiment Manager': ['compare runs', 'experiment history', 'saved runs'],
 };
 
+const CORE_FEATURE_TITLES = new Set<string>([
+  'Symbolic Parameters',
+  'Hardware Profile Presets',
+  'Live Transpilation Hints',
+  'Circuit Diff View',
+  'Noise Sweep Dashboard',
+  'Fidelity and Distance Metrics',
+  'Observable Expectations',
+  'Measurement Basis Simulator',
+  'Export and Import Tools',
+  'Qiskit OSS Toolkit (Free Local Features)',
+  'Session and Project Save Packs',
+]);
+
+const OVERLAP_HIDDEN_TITLES = new Set<string>([
+  'Parametric Sweep Studio',
+  'Multi-Run Experiment Manager',
+]);
+
 const SimulatorLabPanel: React.FC<Props> = ({
   state,
   numQubits,
@@ -292,7 +311,9 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [assignmentPackName, setAssignmentPackName] = useState('classroom-pack-1');
   const [featureQuery, setFeatureQuery] = useState('');
   const [visibleFeatureCount, setVisibleFeatureCount] = useState(0);
+  const [labMode, setLabMode] = useState<'core' | 'advanced'>('core');
   const observableInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
@@ -625,12 +646,14 @@ const SimulatorLabPanel: React.FC<Props> = ({
     return rows;
   }, [circuit, entanglementPair, initialState, numQubits]);
 
-  const isFullLabView = true;
+  const isFullLabView = labMode === 'advanced';
 
   useEffect(() => {
     const q = featureQuery.trim().toLowerCase();
     const queryTokens = q.split(/\s+/).filter(Boolean);
-    const cards = Array.from(document.querySelectorAll('.sim-lab-card')) as HTMLElement[];
+    const cards = panelRef.current
+      ? Array.from(panelRef.current.querySelectorAll('.sim-lab-card')) as HTMLElement[]
+      : [];
     let visible = 0;
 
     cards.forEach((card) => {
@@ -641,7 +664,10 @@ const SimulatorLabPanel: React.FC<Props> = ({
         .toLowerCase();
       const relatedTerms = (FEATURE_RELATED_TERMS[title] ?? []).join(' ').toLowerCase();
       const searchableText = `${title.toLowerCase()} ${noteText} ${relatedTerms}`;
-      const show = queryTokens.length === 0 || queryTokens.every((token) => searchableText.includes(token));
+      const allowedByMode = labMode === 'advanced' || CORE_FEATURE_TITLES.has(title);
+      const hiddenForOverlap = OVERLAP_HIDDEN_TITLES.has(title);
+      const allowedBySearch = queryTokens.length === 0 || queryTokens.every((token) => searchableText.includes(token));
+      const show = allowedByMode && allowedBySearch && !hiddenForOverlap;
       card.style.display = show ? '' : 'none';
       if (show) visible += 1;
     });
@@ -653,7 +679,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
         card.style.display = '';
       });
     };
-  }, [featureQuery]);
+  }, [featureQuery, labMode]);
 
   const applyWizard = () => {
     const exprs = Array.from({ length: numQubits }, (_, q) => {
@@ -1130,9 +1156,29 @@ const SimulatorLabPanel: React.FC<Props> = ({
   };
 
   return (
-    <div className="sim-lab-panel">
+    <div className="sim-lab-panel" ref={panelRef}>
       <h4 className="sim-lab-title">Simulator Lab</h4>
       <div className="sim-lab-feature-nav">
+        <div className="sim-lab-mode-switch" role="tablist" aria-label="Simulator Lab mode">
+          <button
+            type="button"
+            className={`sim-lab-chip${labMode === 'core' ? ' active' : ''}`}
+            onClick={() => setLabMode('core')}
+            role="tab"
+            aria-selected={labMode === 'core'}
+          >
+            Core
+          </button>
+          <button
+            type="button"
+            className={`sim-lab-chip${labMode === 'advanced' ? ' active' : ''}`}
+            onClick={() => setLabMode('advanced')}
+            role="tab"
+            aria-selected={labMode === 'advanced'}
+          >
+            Advanced
+          </button>
+        </div>
         <input
           type="search"
           value={featureQuery}
@@ -1140,7 +1186,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
           placeholder="Search features..."
           aria-label="Search Simulator Lab features"
         />
-        <span className="sim-lab-feature-count">{visibleFeatureCount} tool sections shown</span>
+        <span className="sim-lab-feature-count">{visibleFeatureCount} tool sections shown ({labMode} mode)</span>
       </div>
 
       <div className="sim-lab-grid">
