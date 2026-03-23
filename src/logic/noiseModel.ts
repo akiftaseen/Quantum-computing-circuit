@@ -18,18 +18,20 @@ export const defaultNoise: NoiseConfig = {
 };
 
 export const applyDepolarizing = (
-  state: Complex[], qubit: number, n: number, p: number,
+  state: Complex[], qubit: number, n: number, p: number, randomSource?: () => number,
 ): Complex[] => {
-  if (Math.random() > p) return state;
-  const r = Math.random();
+  const rand = randomSource ?? Math.random;
+  if (rand() > p) return state;
+  const r = rand();
   if (r < 1 / 3) return applySingleQubitGate(state, X_GATE, qubit, n);
   if (r < 2 / 3) return applySingleQubitGate(state, Y_GATE, qubit, n);
   return applySingleQubitGate(state, Z_GATE, qubit, n);
 };
 
 export const applyAmplitudeDamping = (
-  state: Complex[], qubit: number, n: number, gamma: number,
+  state: Complex[], qubit: number, n: number, gamma: number, randomSource?: () => number,
 ): Complex[] => {
+  const rand = randomSource ?? Math.random;
   if (gamma <= 0) return state;
   const K0: Matrix2 = [c(1), c(0), c(0), c(Math.sqrt(1 - gamma))];
   const K1: Matrix2 = [c(0), c(Math.sqrt(gamma)), c(0), c(0)];
@@ -38,7 +40,7 @@ export const applyAmplitudeDamping = (
   const dim = 1 << n;
   let n0 = 0, n1 = 0;
   for (let i = 0; i < dim; i++) { n0 += cAbs2(s0[i]); n1 += cAbs2(s1[i]); }
-  if (Math.random() < n0) {
+  if (rand() < n0) {
     const sc = 1 / Math.sqrt(n0);
     return s0.map(a => cScale(a, sc));
   } else {
@@ -47,19 +49,23 @@ export const applyAmplitudeDamping = (
   }
 };
 
-export const flipReadout = (bit: number, err: number): number =>
-  Math.random() < err ? 1 - bit : bit;
+export const flipReadout = (bit: number, err: number, randomSource?: () => number): number => {
+  const rand = randomSource ?? Math.random;
+  return rand() < err ? 1 - bit : bit;
+};
 
 export const applyBitFlip = (
-  state: Complex[], qubit: number, n: number, p: number,
+  state: Complex[], qubit: number, n: number, p: number, randomSource?: () => number,
 ): Complex[] => {
-  if (Math.random() > p) return state;
+  const rand = randomSource ?? Math.random;
+  if (rand() > p) return state;
   return applySingleQubitGate(state, X_GATE, qubit, n);
 };
 
 export const applyPhaseFlip = (
-  state: Complex[], qubit: number, n: number, p: number,
+  state: Complex[], qubit: number, n: number, p: number, randomSource?: () => number,
 ): Complex[] => {
-  if (Math.random() > p) return state;
+  const rand = randomSource ?? Math.random;
+  if (rand() > p) return state;
   return applySingleQubitGate(state, Z_GATE, qubit, n);
 };

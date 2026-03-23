@@ -63,6 +63,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Fidelity and distance metrics panel (state fidelity, trace distance approximation, KL divergence, TV distance).
 - Stabilizer fast-path eligibility detection for Clifford-like circuits.
 - OpenQASM interoperability diagnostics with decomposition suggestions.
+- Compiled circuit execution-plan backend and alias-based shot sampling for faster local runs.
 - Session/project save packs (circuit + symbols + shots + notes).
 - Classroom assignment mode with rubric-based auto-checks.
 - Classroom assignment pack export for reusable instructor/student bundles.
@@ -84,6 +85,9 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Toggle noise mode in Shots tab.
 - Configure depolarizing noise, amplitude damping, bit flip, phase flip, and readout error.
 - Side-by-side ideal vs noisy histogram comparison for intuition.
+- Optional shot seed input for reproducible ideal/noisy sampling runs.
+- Noisy sampling uses exact density-matrix channel evolution, including circuits with mid-circuit measurement and classical feed-forward.
+- Noise channels are applied layer-by-layer during circuit evolution (depth-aware error accumulation).
 
 ## Keyboard Shortcuts
 

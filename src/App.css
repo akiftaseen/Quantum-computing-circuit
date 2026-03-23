@@ -686,24 +686,6 @@ textarea:focus-visible {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-
-.init-state-global-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.perf-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-2);
-}
-
-.perf-toggle input {
-  accent-color: var(--primary);
-}
 }
 
 .init-state-mode-switch {

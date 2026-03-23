@@ -58,6 +58,7 @@ const App: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('prob');
   const [numShots, setNumShots] = useState(1024);
+  const [shotSeedInput, setShotSeedInput] = useState('');
   const [shotsResult, setShotsResult] = useState<Map<string, number> | null>(null);
   const [noisyShotsResult, setNoisyShotsResult] = useState<Map<string, number> | null>(null);
   const [noise, setNoise] = useState<NoiseConfig>(defaultNoise);
@@ -70,7 +71,6 @@ const App: React.FC = () => {
   const [activeInitTarget, setActiveInitTarget] = useState<{ mode: InitialStateInputMode; qubit?: number } | null>(null);
   const [shotsBasisAxes, setShotsBasisAxes] = useState<MeasurementBasisAxis[]>(() => Array(INIT.numQubits).fill('Z'));
   const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => defaultSymbolBindings());
-  const [performanceMode, setPerformanceMode] = useState(true);
   const [liveMessage, setLiveMessage] = useState('');
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -208,6 +208,10 @@ const App: React.FC = () => {
   };
 
   const handleRunShots = () => {
+    const parsedSeed = Number(shotSeedInput.trim());
+    const hasSeed = shotSeedInput.trim().length > 0 && Number.isFinite(parsedSeed);
+    const samplingOptions = hasSeed ? { seed: Math.trunc(parsedSeed) } : undefined;
+
     const effectiveNoise: NoiseConfig = {
       ...noise,
       enabled:
@@ -217,12 +221,12 @@ const App: React.FC = () => {
         noise.phaseFlip > 0 ||
         noise.readoutError > 0,
     };
-    const hist = runWithShots(circuit, numShots, initialState, shotsBasisAxes);
+    const hist = runWithShots(circuit, numShots, initialState, shotsBasisAxes, samplingOptions);
     setShotsResult(hist);
-    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState, shotsBasisAxes));
+    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState, shotsBasisAxes, samplingOptions));
     setNoise(effectiveNoise);
     setTab('shots');
-    setLiveMessage(`Shots completed with ${numShots} samples.`);
+    setLiveMessage(`Shots completed with ${numShots} samples${hasSeed ? ` (seed ${Math.trunc(parsedSeed)})` : ''}.`);
   };
 
   const applyStatevectorExpression = useCallback((expr: string) => {
@@ -550,21 +554,22 @@ const App: React.FC = () => {
                   className="shots-input"
                 />
               </label>
+
+              <label className="stepper-shots">
+                <span className="stepper-label">Seed (optional)</span>
+                <input
+                  type="number"
+                  value={shotSeedInput}
+                  onChange={(e) => setShotSeedInput(e.target.value)}
+                  className="shots-input"
+                  placeholder="auto"
+                />
+              </label>
             </div>
 
             <div className="init-state-row">
               <div className="init-state-header">
                 <span className="stepper-label">Initial state</span>
-                <div className="init-state-global-tools">
-                  <label className="perf-toggle">
-                    <input
-                      type="checkbox"
-                      checked={performanceMode}
-                      onChange={(e) => setPerformanceMode(e.target.checked)}
-                    />
-                    <span>Performance mode</span>
-                  </label>
-                </div>
                 <div className="init-state-mode-switch" role="tablist" aria-label="Initial state mode">
                   <button
                     type="button"
@@ -943,8 +948,6 @@ const App: React.FC = () => {
                     numShots={numShots}
                     shotsBasisAxes={shotsBasisAxes}
                     symbolBindings={symbolBindings}
-                    performanceMode={performanceMode}
-                    onSetPerformanceMode={setPerformanceMode}
                     onSetSymbolBindings={setSymbolBindings}
                     onApplyShotsConfig={(config) => {
                       setNumShots(config.numShots);

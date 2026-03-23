@@ -44,8 +44,6 @@ interface Props {
   numShots: number;
   shotsBasisAxes: MeasurementBasisAxis[];
   symbolBindings: SymbolBinding[];
-  performanceMode: boolean;
-  onSetPerformanceMode: (enabled: boolean) => void;
   onSetSymbolBindings: React.Dispatch<React.SetStateAction<SymbolBinding[]>>;
   onApplyShotsConfig: (config: { numShots: number; noise: NoiseConfig; shotsBasisAxes: MeasurementBasisAxis[] }) => void;
   onApplyMacroCircuit: (circuit: CircuitState) => void;
@@ -174,8 +172,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
   numShots,
   shotsBasisAxes,
   symbolBindings,
-  performanceMode,
-  onSetPerformanceMode,
   onSetSymbolBindings,
   onApplyShotsConfig,
   onApplyMacroCircuit,
@@ -547,8 +543,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
     const start = parseAngle(applySymbolBindings(sweepStart, symbolBindings), 0);
     const end = parseAngle(applySymbolBindings(sweepEnd, symbolBindings), Math.PI);
-    const stepsCap = performanceMode ? 64 : 200;
-    const steps = Math.max(2, Math.min(stepsCap, Math.round(Number(sweepSteps) || 16)));
+    const steps = Math.max(2, Math.min(200, Math.round(Number(sweepSteps) || 16)));
     const basisIndex = Number.parseInt(sweepBasis || '0', 2);
     const safeBasisIndex = Number.isFinite(basisIndex) ? basisIndex : 0;
 
@@ -590,7 +585,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
     sweepObservable,
     sweepStart,
     sweepSteps,
-    performanceMode,
     symbolBindings,
   ]);
 
@@ -617,7 +611,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     const qB = Number.isInteger(rawPair[1]) ? Math.max(0, Math.min(numQubits - 1, rawPair[1])) : Math.min(1, numQubits - 1);
     if (qA === qB) return [] as Array<{ col: number; strength: number }>;
 
-    const limit = Math.max(2, Math.min(circuit.numColumns, performanceMode ? 40 : 100));
+    const limit = Math.max(2, Math.min(circuit.numColumns, 100));
     const rows: Array<{ col: number; strength: number }> = [];
     for (let col = 0; col < limit; col += 1) {
       const partial = runCircuit(circuit, col, true, initialState).state;
@@ -629,7 +623,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
       rows.push({ col, strength: entry?.strength ?? 0 });
     }
     return rows;
-  }, [circuit, entanglementPair, initialState, numQubits, performanceMode]);
+  }, [circuit, entanglementPair, initialState, numQubits]);
 
   const isFullLabView = true;
 
@@ -716,7 +710,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     if (!candidateCircuit) return [] as Array<{ col: number; current: number; candidate: number; delta: number }>;
 
     const colMax = Math.max(circuit.numColumns, candidateCircuit.numColumns);
-    const limit = Math.min(colMax, performanceMode ? 40 : 90);
+    const limit = Math.min(colMax, 90);
     const basisIndex = Number.parseInt(compareBasis || '0', 2);
     const safeBasis = Number.isFinite(basisIndex) ? basisIndex : 0;
 
@@ -729,7 +723,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
       rows.push({ col, current, candidate, delta: Math.abs(current - candidate) });
     }
     return rows;
-  }, [candidateCircuit, circuit, compareBasis, initialState, performanceMode]);
+  }, [candidateCircuit, circuit, compareBasis, initialState]);
 
   const runTomography = () => {
     const q = Math.max(0, Math.min(numQubits - 1, Math.round(Number(tomoQubit) || 0)));
@@ -2010,13 +2004,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </label>
           </div>
           <div className="sim-sweep-controls">
-            <label>
-              Performance
-              <select value={performanceMode ? 'on' : 'off'} onChange={(e) => onSetPerformanceMode(e.target.value === 'on')}>
-                <option value="on">On (faster, capped)</option>
-                <option value="off">Off (full precision)</option>
-              </select>
-            </label>
             <label>
               Metric
               <select value={sweepMetric} onChange={(e) => setSweepMetric(e.target.value as 'prob' | 'obs')}>

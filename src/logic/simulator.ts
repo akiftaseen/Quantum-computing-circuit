@@ -108,13 +108,14 @@ export const apply3QubitGate = (
 };
 
 export const measureQubit = (
-  state: Complex[], qubit: number, n: number, forced?: number,
+  state: Complex[], qubit: number, n: number, forced?: number, randomSource?: () => number,
 ): { state: Complex[]; outcome: number; prob: number } => {
   const dim = 1 << n;
   const mask = 1 << qubit;
   let p0 = 0;
   for (let i = 0; i < dim; i++) if ((i & mask) === 0) p0 += cAbs2(state[i]);
-  const outcome = forced !== undefined ? forced : (Math.random() < p0 ? 0 : 1);
+  const rand = randomSource ?? Math.random;
+  const outcome = forced !== undefined ? forced : (rand() < p0 ? 0 : 1);
   const prob = outcome === 0 ? p0 : 1 - p0;
   const norm = 1 / Math.sqrt(prob || 1e-15);
   const ns: Complex[] = Array(dim).fill(null).map(() => c(0));

@@ -23,30 +23,30 @@ const CircuitAnalysisPanel: React.FC<Props> = ({ circuit }) => {
   const sortedGateCounts = Object.entries(metrics.gateCount)
     .sort((a, b) => b[1] - a[1]);
 
-  const learningInsights = useMemo(() => {
+  const operationalInsights = useMemo(() => {
     const notes: string[] = [];
 
     if (metrics.totalGates === 0) {
-      notes.push('Start with H on one qubit, then run shots to observe superposition.');
+      notes.push('Add an H gate on any qubit and run shots to establish a baseline superposition profile.');
       return notes;
     }
 
     if (entanglingRatio >= 30) {
-      notes.push('This circuit is entanglement-heavy. Compare Bloch Spheres and Dirac views to see non-separable states.');
+      notes.push('This circuit is entanglement-heavy. Compare Bloch and Dirac views to track non-separable state behavior.');
     } else {
-      notes.push('This circuit is mostly single-qubit. Use it to build intuition before adding multi-qubit interactions.');
+      notes.push('This circuit is dominated by single-qubit action. Add controlled operations to evaluate multi-qubit coupling effects.');
     }
 
     if ((metrics.gateCount.T ?? 0) + (metrics.gateCount.Tdg ?? 0) > 0) {
-      notes.push('T and T† gates add phase precision; inspect how they change outcomes after surrounding H gates.');
+      notes.push('T and T† gates introduce phase precision; verify downstream outcome sensitivity around basis-change layers.');
     }
 
     if ((metrics.gateCount.Rx ?? 0) + (metrics.gateCount.Ry ?? 0) + (metrics.gateCount.Rz ?? 0) > 0) {
-      notes.push('Rotation gates map directly to Bloch sphere movement. Step through columns to track geometric evolution.');
+      notes.push('Rotation gates map directly to Bloch-vector motion. Step through columns to validate geometric evolution.');
     }
 
     if ((metrics.gateCount.CCX ?? 0) > 0) {
-      notes.push('CCX (Toffoli) is a key reversible logic primitive and appears in many oracle-style constructions.');
+      notes.push('CCX (Toffoli) is a key reversible-logic primitive and often dominates depth in control-heavy sections.');
     }
 
     return notes.slice(0, 3);
@@ -128,11 +128,11 @@ const CircuitAnalysisPanel: React.FC<Props> = ({ circuit }) => {
         </div>
       )}
 
-      {learningInsights.length > 0 && (
+      {operationalInsights.length > 0 && (
         <div className="analysis-learning">
-          <div className="analysis-optimization-title">Learning Insights</div>
+          <div className="analysis-optimization-title">Operational Insights</div>
           <ul className="analysis-optimization-list">
-            {learningInsights.map((insight) => (
+            {operationalInsights.map((insight) => (
               <li key={insight} className="analysis-optimization-item">{insight}</li>
             ))}
           </ul>
