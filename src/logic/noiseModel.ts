@@ -8,11 +8,13 @@ export interface NoiseConfig {
   enabled: boolean;
   depolarizing1q: number;
   amplitudeDamping: number;
+  bitFlip: number;
+  phaseFlip: number;
   readoutError: number;
 }
 
 export const defaultNoise: NoiseConfig = {
-  enabled: false, depolarizing1q: 0, amplitudeDamping: 0, readoutError: 0,
+  enabled: false, depolarizing1q: 0, amplitudeDamping: 0, bitFlip: 0, phaseFlip: 0, readoutError: 0,
 };
 
 export const applyDepolarizing = (
@@ -47,3 +49,17 @@ export const applyAmplitudeDamping = (
 
 export const flipReadout = (bit: number, err: number): number =>
   Math.random() < err ? 1 - bit : bit;
+
+export const applyBitFlip = (
+  state: Complex[], qubit: number, n: number, p: number,
+): Complex[] => {
+  if (Math.random() > p) return state;
+  return applySingleQubitGate(state, X_GATE, qubit, n);
+};
+
+export const applyPhaseFlip = (
+  state: Complex[], qubit: number, n: number, p: number,
+): Complex[] => {
+  if (Math.random() > p) return state;
+  return applySingleQubitGate(state, Z_GATE, qubit, n);
+};

@@ -11,8 +11,9 @@ import {
   iSWAP_GATE, CCX_GATE, XX, YY, ZZ,
 } from './gate';
 import { CIRCUIT_CONSTRAINTS } from './constants';
-import { applyAmplitudeDamping, applyDepolarizing, flipReadout, type NoiseConfig } from './noiseModel';
+import { applyAmplitudeDamping, applyBitFlip, applyDepolarizing, applyPhaseFlip, flipReadout, type NoiseConfig } from './noiseModel';
 import type { Matrix2 } from './gate';
+import { rotateStateForMeasurementBasis, type MeasurementBasisAxis } from './measurementBasis';
 
 export const getMatrix = (g: GateName, p: number[]): Matrix2 => {
   switch (g) {
@@ -30,6 +31,27 @@ export interface StepResult {
   state: Complex[];
   classicalBits: Map<number, number>;
 }
+
+const RUN_CACHE_LIMIT = 256;
+const runCache = new Map<string, StepResult>();
+
+const cloneStepResult = (result: StepResult): StepResult => ({
+  state: result.state.map((amp) => ({ re: amp.re, im: amp.im })),
+  classicalBits: new Map(result.classicalBits),
+});
+
+const stateSignature = (state?: Complex[]): string => {
+  if (!state) return 'default';
+  return state.map((z) => `${z.re.toFixed(8)},${z.im.toFixed(8)}`).join('|');
+};
+
+const circuitSignature = (circuit: CircuitState): string => {
+  const gates = [...circuit.gates]
+    .sort((a, b) => (a.column - b.column) || a.id.localeCompare(b.id))
+    .map((g) => `${g.gate}@${g.column}:t${g.targets.join(',')}:c${g.controls.join(',')}:p${g.params.join(',')}:m${g.classicalBit ?? ''}:if${g.condition ?? ''}`)
+    .join(';');
+  return `${circuit.numQubits}|${circuit.numColumns}|${gates}`;
+};
 
 const evolveCircuitFromState = (
   initialState: Complex[],
@@ -99,11 +121,24 @@ const evolveCircuitFromState = (
 export const runCircuit = (
   circuit: CircuitState, upToCol?: number, skipMeasure = false, initialState?: Complex[],
 ): StepResult => {
-  return evolveCircuitFromState(initialState ?? initZeroState(circuit.numQubits), circuit, upToCol, skipMeasure);
+  const key = `${circuitSignature(circuit)}#${upToCol ?? 'all'}#${skipMeasure ? 'skip' : 'full'}#${stateSignature(initialState)}`;
+  const cached = runCache.get(key);
+  if (cached) return cloneStepResult(cached);
+
+  const result = evolveCircuitFromState(initialState ?? initZeroState(circuit.numQubits), circuit, upToCol, skipMeasure);
+  runCache.set(key, cloneStepResult(result));
+  if (runCache.size > RUN_CACHE_LIMIT) {
+    const oldest = runCache.keys().next().value;
+    if (oldest) runCache.delete(oldest);
+  }
+  return result;
 };
 
 export const runWithShots = (
-  circuit: CircuitState, shots: number, initialState?: Complex[],
+  circuit: CircuitState,
+  shots: number,
+  initialState?: Complex[],
+  measurementBasis?: MeasurementBasisAxis[],
 ): Map<string, number> => {
   const { numQubits } = circuit;
   const hist = new Map<string, number>();
@@ -113,8 +148,9 @@ export const runWithShots = (
 
   if (!hasMidMeasure) {
     const { state } = runCircuit(circuit, undefined, true, initialState);
+    const measuredState = rotateStateForMeasurementBasis(state, numQubits, measurementBasis);
     const dim = 1 << numQubits;
-    const probs = state.map(a => a.re * a.re + a.im * a.im);
+    const probs = measuredState.map(a => a.re * a.re + a.im * a.im);
     for (let s = 0; s < shots; s++) {
       const r = Math.random();
       let cum = 0;
@@ -130,8 +166,9 @@ export const runWithShots = (
   } else {
     for (let s = 0; s < shots; s++) {
       const { state } = runCircuit(circuit, undefined, false, initialState);
+      const measuredState = rotateStateForMeasurementBasis(state, numQubits, measurementBasis);
       const dim = 1 << numQubits;
-      const probs = state.map(a => a.re * a.re + a.im * a.im);
+      const probs = measuredState.map(a => a.re * a.re + a.im * a.im);
       const r = Math.random();
       let cum = 0;
       for (let i = 0; i < dim; i++) {
@@ -164,11 +201,12 @@ export const runWithNoiseShots = (
   shots: number,
   noise: NoiseConfig,
   initialState?: Complex[],
+  measurementBasis?: MeasurementBasisAxis[],
 ): Map<string, number> => {
   const { numQubits } = circuit;
   const hist = new Map<string, number>();
 
-  if (!noise.enabled) return runWithShots(circuit, shots, initialState);
+  if (!noise.enabled) return runWithShots(circuit, shots, initialState, measurementBasis);
 
   for (let s = 0; s < shots; s++) {
     const ideal = runCircuit(circuit, undefined, true, initialState).state;
@@ -177,9 +215,12 @@ export const runWithNoiseShots = (
     for (let q = 0; q < numQubits; q++) {
       noisy = applyDepolarizing(noisy, q, numQubits, noise.depolarizing1q);
       noisy = applyAmplitudeDamping(noisy, q, numQubits, noise.amplitudeDamping);
+      noisy = applyBitFlip(noisy, q, numQubits, noise.bitFlip);
+      noisy = applyPhaseFlip(noisy, q, numQubits, noise.phaseFlip);
     }
 
-    let idx = sampleFromState(noisy, numQubits);
+    const measuredState = rotateStateForMeasurementBasis(noisy, numQubits, measurementBasis);
+    let idx = sampleFromState(measuredState, numQubits);
 
     if (noise.readoutError > 0) {
       let bits = idx.toString(2).padStart(numQubits, '0').split('');

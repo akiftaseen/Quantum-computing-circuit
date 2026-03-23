@@ -649,6 +649,24 @@ textarea:focus-visible {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+
+.init-state-global-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.perf-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.perf-toggle input {
+  accent-color: var(--primary);
+}
 }
 
 .init-state-mode-switch {
@@ -763,6 +781,44 @@ textarea:focus-visible {
   border-radius: 8px;
   padding: 7px;
   background: color-mix(in srgb, var(--bg) 78%, var(--card));
+}
+
+.inline-symbol-editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px;
+  background: color-mix(in srgb, var(--bg) 85%, var(--card));
+  display: grid;
+  gap: 6px;
+}
+
+.inline-symbol-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-2);
+}
+
+.inline-symbol-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.inline-symbol-row {
+  display: grid;
+  grid-template-columns: minmax(70px, 0.9fr) minmax(110px, 1fr);
+  gap: 6px;
+}
+
+.inline-symbol-row input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
 }
 
 .formula-pad-btn {
@@ -1072,6 +1128,45 @@ textarea:focus-visible {
   font-size: 12px;
   color: var(--text-2);
   line-height: 1.45;
+}
+
+.shots-basis-editor {
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 86%, var(--card));
+  padding: 10px;
+}
+
+.shots-basis-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  color: var(--text-2);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.shots-basis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.shots-basis-item {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.shots-basis-item select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 6px;
 }
 
 .state-insights-panel,
@@ -1937,6 +2032,334 @@ textarea:focus-visible {
   border-bottom: none;
 }
 
+/* ---- Simulator Lab ---- */
+.sim-lab-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.sim-lab-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sim-lab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sim-lab-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.sim-lab-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text);
+}
+
+.sim-lab-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.sim-lab-textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.sim-lab-textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.sim-lab-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sim-lab-chip {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  background: color-mix(in srgb, var(--primary-bg) 76%, var(--card));
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.sim-lab-chip:hover {
+  background: #fff;
+  color: var(--text);
+}
+
+.sim-lab-results-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sim-lab-results-head,
+.sim-lab-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.sim-lab-results-head {
+  background: color-mix(in srgb, var(--bg) 70%, var(--card));
+  color: var(--text-2);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.sim-lab-row {
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.sim-lab-row:last-child {
+  border-bottom: none;
+}
+
+.sim-lab-row.invalid {
+  background: color-mix(in srgb, #ef4444 10%, var(--card));
+  color: color-mix(in srgb, #b91c1c 75%, var(--text));
+}
+
+.sim-lab-error-note {
+  margin: 0;
+  font-size: 11px;
+  color: color-mix(in srgb, #b91c1c 80%, var(--text));
+}
+
+.sim-basis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.sim-basis-item {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.sim-basis-item select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.sim-lab-inline-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.sim-wizard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.sim-wizard-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 75%, var(--card));
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.sim-wizard-item strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.sim-wizard-item label {
+  display: grid;
+  gap: 4px;
+}
+
+.sim-wizard-item input[type='range'] {
+  width: 100%;
+}
+
+.sim-sweep-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.sim-sweep-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.sim-sweep-controls input,
+.sim-sweep-controls select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.sim-sweep-chart {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  background: color-mix(in srgb, var(--bg) 78%, var(--card));
+}
+
+.sim-lab-pre {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 76%, var(--card));
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sim-symbol-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.sim-symbol-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.8fr) minmax(120px, 1fr) auto;
+  gap: 8px;
+}
+
+.sim-symbol-row input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.sim-algo-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  background: color-mix(in srgb, var(--bg) 82%, var(--card));
+  display: grid;
+  gap: 8px;
+}
+
+.sim-heatmap-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.sim-heatmap-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sim-heatmap-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.sim-heatmap-controls select {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.sim-heatmap-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+
+.sim-heatmap-legend-bar {
+  width: 120px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.sim-heatmap-legend.magnitude .sim-heatmap-legend-bar {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 8%, var(--card)) 0%, color-mix(in srgb, var(--primary) 70%, var(--card)) 100%);
+}
+
+.sim-heatmap-legend.phase .sim-heatmap-legend-bar {
+  background: linear-gradient(90deg, hsl(0deg 70% 45%) 0%, hsl(60deg 70% 45%) 16%, hsl(120deg 70% 45%) 32%, hsl(180deg 70% 45%) 48%, hsl(240deg 70% 45%) 64%, hsl(300deg 70% 45%) 82%, hsl(360deg 70% 45%) 100%);
+}
+
+.sim-heatmap-matrix {
+  display: grid;
+  gap: 6px;
+}
+
+.sim-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+[data-theme='dark'] .sim-lab-chip:hover {
+  background: color-mix(in srgb, var(--bg-elev) 80%, #ffffff 20%);
+}
+
 /* ===================== Gate Palette ===================== */
 .palette-heading {
   font-size: 10px;
@@ -2176,6 +2599,10 @@ textarea:focus-visible {
 
   .noise-controls,
   .shots-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-lab-grid {
     grid-template-columns: 1fr;
   }
 

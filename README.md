@@ -38,6 +38,28 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Measurement basis lab (X/Y/Z basis probabilities per qubit via Bloch-vector inference).
 - Templates including Bell, GHZ, QFT, Grover, VQE, Ising examples.
 
+### Qiskit-Inspired Free Toolkit
+- Local transpile-style optimization presets (levels 0-3) for cancellation, merge, and depth compaction.
+- Seeded random circuit generation for reproducible experiments.
+- OpenQASM 2.0 export (`.qasm`) for interoperability with open-source quantum tooling.
+- OpenQASM-lite import for bringing circuits back into the visual editor.
+
+### Simulator Lab Advanced Suite
+- Circuit diff view for comparing current and candidate circuits.
+- Gate-fusion aware optimization reports and memoized simulation paths for faster local runs.
+- Parameter optimizer (VQE-style grid sweep) for single-parameter tuning.
+- Noise sweep dashboard with success-probability trend chart.
+- Fidelity and distance metrics panel (state fidelity, trace distance approximation, KL divergence, TV distance).
+- Stabilizer fast-path eligibility detection for Clifford-like circuits.
+- OpenQASM interoperability diagnostics with decomposition suggestions.
+- Session/project save packs (circuit + symbols + shots + notes).
+- Classroom assignment mode with rubric-based auto-checks.
+
+### Offline-First PWA Mode
+- Installable Progressive Web App (PWA) with service worker caching.
+- Works offline after first successful load/build.
+- Optimized for open-source distribution so users can clone and run locally with minimal setup.
+
 ### Noise Exploration
 - Toggle noise mode in Shots tab.
 - Configure depolarizing noise, amplitude damping, and readout error.
@@ -96,6 +118,27 @@ npm run build
 ```bash
 npm run preview
 ```
+
+### PWA (Offline) Notes
+
+- Build once with `npm run build`.
+- Serve `dist/` from any static host or local static server.
+- Open the app once online so the service worker caches assets.
+- After caching, the app is available offline (including navigation fallback).
+
+Recommended open-source distribution flow:
+
+1. Push source to GitHub.
+2. Users clone and run:
+
+```bash
+git clone <your-repo-url>
+cd Quantum-computing-circuit
+npm install
+npm run dev
+```
+
+3. For static hosting (GitHub Pages/Netlify/Vercel), deploy the `dist/` output from `npm run build`.
 
 ## Testing
 

@@ -6,6 +6,8 @@ import { getBlochVector } from './logic/simulator';
 import { loadFromURL } from './logic/circuitSerializer';
 import { TEMPLATE_GROUPS } from './logic/templates';
 import { buildInitialStateFromInput, parseInitialQubitStateDetailed, type InitialStateInputMode } from './logic/initialQubitState';
+import type { MeasurementBasisAxis } from './logic/measurementBasis';
+import { applySymbolBindings, defaultSymbolBindings, type SymbolBinding } from './logic/symbolBindings';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
 import { useTheme } from './hooks/useTheme';
 import type { CircuitState, PlacedGate } from './logic/circuitTypes';
@@ -25,10 +27,11 @@ const DiracNotation = lazy(() => import('./components/DiracNotation'));
 const GateDescriptionsModal = lazy(() => import('./components/GateDescriptionsModal'));
 const CircuitAnalysisPanel = lazy(() => import('./components/CircuitAnalysisPanel'));
 const QuantumStateInsightsPanel = lazy(() => import('./components/QuantumStateInsightsPanel'));
+const SimulatorLabPanel = lazy(() => import('./components/SimulatorLabPanel'));
 
 const INIT: CircuitState = loadFromURL() || { numQubits: 2, numColumns: 10, gates: [] };
 
-type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'state';
+type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'sim';
 
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
@@ -48,6 +51,9 @@ const App: React.FC = () => {
   const [initialQubitExprs, setInitialQubitExprs] = useState<string[]>(() => Array(INIT.numQubits).fill('0'));
   const [statevectorExpr, setStatevectorExpr] = useState<string>('');
   const [activeInitTarget, setActiveInitTarget] = useState<{ mode: InitialStateInputMode; qubit?: number } | null>(null);
+  const [shotsBasisAxes, setShotsBasisAxes] = useState<MeasurementBasisAxis[]>(() => Array(INIT.numQubits).fill('Z'));
+  const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => defaultSymbolBindings());
+  const [performanceMode, setPerformanceMode] = useState(true);
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -86,19 +92,35 @@ const App: React.FC = () => {
       if (prev.length > circuit.numQubits) return prev.slice(0, circuit.numQubits);
       return [...prev, ...Array(circuit.numQubits - prev.length).fill('0')];
     });
+
+    setShotsBasisAxes((prev) => {
+      if (prev.length === circuit.numQubits) return prev;
+      if (prev.length > circuit.numQubits) return prev.slice(0, circuit.numQubits);
+      return [...prev, ...Array(circuit.numQubits - prev.length).fill('Z')];
+    });
   }, [circuit.numQubits]);
 
+  const boundInitialQubitExprs = useMemo(
+    () => initialQubitExprs.map((expr) => applySymbolBindings(expr, symbolBindings)),
+    [initialQubitExprs, symbolBindings],
+  );
+
+  const boundStatevectorExpr = useMemo(
+    () => applySymbolBindings(statevectorExpr, symbolBindings),
+    [statevectorExpr, symbolBindings],
+  );
+
   const initialConfig = useMemo(
-    () => buildInitialStateFromInput(circuit.numQubits, initialStateMode, initialQubitExprs, statevectorExpr),
-    [circuit.numQubits, initialStateMode, initialQubitExprs, statevectorExpr],
+    () => buildInitialStateFromInput(circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr),
+    [circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr],
   );
 
   const initialState = initialConfig.state;
   const initialQubitLabels = initialConfig.qubitLabels;
 
   const initialQubitValidation = useMemo(
-    () => Array.from({ length: circuit.numQubits }, (_, q) => parseInitialQubitStateDetailed(initialQubitExprs[q] ?? '0')),
-    [circuit.numQubits, initialQubitExprs],
+    () => Array.from({ length: circuit.numQubits }, (_, q) => parseInitialQubitStateDetailed(boundInitialQubitExprs[q] ?? '0')),
+    [circuit.numQubits, boundInitialQubitExprs],
   );
 
   // Live simulation
@@ -170,19 +192,52 @@ const App: React.FC = () => {
   const handleRunShots = () => {
     const effectiveNoise: NoiseConfig = {
       ...noise,
-      enabled: noise.depolarizing1q > 0 || noise.amplitudeDamping > 0 || noise.readoutError > 0,
+      enabled:
+        noise.depolarizing1q > 0 ||
+        noise.amplitudeDamping > 0 ||
+        noise.bitFlip > 0 ||
+        noise.phaseFlip > 0 ||
+        noise.readoutError > 0,
     };
-    const hist = runWithShots(circuit, numShots, initialState);
+    const hist = runWithShots(circuit, numShots, initialState, shotsBasisAxes);
     setShotsResult(hist);
-    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState));
+    setNoisyShotsResult(runWithNoiseShots(circuit, numShots, effectiveNoise, initialState, shotsBasisAxes));
     setNoise(effectiveNoise);
     setTab('shots');
   };
 
+  const applyStatevectorExpression = useCallback((expr: string) => {
+    setInitialStateMode('statevector');
+    setStatevectorExpr(expr);
+    setActiveInitTarget({ mode: 'statevector' });
+  }, []);
+
+  const applyQubitExpressions = useCallback((exprs: string[]) => {
+    setInitialStateMode('qubit');
+    setInitialQubitExprs((prev) => Array.from({ length: circuit.numQubits }, (_, q) => exprs[q] ?? prev[q] ?? '0'));
+    setActiveInitTarget({ mode: 'qubit', qubit: 0 });
+  }, [circuit.numQubits]);
+
+  const applyMacroCircuit = useCallback((next: CircuitState) => {
+    reset(next);
+    setInitialQubitExprs(Array(next.numQubits).fill('0'));
+    setStatevectorExpr('');
+    setShotsBasisAxes(Array(next.numQubits).fill('Z'));
+    setSelectedId(null);
+    setShotsResult(null);
+    setNoisyShotsResult(null);
+    setStepCol(null);
+  }, [reset]);
+
   const updateNoise = (patch: Partial<NoiseConfig>) => {
     setNoise((prev) => {
       const next: NoiseConfig = { ...prev, ...patch };
-      next.enabled = next.depolarizing1q > 0 || next.amplitudeDamping > 0 || next.readoutError > 0;
+      next.enabled =
+        next.depolarizing1q > 0 ||
+        next.amplitudeDamping > 0 ||
+        next.bitFlip > 0 ||
+        next.phaseFlip > 0 ||
+        next.readoutError > 0;
       return next;
     });
   };
@@ -351,6 +406,7 @@ const App: React.FC = () => {
     { key: 'math', label: 'Math Lens', icon: 'U' },
     { key: 'shots', label: 'Shots', icon: 'N' },
     { key: 'analysis', label: 'Analysis & State', icon: '∆' },
+    { key: 'sim', label: 'Simulator Lab', icon: '⊕' },
   ];
 
   return (
@@ -451,6 +507,16 @@ const App: React.FC = () => {
             <div className="init-state-row">
               <div className="init-state-header">
                 <span className="stepper-label">Initial state</span>
+                <div className="init-state-global-tools">
+                  <label className="perf-toggle">
+                    <input
+                      type="checkbox"
+                      checked={performanceMode}
+                      onChange={(e) => setPerformanceMode(e.target.checked)}
+                    />
+                    <span>Performance mode</span>
+                  </label>
+                </div>
                 <div className="init-state-mode-switch" role="tablist" aria-label="Initial state mode">
                   <button
                     type="button"
@@ -517,6 +583,26 @@ const App: React.FC = () => {
                     {token}
                   </button>
                 ))}
+              </div>
+
+              <div className="inline-symbol-editor">
+                <div className="inline-symbol-title">Symbols</div>
+                <div className="inline-symbol-grid">
+                  {symbolBindings.map((binding, idx) => (
+                    <div key={`${binding.name}-${idx}`} className="inline-symbol-row">
+                      <input
+                        value={binding.name}
+                        onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, name: e.target.value } : row)))}
+                        placeholder="name"
+                      />
+                      <input
+                        value={binding.value}
+                        onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, value: e.target.value } : row)))}
+                        placeholder="value"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -636,6 +722,32 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
+                  <div className="shots-basis-editor">
+                    <div className="shots-basis-title">Measurement basis (applied before readout)</div>
+                    <div className="shots-basis-grid">
+                      {Array.from({ length: circuit.numQubits }, (_, q) => (
+                        <label key={q} className="shots-basis-item">
+                          <span>q{q}</span>
+                          <select
+                            value={shotsBasisAxes[q] ?? 'Z'}
+                            onChange={(e) => {
+                              const axis = e.target.value as MeasurementBasisAxis;
+                              setShotsBasisAxes((prev) => {
+                                const next = [...prev];
+                                next[q] = axis;
+                                return next;
+                              });
+                            }}
+                          >
+                            <option value="Z">Z</option>
+                            <option value="X">X</option>
+                            <option value="Y">Y</option>
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="noise-controls">
                     <label>
                       <span>Depolarizing</span>
@@ -660,6 +772,22 @@ const App: React.FC = () => {
                         aria-label="Readout error noise"
                         onChange={(e) => updateNoise({ readoutError: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.readoutError)}</strong>
+                    </label>
+                    <label>
+                      <span>Bit flip</span>
+                      <input type="range" min={0} max={0.2} step={0.005} value={noise.bitFlip}
+                        className="ui-slider"
+                        aria-label="Bit flip noise"
+                        onChange={(e) => updateNoise({ bitFlip: Number(e.target.value) })} />
+                      <strong className="noise-value">{toPct(noise.bitFlip)}</strong>
+                    </label>
+                    <label>
+                      <span>Phase flip</span>
+                      <input type="range" min={0} max={0.2} step={0.005} value={noise.phaseFlip}
+                        className="ui-slider"
+                        aria-label="Phase flip noise"
+                        onChange={(e) => updateNoise({ phaseFlip: Number(e.target.value) })} />
+                      <strong className="noise-value">{toPct(noise.phaseFlip)}</strong>
                     </label>
                   </div>
                   {shotsResult && noisyShotsResult ? (
@@ -730,6 +858,32 @@ const App: React.FC = () => {
                     <CircuitAnalysisPanel circuit={circuit} />
                   </Suspense>
                 </div>
+              )}
+
+              {tab === 'sim' && (
+                <Suspense fallback={<p className="empty-msg">Loading simulator lab...</p>}>
+                  <SimulatorLabPanel
+                    state={simResult.state}
+                    numQubits={circuit.numQubits}
+                    circuit={circuit}
+                    initialState={initialState}
+                    noise={noise}
+                    numShots={numShots}
+                    shotsBasisAxes={shotsBasisAxes}
+                    symbolBindings={symbolBindings}
+                    performanceMode={performanceMode}
+                    onSetPerformanceMode={setPerformanceMode}
+                    onSetSymbolBindings={setSymbolBindings}
+                    onApplyShotsConfig={(config) => {
+                      setNumShots(config.numShots);
+                      setNoise(config.noise);
+                      setShotsBasisAxes(config.shotsBasisAxes);
+                    }}
+                    onApplyMacroCircuit={applyMacroCircuit}
+                    onApplyStatevectorExpression={applyStatevectorExpression}
+                    onApplyQubitExpressions={applyQubitExpressions}
+                  />
+                </Suspense>
               )}
 
             </div>

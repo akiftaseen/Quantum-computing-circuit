@@ -25,6 +25,15 @@ export interface InitialStateBuildResult {
   message: string;
 }
 
+export type StatevectorTemplateKind = 'basis0' | 'basis1' | 'bell' | 'ghz' | 'w' | 'haar';
+
+export interface StatevectorDiagnostic {
+  valid: boolean;
+  message: string;
+  position?: number;
+  hint?: string;
+}
+
 const SQRT1_2 = 1 / Math.sqrt(2);
 const EPS = 1e-10;
 
@@ -417,6 +426,117 @@ const parseAmplitudeList = (raw: string, numQubits: number): { state: Complex[];
   return { state: normalized.normalized, message: msg };
 };
 
+const getStatevectorDiagnostics = (raw: string, numQubits: number): StatevectorDiagnostic => {
+  const expr = raw.trim();
+  if (!expr) {
+    return {
+      valid: true,
+      message: `Using default |${'0'.repeat(numQubits)}⟩`,
+    };
+  }
+
+  let depth = 0;
+  for (let i = 0; i < expr.length; i += 1) {
+    if (expr[i] === '(') depth += 1;
+    if (expr[i] === ')') depth -= 1;
+    if (depth < 0) {
+      return { valid: false, message: `Unexpected ')' at position ${i + 1}`, position: i, hint: 'Remove extra closing parenthesis' };
+    }
+  }
+  if (depth !== 0) {
+    return { valid: false, message: 'Unbalanced parentheses in statevector expression', hint: 'Check matching parentheses in coefficients' };
+  }
+
+  const unsupported = expr.match(/[^0-9A-Za-z_\s+\-*/^(),.|<>⟩]/);
+  if (unsupported?.index !== undefined) {
+    return {
+      valid: false,
+      message: `Unsupported token '${unsupported[0]}' at position ${unsupported.index + 1}`,
+      position: unsupported.index,
+      hint: 'Use numbers, operators, functions, commas, and kets like |010⟩',
+    };
+  }
+
+  const kets = Array.from(expr.matchAll(/\|\s*([01]+)\s*(?:>|⟩)/g));
+  for (const m of kets) {
+    const bits = m[1] ?? '';
+    if (bits.length !== numQubits) {
+      return {
+        valid: false,
+        message: `Ket |${bits}⟩ has ${bits.length} bits but circuit has ${numQubits} qubits`,
+        position: m.index,
+        hint: `Use ${numQubits}-bit kets, e.g. |${'0'.repeat(numQubits)}⟩`,
+      };
+    }
+  }
+
+  const names = Array.from(expr.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)).map((m) => (m[1] ?? '').toLowerCase());
+  const allowed = new Set(['sin', 'cos', 'tan', 'sqrt', 'exp', 'log', 'abs', 're', 'im', 'conj']);
+  const typoMap: Record<string, string> = { squareroot: 'sqrt', sqt: 'sqrt', cosine: 'cos', sine: 'sin', ln: 'log' };
+  for (const fn of names) {
+    if (!allowed.has(fn)) {
+      return {
+        valid: false,
+        message: `Unsupported function '${fn}'`,
+        hint: `Try '${typoMap[fn] ?? 'sqrt'}' or one of: sin, cos, tan, sqrt, exp, log, abs, re, im, conj`,
+      };
+    }
+  }
+
+  if (expr.includes(',') && !expr.includes('|')) {
+    const dim = 1 << numQubits;
+    const parts = splitTopLevel(expr, ',');
+    if (parts.length !== dim) {
+      return {
+        valid: false,
+        message: `Amplitude list has ${parts.length} entries, expected ${dim}`,
+        hint: `Provide exactly ${dim} amplitudes for ${numQubits} qubits`,
+      };
+    }
+  }
+
+  return {
+    valid: false,
+    message: 'Could not parse statevector expression',
+    hint: `Try '(1/sqrt(2))*|${'0'.repeat(numQubits)}⟩ + (1/sqrt(2))*|${'1'.repeat(numQubits)}⟩' or a comma-separated amplitude list`,
+  };
+};
+
+export const getStatevectorTemplateExpression = (kind: StatevectorTemplateKind, numQubits: number): string => {
+  const zeroKet = `|${'0'.repeat(numQubits)}⟩`;
+  const oneKet = `|${'1'.repeat(numQubits)}⟩`;
+
+  switch (kind) {
+    case 'basis0':
+      return zeroKet;
+    case 'basis1':
+      return oneKet;
+    case 'bell':
+      if (numQubits < 2) return '(1/sqrt(2))*|0⟩ + (1/sqrt(2))*|1⟩';
+      return `(1/sqrt(2))*|${'0'.repeat(numQubits)}⟩ + (1/sqrt(2))*|${'1'.repeat(numQubits)}⟩`;
+    case 'ghz':
+      return `(1/sqrt(2))*${zeroKet} + (1/sqrt(2))*${oneKet}`;
+    case 'w': {
+      const basis = Array.from({ length: numQubits }, (_, q) => {
+        const bits = Array(numQubits).fill('0');
+        bits[q] = '1';
+        return `|${bits.join('')}⟩`;
+      });
+      return basis.map((b) => `(1/sqrt(${numQubits}))*${b}`).join(' + ');
+    }
+    case 'haar': {
+      const dim = 1 << numQubits;
+      const amps = Array.from({ length: dim }, () => ({ re: Math.random() * 2 - 1, im: Math.random() * 2 - 1 }));
+      const norm = Math.sqrt(amps.reduce((sum, a) => sum + a.re * a.re + a.im * a.im, 0)) || 1;
+      return amps
+        .map((a) => `${(a.re / norm).toFixed(5)}${a.im >= 0 ? '+' : '-'}${Math.abs(a.im / norm).toFixed(5)}*i`)
+        .join(', ');
+    }
+    default:
+      return zeroKet;
+  }
+};
+
 export const parseInitialQubitStateDetailed = (raw: string): InitialQubitStateParse => {
   const cleaned = (raw ?? '').trim();
   const key = normalizeKey(cleaned || '0');
@@ -508,7 +628,10 @@ export const buildInitialStateFromInput = (
       state: initZeroState(numQubits),
       qubitLabels: Array(numQubits).fill('|0⟩'),
       valid: false,
-      message: "Invalid statevector. Use 'coeff*|bitstring⟩ + ...' (example: (1/sqrt(2))*|00⟩ + (i/sqrt(2))*|11⟩) or a comma-separated amplitude list of length 2^n. Coefficients support +,-,*,/,^, pi, e, i, sin, cos, tan, sqrt, exp, log, abs, re, im, conj.",
+      message: (() => {
+        const diag = getStatevectorDiagnostics(statevectorExpression, numQubits);
+        return diag.hint ? `${diag.message}. ${diag.hint}.` : diag.message;
+      })(),
     };
   }
 
