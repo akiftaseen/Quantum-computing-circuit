@@ -1,15 +1,57 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { computeAdaptiveDomain } from '../logic/chartDomains';
 
-interface Props { histogram: Map<string, number>; numQubits: number; totalShots: number; }
+interface Props {
+  histogram: Map<string, number>;
+  numQubits: number;
+  totalShots: number;
+  referenceHistogram?: Map<string, number> | null;
+  referenceLabel?: string;
+}
 
-const ShotsHistogram: React.FC<Props> = ({ histogram, numQubits, totalShots }) => {
+const ShotsHistogram: React.FC<Props> = ({
+  histogram,
+  numQubits,
+  totalShots,
+  referenceHistogram,
+  referenceLabel = 'Reference',
+}) => {
   const dim = 1 << numQubits;
+  const safeShots = Math.max(1, totalShots);
   const data = Array.from({ length: dim }, (_, i) => {
     const key = i.toString(2).padStart(numQubits, '0');
     const count = histogram.get(key) || 0;
-    return { basis: `|${key}⟩`, count, freq: count / totalShots };
+    const referenceCount = referenceHistogram?.get(key) ?? null;
+    const freq = count / safeShots;
+    const referenceFreq = referenceCount === null ? null : referenceCount / safeShots;
+    const delta = referenceFreq === null ? null : freq - referenceFreq;
+    return {
+      basis: `|${key}⟩`,
+      bits: key,
+      count,
+      freq,
+      referenceFreq,
+      delta,
+    };
   });
+
+  const hasReference = Boolean(referenceHistogram);
+  const tvDistance = hasReference
+    ? 0.5 * data.reduce((acc, row) => acc + Math.abs(row.delta ?? 0), 0)
+    : null;
+  const maxDeltaState = hasReference
+    ? [...data].sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0))[0]
+    : null;
 
   const basisTick = { fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-2)' };
   const valueTick = { fontSize: 11, fontFamily: 'var(--font-sans)', fill: 'var(--text-2)' };
@@ -21,21 +63,86 @@ const ShotsHistogram: React.FC<Props> = ({ histogram, numQubits, totalShots }) =
     borderRadius: 8,
     background: 'var(--card)',
   };
+  const xTickInterval = data.length > 16 ? Math.ceil(data.length / 16) - 1 : 0;
+  const yDomain = React.useMemo(
+    () => computeAdaptiveDomain(data.map((row) => row.freq), {
+      defaultDomain: [0, 1],
+      clampMin: 0,
+      clampMax: 1,
+      flatPad: 0.03,
+      minPad: 0.01,
+    }),
+    [data],
+  );
 
   return (
     <div className="probability-chart-wrap">
-      <ResponsiveContainer>
-        <BarChart data={data} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-          <XAxis dataKey="basis" tick={basisTick} axisLine={{ stroke: 'var(--border)' }} tickLine={{ stroke: 'var(--border)' }} />
-          <YAxis tick={valueTick} axisLine={{ stroke: 'var(--border)' }} tickLine={{ stroke: 'var(--border)' }} />
-          <Tooltip formatter={(v, name) => (name === 'count' ? v : Number(v).toFixed(4))} contentStyle={tooltipStyle} labelStyle={{ fontFamily: 'var(--font-mono)' }} />
-          <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+      <div className="probability-chart-canvas">
+        <ResponsiveContainer>
+          <ComposedChart data={data} margin={{ top: 8, right: 10, bottom: 4, left: 0 }}>
+            <CartesianGrid stroke="var(--border)" vertical={false} />
+            <XAxis
+              dataKey="basis"
+              tick={basisTick}
+              axisLine={{ stroke: 'var(--border)' }}
+              tickLine={{ stroke: 'var(--border)' }}
+              interval={xTickInterval}
+              minTickGap={10}
+            />
+            <YAxis
+              domain={yDomain}
+              tick={valueTick}
+              tickFormatter={(v) => `${Math.round(v * 100)}%`}
+              axisLine={{ stroke: 'var(--border)' }}
+              tickLine={{ stroke: 'var(--border)' }}
+            />
+            <Tooltip
+              formatter={(value, name) => {
+                const numeric = typeof value === 'number' ? value : Number(value ?? 0);
+                if (name === 'freq') return [`${(numeric * 100).toFixed(2)}%`, 'Observed'];
+                if (name === 'referenceFreq') return [`${(numeric * 100).toFixed(2)}%`, referenceLabel];
+                if (name === 'delta') return [`${(numeric * 100).toFixed(2)}%`, 'Delta'];
+                if (name === 'count') return [Math.round(numeric), 'Count'];
+                return [numeric, name];
+              }}
+              labelFormatter={(label, payload) => {
+                const row = payload?.[0]?.payload as { bits?: string; count?: number } | undefined;
+                if (!row) return String(label);
+                return `|${row.bits ?? label}⟩ · ${row.count ?? 0} shots`;
+              }}
+              contentStyle={tooltipStyle}
+              labelStyle={{ fontFamily: 'var(--font-mono)' }}
+            />
+            <Bar dataKey="freq" radius={[4, 4, 0, 0]} maxBarSize={24}>
             {data.map((d, i) => (
-              <Cell key={i} fill={d.count > 0 ? 'var(--primary)' : 'var(--border)'} />
+              <Cell
+                key={i}
+                fill={
+                  d.delta === null
+                    ? (d.count > 0 ? 'var(--primary)' : 'var(--border)')
+                    : (d.delta >= 0 ? 'var(--primary)' : 'var(--text-3)')
+                }
+                fillOpacity={d.count > 0 ? 0.95 : 0.45}
+              />
             ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            </Bar>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="probability-chart-meta">
+        <span className="probability-chip probability-chip-muted">Total shots: {safeShots}</span>
+        {hasReference && maxDeltaState && (
+          <span className="probability-chip">
+            Max deviation: {maxDeltaState.basis} {((maxDeltaState.delta ?? 0) * 100).toFixed(2)}%
+          </span>
+        )}
+        {tvDistance !== null && (
+          <span className="probability-chip probability-chip-muted">
+            TV distance: {(tvDistance * 100).toFixed(2)}%
+          </span>
+        )}
+      </div>
     </div>
   );
 };

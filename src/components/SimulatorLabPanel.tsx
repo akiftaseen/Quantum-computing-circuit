@@ -7,7 +7,11 @@ import { computeBasisDistribution, evaluateObservableExpressions, evaluateSingle
 import type { CircuitState } from '../logic/circuitTypes';
 import { isParametric } from '../logic/circuitTypes';
 import { computeUnitary, runCircuit, runWithNoiseShots, runWithShots } from '../logic/circuitRunner';
-import { getStatevectorTemplateExpression, type StatevectorTemplateKind } from '../logic/initialQubitState';
+import {
+  getDickeTemplateExpression,
+  getStatevectorTemplateExpression,
+  type StatevectorTemplateKind,
+} from '../logic/initialQubitState';
 import { parseCircuitMacro } from '../logic/circuitMacro';
 import { suggestStatePrepMacro } from '../logic/reverseEngineering';
 import { analyzeOpenQasmInterop, parseOpenQasmLite } from '../logic/openqasmLite';
@@ -23,7 +27,16 @@ import type { NoiseConfig } from '../logic/noiseModel';
 import type { MeasurementBasisAxis } from '../logic/measurementBasis';
 import { applySymbolBindings, type SymbolBinding } from '../logic/symbolBindings';
 import { optimizeSingleParameter } from '../logic/parameterOptimizer';
-import { histogramToProbArray, klDivergence, stateFidelity, traceDistanceApprox } from '../logic/stateMetrics';
+import {
+  bhattacharyyaCoefficient,
+  hellingerDistance,
+  histogramToProbArray,
+  jensenShannonDivergence,
+  klDivergence,
+  perQubitMarginalError,
+  stateFidelity,
+  traceDistanceApprox,
+} from '../logic/stateMetrics';
 import { findCorrelatedQubitPairs } from '../logic/entanglementAnalysis';
 import { fitNoiseModelFromHistogram, parseHistogramText, type CalibrationResult } from '../logic/noiseCalibration';
 import { mitigateReadoutHistogram } from '../logic/readoutMitigation';
@@ -158,6 +171,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [reverseMacro, setReverseMacro] = useState('');
   const [wizardTheta, setWizardTheta] = useState<number[]>(() => Array(numQubits).fill(Math.PI / 2));
   const [wizardPhi, setWizardPhi] = useState<number[]>(() => Array(numQubits).fill(0));
+  const [dickeExcitations, setDickeExcitations] = useState(() => (numQubits > 0 ? '1' : '0'));
   const [sweepGateId, setSweepGateId] = useState<string>('');
   const [sweepStart, setSweepStart] = useState('0');
   const [sweepEnd, setSweepEnd] = useState('pi');
@@ -223,6 +237,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
   });
   const [savePackNotes, setSavePackNotes] = useState('');
   const [selectedPackId, setSelectedPackId] = useState('');
+  const [packActionMessage, setPackActionMessage] = useState('');
   const [profilerLimit, setProfilerLimit] = useState('40');
   const [experimentName, setExperimentName] = useState('experiment-1');
   const [savedExperiments, setSavedExperiments] = useState<Array<{
@@ -432,9 +447,16 @@ const SimulatorLabPanel: React.FC<Props> = ({
     const noisy = runWithNoiseShots(circuit, Math.max(256, Math.min(4096, numShots)), noise, initialState, shotsBasisAxes);
     const p = histogramToProbArray(ideal, numQubits);
     const q = histogramToProbArray(noisy, numQubits);
+    const bhattacharyya = bhattacharyyaCoefficient(p, q);
+    const marginalSummary = perQubitMarginalError(p, q, numQubits);
     return {
       kl: klDivergence(p, q),
       l1: 0.5 * p.reduce((sum, v, i) => sum + Math.abs(v - (q[i] ?? 0)), 0),
+      js: jensenShannonDivergence(p, q),
+      hellinger: hellingerDistance(p, q),
+      bhattacharyya,
+      overlap: bhattacharyya * bhattacharyya,
+      marginalSummary,
       ideal,
       noisy,
     };
@@ -459,9 +481,25 @@ const SimulatorLabPanel: React.FC<Props> = ({
     return Number.isFinite(n) ? n : fallback;
   };
 
+  const sweepObservableValidation = useMemo(() => {
+    if (sweepMetric !== 'obs') return { valid: true, message: '' };
+    const checked = evaluateSingleObservable(applySymbolBindings(sweepObservable, symbolBindings), numQubits, state);
+    return {
+      valid: checked.valid,
+      message: checked.valid ? '' : (checked.message || 'Observable expression is invalid for current qubit count.'),
+    };
+  }, [numQubits, state, sweepMetric, sweepObservable, symbolBindings]);
+
+  const sweepDisabledReason = useMemo(() => {
+    if (parametricGates.length === 0) return 'Add a parametric gate (Rx, Ry, or Rz) to enable sweep tracing.';
+    if (sweepMetric === 'obs' && !sweepObservableValidation.valid) return sweepObservableValidation.message;
+    return '';
+  }, [parametricGates.length, sweepMetric, sweepObservableValidation]);
+
   const sweepData = useMemo(() => {
     const gate = parametricGates.find((g) => g.id === effectiveSweepGateId);
     if (!gate) return [] as Array<{ theta: number; value: number }>;
+    if (sweepMetric === 'obs' && !sweepObservableValidation.valid) return [] as Array<{ theta: number; value: number }>;
 
     const start = parseAngle(applySymbolBindings(sweepStart, symbolBindings), 0);
     const end = parseAngle(applySymbolBindings(sweepEnd, symbolBindings), Math.PI);
@@ -508,6 +546,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     sweepStart,
     sweepSteps,
     symbolBindings,
+    sweepObservableValidation.valid,
   ]);
 
   const experimentCompareData = useMemo(() => {
@@ -546,6 +585,69 @@ const SimulatorLabPanel: React.FC<Props> = ({
     }
     return rows;
   }, [circuit, entanglementPair, initialState, numQubits]);
+
+  const sweepPeak = useMemo(() => {
+    if (sweepData.length === 0) return null;
+    return sweepData.reduce((best, row) => (row.value > best.value ? row : best), sweepData[0]);
+  }, [sweepData]);
+
+  const sweepYAxisDomain = useMemo<[number, number]>(() => {
+    if (sweepData.length === 0) return sweepMetric === 'prob' ? [0, 1] : [-1, 1];
+
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const row of sweepData) {
+      min = Math.min(min, row.value);
+      max = Math.max(max, row.value);
+    }
+
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return sweepMetric === 'prob' ? [0, 1] : [-1, 1];
+
+    if (Math.abs(max - min) < 1e-9) {
+      if (sweepMetric === 'prob') {
+        const center = Math.max(0, Math.min(1, min));
+        return [Math.max(0, center - 0.02), Math.min(1, center + 0.04)];
+      }
+      const center = Math.max(-1, Math.min(1, min));
+      return [Math.max(-1, center - 0.1), Math.min(1, center + 0.1)];
+    }
+
+    const range = max - min;
+    const pad = sweepMetric === 'prob'
+      ? Math.max(0.006, range * 0.16)
+      : Math.max(0.03, range * 0.16);
+
+    if (sweepMetric === 'prob') {
+      return [Math.max(0, min - pad), Math.min(1, max + pad)];
+    }
+    return [Math.max(-1, min - pad), Math.min(1, max + pad)];
+  }, [sweepData, sweepMetric]);
+
+  const optimizerPeak = useMemo(() => {
+    if (optimizerData.length === 0) return null;
+    return optimizerData.reduce((best, row) => (row.value > best.value ? row : best), optimizerData[0]);
+  }, [optimizerData]);
+
+  const noiseSweepBest = useMemo(() => {
+    if (noiseSweepData.length === 0) return null;
+    return noiseSweepData.reduce((best, row) => (row.value > best.value ? row : best), noiseSweepData[0]);
+  }, [noiseSweepData]);
+
+  const entanglementPeak = useMemo(() => {
+    if (entanglementTrendData.length === 0) return null;
+    return entanglementTrendData.reduce((best, row) => (row.strength > best.strength ? row : best), entanglementTrendData[0]);
+  }, [entanglementTrendData]);
+
+  const chartTickMono = { fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-2)' };
+  const chartTickSans = { fontSize: 11, fontFamily: 'var(--font-sans)', fill: 'var(--text-2)' };
+  const chartTooltipStyle = {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 12,
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    background: 'var(--card)',
+  };
 
   const compareTray = useMemo(() => {
     const rawTop = Array.from(distributionMetrics.ideal.entries())
@@ -719,11 +821,16 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const statusClassForMessage = useCallback((msg: string) => {
     const text = msg.toLowerCase();
     if (text.includes('invalid') || text.includes('not ') || text.includes('error') || text.includes('warning')) return 'sim-lab-status error';
-    if (text.includes('applied') || text.includes('passed') || text.includes('completed') || text.includes('imported') || text.includes('equivalent')) return 'sim-lab-status success';
+    if (text.includes('applied') || text.includes('passed') || text.includes('completed') || text.includes('imported') || text.includes('equivalent') || text.includes('saved') || text.includes('loaded') || text.includes('cleared')) return 'sim-lab-status success';
     return 'sim-lab-status neutral';
   }, []);
 
-  const applyTemplate = (kind: StatevectorTemplateKind) => {
+  const applyTemplate = (kind: StatevectorTemplateKind | 'dicke') => {
+    if (kind === 'dicke') {
+      const k = Math.max(0, Math.min(numQubits, Math.round(Number(dickeExcitations) || 0)));
+      onApplyStatevectorExpression(getDickeTemplateExpression(numQubits, k));
+      return;
+    }
     onApplyStatevectorExpression(getStatevectorTemplateExpression(kind, numQubits));
   };
 
@@ -780,6 +887,11 @@ const SimulatorLabPanel: React.FC<Props> = ({
     }
     return rows;
   }, [candidateCircuit, circuit, compareBasisView, initialState]);
+
+  const compareWorstDelta = useMemo(() => {
+    if (compareChartData.length === 0) return null;
+    return compareChartData.reduce((worst, row) => (row.delta > worst.delta ? row : worst), compareChartData[0]);
+  }, [compareChartData]);
 
   const runTomography = () => {
     const q = Math.max(0, Math.min(numQubits - 1, Math.round(Number(tomoQubit) || 0)));
@@ -994,27 +1106,42 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
   const savePack = () => {
     const id = `pack-${Date.now()}`;
-    setSavedPacks((prev) => [
-      ...prev,
-      {
-        id,
-        name: savePackName || id,
-        createdAt: Date.now(),
-        circuit,
-        symbols: symbolBindings,
-        shots: { numShots, noise, basis: shotsBasisAxes },
-        notes: savePackNotes,
-      },
-    ]);
+    const packName = savePackName || id;
+    setSavedPacks((prev) => {
+      const next = [
+        ...prev,
+        {
+          id,
+          name: packName,
+          createdAt: Date.now(),
+          circuit,
+          symbols: symbolBindings,
+          shots: { numShots, noise, basis: shotsBasisAxes },
+          notes: savePackNotes,
+        },
+      ];
+      setPackActionMessage(`Saved pack '${packName}'. Total packs: ${next.length}.`);
+      return next;
+    });
     setSelectedPackId(id);
   };
 
   const loadSelectedPack = () => {
     const pack = savedPacks.find((p) => p.id === selectedPackId);
-    if (!pack) return;
+    if (!pack) {
+      setPackActionMessage('Select a saved pack before loading.');
+      return;
+    }
     onApplyMacroCircuit(pack.circuit);
     onSetSymbolBindings(pack.symbols);
     onApplyShotsConfig({ numShots: pack.shots.numShots, noise: pack.shots.noise, shotsBasisAxes: normalizeMeasurementAxes(pack.shots.basis) });
+    setPackActionMessage(`Loaded pack '${pack.name}'.`);
+  };
+
+  const clearSavedPacks = () => {
+    setSavedPacks([]);
+    setSelectedPackId('');
+    setPackActionMessage('Cleared all saved packs.');
   };
 
   const runNoiseCalibration = () => {
@@ -1108,14 +1235,15 @@ const SimulatorLabPanel: React.FC<Props> = ({
           aria-label="Search Simulator Lab features"
         />
         <div className="sim-lab-feature-actions">
-          <label className="sim-lab-toggle-inline">
-            <input
-              type="checkbox"
-              checked={pinnedOnly}
-              onChange={(e) => setPinnedOnly(e.target.checked)}
-            />
-            Pinned only
-          </label>
+          <button
+            type="button"
+            className={`sim-lab-toggle-btn${pinnedOnly ? ' is-active' : ''}`}
+            aria-pressed={pinnedOnly}
+            onClick={() => setPinnedOnly((prev) => !prev)}
+            title={pinnedOnly ? 'Show all sections' : 'Show pinned sections only'}
+          >
+            {pinnedOnly ? 'Pinned only: on' : 'Pinned only: off'}
+          </button>
           <span className="sim-lab-feature-count">{visibleFeatureCount} sections visible</span>
         </div>
       </div>
@@ -1207,13 +1335,24 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={entanglementTrendData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="col" stroke="var(--text-3)" />
-                  <YAxis stroke="var(--text-3)" />
-                  <Tooltip formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)} />
-                  <Line type="monotone" dataKey="strength" stroke="#ef4444" dot={false} strokeWidth={2} />
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="col" stroke="var(--text-3)" tick={chartTickMono} />
+                  <YAxis stroke="var(--text-3)" tick={chartTickSans} />
+                  <Tooltip
+                    formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)}
+                    labelFormatter={(label) => `Column ${label}`}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                  <Line type="monotone" dataKey="strength" stroke="#ef4444" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+          {entanglementPeak && (
+            <div className="sim-sweep-meta">
+              <span className="sim-sweep-chip">Peak strength {entanglementPeak.strength.toFixed(4)}</span>
+              <span className="sim-sweep-chip sim-sweep-chip-muted">at column {entanglementPeak.col}</span>
             </div>
           )}
           {entanglementPairs.length > 0 && (
@@ -1391,13 +1530,24 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={optimizerData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="theta" stroke="var(--text-3)" tickFormatter={(v) => Number(v).toFixed(2)} />
-                  <YAxis stroke="var(--text-3)" />
-                  <Tooltip formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)} />
-                  <Line type="monotone" dataKey="value" stroke="var(--primary)" dot={false} strokeWidth={2} />
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="theta" stroke="var(--text-3)" tick={chartTickMono} tickFormatter={(v) => Number(v).toFixed(2)} />
+                  <YAxis stroke="var(--text-3)" tick={chartTickSans} />
+                  <Tooltip
+                    formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)}
+                    labelFormatter={(label) => `θ=${Number(label).toFixed(4)}`}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="var(--primary)" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+          {optimizerPeak && (
+            <div className="sim-sweep-meta">
+              <span className="sim-sweep-chip">Best value {optimizerPeak.value.toFixed(6)}</span>
+              <span className="sim-sweep-chip sim-sweep-chip-muted">at θ={optimizerPeak.theta.toFixed(4)} rad</span>
             </div>
           )}
         </section>
@@ -1441,13 +1591,24 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={noiseSweepData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="noise" stroke="var(--text-3)" tickFormatter={(v) => Number(v).toFixed(3)} />
-                  <YAxis stroke="var(--text-3)" />
-                  <Tooltip formatter={(v: number | string | undefined) => `${(Number(v ?? 0) * 100).toFixed(2)}%`} />
-                  <Line type="monotone" dataKey="value" stroke="#ef4444" dot={false} strokeWidth={2} />
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="noise" stroke="var(--text-3)" tick={chartTickMono} tickFormatter={(v) => Number(v).toFixed(3)} />
+                  <YAxis stroke="var(--text-3)" tick={chartTickSans} tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} />
+                  <Tooltip
+                    formatter={(v: number | string | undefined) => `${(Number(v ?? 0) * 100).toFixed(2)}%`}
+                    labelFormatter={(label) => `Noise=${Number(label).toFixed(4)}`}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="#ef4444" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+          {noiseSweepBest && (
+            <div className="sim-sweep-meta">
+              <span className="sim-sweep-chip">Best success {(noiseSweepBest.value * 100).toFixed(2)}%</span>
+              <span className="sim-sweep-chip sim-sweep-chip-muted">at noise {noiseSweepBest.noise.toFixed(4)}</span>
             </div>
           )}
         </section>
@@ -1493,7 +1654,19 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <div className="sim-lab-row"><span>State fidelity (current vs transpiled-L3)</span><span>{noisyStateMetrics.fidelity.toFixed(6)}</span></div>
             <div className="sim-lab-row"><span>Trace distance approx (state probabilities)</span><span>{noisyStateMetrics.traceDistance.toFixed(6)}</span></div>
             <div className="sim-lab-row"><span>KL divergence (ideal shots || noisy shots)</span><span>{distributionMetrics.kl.toFixed(6)}</span></div>
+            <div className="sim-lab-row"><span>Jensen-Shannon divergence</span><span>{distributionMetrics.js.toFixed(6)}</span></div>
+            <div className="sim-lab-row"><span>Hellinger distance</span><span>{distributionMetrics.hellinger.toFixed(6)}</span></div>
+            <div className="sim-lab-row"><span>Bhattacharyya coefficient</span><span>{distributionMetrics.bhattacharyya.toFixed(6)}</span></div>
+            <div className="sim-lab-row"><span>Overlap score (Bhattacharyya²)</span><span>{distributionMetrics.overlap.toFixed(6)}</span></div>
             <div className="sim-lab-row"><span>Total variation distance (ideal vs noisy)</span><span>{distributionMetrics.l1.toFixed(6)}</span></div>
+            {distributionMetrics.marginalSummary.slice(0, Math.min(numQubits, 4)).map((row) => (
+              <div key={`marginal-${row.qubit}`} className="sim-lab-row">
+                <span>
+                  q{row.qubit} marginal drift P(1): {row.idealOneProb.toFixed(3)} → {row.noisyOneProb.toFixed(3)}
+                </span>
+                <span>{row.delta.toFixed(6)}</span>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -1552,8 +1725,9 @@ const SimulatorLabPanel: React.FC<Props> = ({
           <div className="sim-lab-inline-metrics">
             <button type="button" className="btn" onClick={savePack} disabled={!canSavePack}>Save Pack</button>
             <button type="button" className="btn" onClick={loadSelectedPack} disabled={!canLoadPack}>Load Pack</button>
-            <button type="button" className="btn" onClick={() => setSavedPacks([])}>Clear Packs</button>
+            <button type="button" className="btn" onClick={clearSavedPacks}>Clear Packs</button>
           </div>
+          {packActionMessage && <p className={statusClassForMessage(packActionMessage)}>{packActionMessage}</p>}
           {!canSavePack && <p className="sim-lab-status neutral">{savePackDisabledReason}</p>}
           {!canLoadPack && <p className="sim-lab-status neutral">{loadPackDisabledReason}</p>}
         </section>
@@ -1610,6 +1784,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
                 <label>
                   θ
                   <input
+                    className="ui-slider"
                     type="range"
                     min={0}
                     max={Math.PI}
@@ -1628,6 +1803,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
                 <label>
                   φ
                   <input
+                    className="ui-slider"
                     type="range"
                     min={-Math.PI}
                     max={Math.PI}
@@ -1653,6 +1829,17 @@ const SimulatorLabPanel: React.FC<Props> = ({
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Initial-State Template Library</div>
           <p className="sim-lab-note">One-click templates to seed statevector mode. All outputs remain editable.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Dicke excitations k
+              <input
+                value={dickeExcitations}
+                onChange={(e) => setDickeExcitations(e.target.value)}
+                placeholder={`0..${numQubits}`}
+              />
+            </label>
+            <button type="button" className="btn" onClick={() => applyTemplate('dicke')}>Dicke(k)</button>
+          </div>
           <div className="sim-lab-chips">
             {[
               { key: 'basis0', label: 'Basis |0...0⟩' },
@@ -1660,6 +1847,9 @@ const SimulatorLabPanel: React.FC<Props> = ({
               { key: 'bell', label: 'Bell-like' },
               { key: 'ghz', label: 'GHZ' },
               { key: 'w', label: 'W' },
+              { key: 'uniform', label: 'Uniform Superposition' },
+              { key: 'cluster', label: 'Linear Cluster' },
+              { key: 'stabilizer', label: 'Random Stabilizer' },
               { key: 'haar', label: 'Random Haar' },
             ].map((template) => (
               <button
@@ -1723,17 +1913,39 @@ const SimulatorLabPanel: React.FC<Props> = ({
               </label>
             )}
           </div>
+          {sweepDisabledReason && <p className="sim-lab-status neutral">{sweepDisabledReason}</p>}
           <div className="sim-sweep-chart">
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={sweepData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="theta" tickFormatter={(v) => Number(v).toFixed(2)} stroke="var(--text-3)" />
-                <YAxis stroke="var(--text-3)" />
-                <Tooltip formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)} labelFormatter={(label) => `θ=${Number(label).toFixed(4)}`} />
-                <Line type="monotone" dataKey="value" stroke="var(--primary)" dot={false} strokeWidth={2} />
+                <CartesianGrid stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="theta" tick={chartTickMono} tickFormatter={(v) => Number(v).toFixed(2)} stroke="var(--text-3)" />
+                <YAxis
+                  tick={chartTickSans}
+                  stroke="var(--text-3)"
+                  domain={sweepYAxisDomain}
+                  tickFormatter={(v) => (sweepMetric === 'prob' ? `${Math.round(Number(v) * 100)}%` : Number(v).toFixed(2))}
+                />
+                <Tooltip
+                  formatter={(v: number | string | undefined) => (
+                    sweepMetric === 'prob' ? `${(Number(v ?? 0) * 100).toFixed(2)}%` : Number(v ?? 0).toFixed(6)
+                  )}
+                  labelFormatter={(label) => `θ=${Number(label).toFixed(4)}`}
+                  contentStyle={chartTooltipStyle}
+                  labelStyle={{ fontFamily: 'var(--font-mono)' }}
+                />
+                <Line type="monotone" dataKey="value" stroke="var(--primary)" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
+          {!sweepDisabledReason && sweepData.length === 0 && (
+            <p className="sim-lab-status neutral">No sweep samples available with the current settings.</p>
+          )}
+          {sweepPeak && !sweepDisabledReason && (
+            <div className="sim-sweep-meta">
+              <span className="sim-sweep-chip">Peak {sweepMetric === 'prob' ? `${(sweepPeak.value * 100).toFixed(2)}%` : sweepPeak.value.toFixed(6)}</span>
+              <span className="sim-sweep-chip sim-sweep-chip-muted">at θ={sweepPeak.theta.toFixed(4)} rad</span>
+            </div>
+          )}
         </section>
 
         <section className="sim-lab-card">
@@ -1923,18 +2135,26 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={compareChartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="col" stroke="var(--text-3)" />
-                  <YAxis stroke="var(--text-3)" />
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="col" stroke="var(--text-3)" tick={chartTickMono} />
+                  <YAxis stroke="var(--text-3)" tick={chartTickSans} tickFormatter={(v) => `${Math.round(Number(v) * 100)}%`} />
                   <Tooltip
                     formatter={(v: number | string | undefined) => `${(Number(v ?? 0) * 100).toFixed(3)}%`}
                     labelFormatter={(label) => `Column ${label}`}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={{ fontFamily: 'var(--font-mono)' }}
                   />
-                  <Line type="monotone" dataKey="current" stroke="var(--primary)" dot={false} strokeWidth={2} name="Current" />
-                  <Line type="monotone" dataKey="candidate" stroke="#22c55e" dot={false} strokeWidth={2} name="Candidate" />
-                  <Line type="monotone" dataKey="delta" stroke="#ef4444" dot={false} strokeWidth={1.5} name="|Δ|" />
+                  <Line type="monotone" dataKey="current" stroke="var(--primary)" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} name="Current" />
+                  <Line type="monotone" dataKey="candidate" stroke="#22c55e" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} name="Candidate" />
+                  <Line type="monotone" dataKey="delta" stroke="#ef4444" dot={false} activeDot={{ r: 3 }} strokeWidth={1.8} name="|Δ|" />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+          {compareWorstDelta && (
+            <div className="sim-sweep-meta">
+              <span className="sim-sweep-chip">Max |Δ| {(compareWorstDelta.delta * 100).toFixed(3)}%</span>
+              <span className="sim-sweep-chip sim-sweep-chip-muted">at column {compareWorstDelta.col}</span>
             </div>
           )}
         </section>
@@ -2051,15 +2271,26 @@ const SimulatorLabPanel: React.FC<Props> = ({
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={experimentCompareData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="theta" stroke="var(--text-3)" tickFormatter={(v) => Number(v).toFixed(2)} />
-                  <YAxis stroke="var(--text-3)" />
-                  <Tooltip formatter={(v: number | string | undefined) => Number(v ?? 0).toFixed(6)} />
-                  <Line type="monotone" dataKey="current" stroke="var(--primary)" dot={false} strokeWidth={2} name="Current" />
+                  <CartesianGrid stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="theta" stroke="var(--text-3)" tick={chartTickMono} tickFormatter={(v) => Number(v).toFixed(2)} />
+                  <YAxis
+                    stroke="var(--text-3)"
+                    tick={chartTickSans}
+                    tickFormatter={(v) => (sweepMetric === 'prob' ? `${Math.round(Number(v) * 100)}%` : Number(v).toFixed(2))}
+                  />
+                  <Tooltip
+                    formatter={(v: number | string | undefined) => (
+                      sweepMetric === 'prob' ? `${(Number(v ?? 0) * 100).toFixed(2)}%` : Number(v ?? 0).toFixed(6)
+                    )}
+                    labelFormatter={(label) => `θ=${Number(label).toFixed(4)}`}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                  <Line type="monotone" dataKey="current" stroke="var(--primary)" dot={false} activeDot={{ r: 3 }} strokeWidth={2.2} name="Current" />
                   {savedExperiments
                     .filter((exp) => selectedExperimentIds.includes(exp.id))
                     .map((exp, idx) => (
-                      <Line key={exp.id} type="monotone" dataKey={exp.id} stroke={['#22c55e', '#f97316', '#ef4444', '#a855f7', '#0ea5e9'][idx % 5]} dot={false} strokeWidth={1.6} name={exp.name} />
+                      <Line key={exp.id} type="monotone" dataKey={exp.id} stroke={['#22c55e', '#f97316', '#ef4444', '#a855f7', '#0ea5e9'][idx % 5]} dot={false} activeDot={{ r: 2.5 }} strokeWidth={1.9} name={exp.name} />
                     ))}
                 </LineChart>
               </ResponsiveContainer>

@@ -51,6 +51,64 @@ export const klDivergence = (pRaw: number[], qRaw: number[]): number => {
   return kl;
 };
 
+const normalizeDist = (raw: number[]): number[] => {
+  const sum = raw.reduce((s, v) => s + v, 0) || 1;
+  return raw.map((v) => Math.max(0, v) / sum);
+};
+
+export const jensenShannonDivergence = (pRaw: number[], qRaw: number[]): number => {
+  const p = normalizeDist(pRaw);
+  const q = normalizeDist(qRaw);
+  const dim = Math.min(p.length, q.length);
+  const m = Array.from({ length: dim }, (_, i) => 0.5 * (p[i] + q[i]));
+  return 0.5 * klDivergence(p.slice(0, dim), m) + 0.5 * klDivergence(q.slice(0, dim), m);
+};
+
+export const bhattacharyyaCoefficient = (pRaw: number[], qRaw: number[]): number => {
+  const p = normalizeDist(pRaw);
+  const q = normalizeDist(qRaw);
+  const dim = Math.min(p.length, q.length);
+  let sum = 0;
+  for (let i = 0; i < dim; i += 1) sum += Math.sqrt(Math.max(0, p[i]) * Math.max(0, q[i]));
+  return Math.max(0, Math.min(1, sum));
+};
+
+export const hellingerDistance = (pRaw: number[], qRaw: number[]): number => {
+  const bc = bhattacharyyaCoefficient(pRaw, qRaw);
+  return Math.sqrt(Math.max(0, 1 - bc));
+};
+
+export const perQubitMarginalError = (pRaw: number[], qRaw: number[], numQubits: number): Array<{
+  qubit: number;
+  idealOneProb: number;
+  noisyOneProb: number;
+  delta: number;
+}> => {
+  const p = normalizeDist(pRaw);
+  const q = normalizeDist(qRaw);
+  const dim = Math.min(p.length, q.length, 1 << numQubits);
+  const rows: Array<{ qubit: number; idealOneProb: number; noisyOneProb: number; delta: number }> = [];
+
+  for (let qubit = 0; qubit < numQubits; qubit += 1) {
+    let idealOneProb = 0;
+    let noisyOneProb = 0;
+    for (let i = 0; i < dim; i += 1) {
+      if (((i >> qubit) & 1) === 1) {
+        idealOneProb += p[i] ?? 0;
+        noisyOneProb += q[i] ?? 0;
+      }
+    }
+    rows.push({
+      qubit,
+      idealOneProb,
+      noisyOneProb,
+      delta: Math.abs(idealOneProb - noisyOneProb),
+    });
+  }
+
+  return rows.sort((a, b) => b.delta - a.delta);
+};
+
 export const histogramToProbArray = (hist: Map<string, number>, numQubits: number): number[] => {
   const dim = 1 << numQubits;
   const out = Array(dim).fill(0);

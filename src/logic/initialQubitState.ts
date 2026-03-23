@@ -25,7 +25,39 @@ export interface InitialStateBuildResult {
   message: string;
 }
 
-export type StatevectorTemplateKind = 'basis0' | 'basis1' | 'bell' | 'ghz' | 'w' | 'haar';
+export type StatevectorTemplateKind =
+  | 'basis0'
+  | 'basis1'
+  | 'bell'
+  | 'ghz'
+  | 'w'
+  | 'uniform'
+  | 'cluster'
+  | 'stabilizer'
+  | 'haar';
+
+const formatAmplitudeList = (amps: Complex[]): string => amps
+  .map((a) => `${a.re.toFixed(5)}${a.im >= 0 ? '+' : '-'}${Math.abs(a.im).toFixed(5)}*i`)
+  .join(', ');
+
+export const getDickeTemplateExpression = (numQubits: number, excitations: number): string => {
+  const k = Math.max(0, Math.min(numQubits, Math.round(excitations)));
+  const dim = 1 << numQubits;
+  const basis: number[] = [];
+
+  for (let i = 0; i < dim; i += 1) {
+    let ones = 0;
+    for (let q = 0; q < numQubits; q += 1) ones += (i >> q) & 1;
+    if (ones === k) basis.push(i);
+  }
+
+  if (basis.length === 0) return `|${'0'.repeat(numQubits)}⟩`;
+
+  const weight = 1 / Math.sqrt(basis.length);
+  const amps = Array.from({ length: dim }, () => c(0, 0));
+  for (const idx of basis) amps[idx] = c(weight, 0);
+  return formatAmplitudeList(amps);
+};
 
 export interface StatevectorDiagnostic {
   valid: boolean;
@@ -344,6 +376,69 @@ const initZeroState = (numQubits: number): Complex[] => {
   return state;
 };
 
+const randomInt = (maxExclusive: number): number => Math.floor(Math.random() * Math.max(1, maxExclusive));
+
+const applyHadamard = (state: Complex[], qubit: number): void => {
+  const bit = 1 << qubit;
+  for (let i = 0; i < state.length; i += 1) {
+    if ((i & bit) !== 0) continue;
+    const j = i | bit;
+    const a = state[i];
+    const b = state[j];
+    state[i] = c((a.re + b.re) * SQRT1_2, (a.im + b.im) * SQRT1_2);
+    state[j] = c((a.re - b.re) * SQRT1_2, (a.im - b.im) * SQRT1_2);
+  }
+};
+
+const applyPhaseS = (state: Complex[], qubit: number): void => {
+  const bit = 1 << qubit;
+  for (let i = 0; i < state.length; i += 1) {
+    if ((i & bit) === 0) continue;
+    const a = state[i];
+    state[i] = c(-a.im, a.re);
+  }
+};
+
+const applyCnot = (state: Complex[], control: number, target: number): void => {
+  if (control === target) return;
+  const cBit = 1 << control;
+  const tBit = 1 << target;
+  for (let i = 0; i < state.length; i += 1) {
+    if ((i & cBit) === 0 || (i & tBit) !== 0) continue;
+    const j = i | tBit;
+    const tmp = state[i];
+    state[i] = state[j];
+    state[j] = tmp;
+  }
+};
+
+const randomStabilizerState = (numQubits: number): Complex[] => {
+  const state = initZeroState(numQubits);
+  if (numQubits <= 0) return state;
+
+  // Random single-qubit Clifford dressing.
+  for (let q = 0; q < numQubits; q += 1) {
+    if (Math.random() < 0.6) applyHadamard(state, q);
+    const sPowers = randomInt(4);
+    for (let k = 0; k < sPowers; k += 1) applyPhaseS(state, q);
+  }
+
+  // Entangling layer for non-product stabilizer states.
+  if (numQubits > 1) {
+    const entanglingDepth = Math.max(2, numQubits * 2);
+    for (let step = 0; step < entanglingDepth; step += 1) {
+      const control = randomInt(numQubits);
+      let target = randomInt(numQubits - 1);
+      if (target >= control) target += 1;
+      applyCnot(state, control, target);
+      if (Math.random() < 0.35) applyHadamard(state, randomInt(numQubits));
+      if (Math.random() < 0.45) applyPhaseS(state, randomInt(numQubits));
+    }
+  }
+
+  return state;
+};
+
 const normalizeState = (state: Complex[]): { normalized: Complex[]; norm: number } | null => {
   let norm2 = 0;
   for (const amp of state) norm2 += cAbs2(amp);
@@ -524,13 +619,33 @@ export const getStatevectorTemplateExpression = (kind: StatevectorTemplateKind, 
       });
       return basis.map((b) => `(1/sqrt(${numQubits}))*${b}`).join(' + ');
     }
+    case 'uniform': {
+      const dim = 1 << numQubits;
+      const amp = 1 / Math.sqrt(dim);
+      return formatAmplitudeList(Array.from({ length: dim }, () => c(amp, 0)));
+    }
+    case 'cluster': {
+      const dim = 1 << numQubits;
+      const norm = 1 / Math.sqrt(dim);
+      const amps = Array.from({ length: dim }, (_, x) => {
+        let parity = 0;
+        for (let q = 0; q < numQubits - 1; q += 1) {
+          const bq = (x >> q) & 1;
+          const bNext = (x >> (q + 1)) & 1;
+          parity ^= (bq & bNext);
+        }
+        return c(parity ? -norm : norm, 0);
+      });
+      return formatAmplitudeList(amps);
+    }
+    case 'stabilizer': {
+      return formatAmplitudeList(randomStabilizerState(numQubits));
+    }
     case 'haar': {
       const dim = 1 << numQubits;
       const amps = Array.from({ length: dim }, () => ({ re: Math.random() * 2 - 1, im: Math.random() * 2 - 1 }));
       const norm = Math.sqrt(amps.reduce((sum, a) => sum + a.re * a.re + a.im * a.im, 0)) || 1;
-      return amps
-        .map((a) => `${(a.re / norm).toFixed(5)}${a.im >= 0 ? '+' : '-'}${Math.abs(a.im / norm).toFixed(5)}*i`)
-        .join(', ');
+      return formatAmplitudeList(amps.map((a) => c(a.re / norm, a.im / norm)));
     }
     default:
       return zeroKet;

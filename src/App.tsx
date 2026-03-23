@@ -1142,11 +1142,23 @@ const App: React.FC = () => {
                       <div className="shots-compare-grid">
                         <section className="shots-chart-card">
                           <h4 className="shots-title">Ideal</h4>
-                          <ShotsHistogram histogram={shotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                          <ShotsHistogram
+                            histogram={shotsResult}
+                            numQubits={circuit.numQubits}
+                            totalShots={numShots}
+                            referenceHistogram={noisyShotsResult}
+                            referenceLabel="Noisy"
+                          />
                         </section>
                         <section className="shots-chart-card">
                           <h4 className="shots-title">Noisy</h4>
-                          <ShotsHistogram histogram={noisyShotsResult} numQubits={circuit.numQubits} totalShots={numShots} />
+                          <ShotsHistogram
+                            histogram={noisyShotsResult}
+                            numQubits={circuit.numQubits}
+                            totalShots={numShots}
+                            referenceHistogram={shotsResult}
+                            referenceLabel="Ideal"
+                          />
                         </section>
                       </div>
                     </>
