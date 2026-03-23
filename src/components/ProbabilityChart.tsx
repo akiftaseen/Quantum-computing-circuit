@@ -38,16 +38,13 @@ const ProbabilityChart: React.FC<Props> = ({ state, numQubits }) => {
     background: 'var(--card)',
   };
   const xTickInterval = data.length > 16 ? Math.ceil(data.length / 16) - 1 : 0;
-  const yDomain = React.useMemo(
-    () => computeAdaptiveDomain(data.map((row) => row.prob), {
-      defaultDomain: [0, 1],
-      clampMin: 0,
-      clampMax: 1,
-      flatPad: 0.03,
-      minPad: 0.01,
-    }),
-    [data],
-  );
+  const yDomain = computeAdaptiveDomain(data.map((row) => row.prob), {
+    defaultDomain: [0, 1],
+    clampMin: 0,
+    clampMax: 1,
+    flatPad: 0.03,
+    minPad: 0.01,
+  });
 
   return (
     <div className="probability-chart-wrap">

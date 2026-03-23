@@ -59,6 +59,7 @@ const fitArray = <T,>(source: T[], len: number, fill: T): T[] =>
 const loadPersistedAppState = (): Partial<{
   sidebarCollapsed: boolean;
   sidebarWidth: number;
+  resultsPanelHeight: number;
   tab: Tab;
   numShots: number;
   shotSeedInput: string;
@@ -98,6 +99,8 @@ const App: React.FC = () => {
   const [showGateModal, setShowGateModal] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(persisted.sidebarWidth ?? 200);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const [resultsPanelHeight, setResultsPanelHeight] = useState(persisted.resultsPanelHeight ?? 320);
+  const [isResizingResults, setIsResizingResults] = useState(false);
   const [initialStateMode, setInitialStateMode] = useState<InitialStateInputMode>(persisted.initialStateMode ?? 'qubit');
   const [initialQubitExprs, setInitialQubitExprs] = useState<string[]>(() => persisted.initialQubitExprs ?? Array(INIT.numQubits).fill('0'));
   const [statevectorExpr, setStatevectorExpr] = useState<string>(persisted.statevectorExpr ?? '');
@@ -108,6 +111,7 @@ const App: React.FC = () => {
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
   const appStateImportRef = useRef<HTMLInputElement | null>(null);
+  const mainAreaRef = useRef<HTMLElement | null>(null);
 
   // Keyboard shortcuts are defined after handlers to avoid stale references.
 
@@ -127,6 +131,28 @@ const App: React.FC = () => {
     }
   }, [isResizingSidebar]);
 
+  const startResizingResults = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingResults(true);
+  }, []);
+
+  const stopResizingResults = useCallback(() => {
+    setIsResizingResults(false);
+  }, []);
+
+  const resizeResults = useCallback((e: MouseEvent) => {
+    if (!isResizingResults) return;
+    const main = mainAreaRef.current;
+    if (!main) return;
+
+    const rect = main.getBoundingClientRect();
+    const nextHeight = rect.bottom - e.clientY;
+    const minHeight = 170;
+    const maxHeight = Math.max(minHeight, rect.height - 220);
+    const clamped = Math.min(Math.max(minHeight, nextHeight), maxHeight);
+    setResultsPanelHeight(clamped);
+  }, [isResizingResults]);
+
   useEffect(() => {
     if (isResizingSidebar) {
       window.addEventListener('mousemove', resizeSidebar);
@@ -139,10 +165,22 @@ const App: React.FC = () => {
   }, [isResizingSidebar, resizeSidebar, stopResizingSidebar]);
 
   useEffect(() => {
+    if (isResizingResults) {
+      window.addEventListener('mousemove', resizeResults);
+      window.addEventListener('mouseup', stopResizingResults);
+      return () => {
+        window.removeEventListener('mousemove', resizeResults);
+        window.removeEventListener('mouseup', stopResizingResults);
+      };
+    }
+  }, [isResizingResults, resizeResults, stopResizingResults]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify({
         sidebarCollapsed,
         sidebarWidth,
+        resultsPanelHeight,
         tab,
         numShots,
         shotSeedInput,
@@ -160,6 +198,7 @@ const App: React.FC = () => {
   }, [
     sidebarCollapsed,
     sidebarWidth,
+    resultsPanelHeight,
     tab,
     numShots,
     shotSeedInput,
@@ -643,18 +682,25 @@ const App: React.FC = () => {
       />
 
       <div className="drafts-bar" aria-label="Circuit drafts">
-        <label className="drafts-label" htmlFor="draft-select">Circuit</label>
-        <select id="draft-select" className="drafts-select" value={activeDraftId} onChange={(e) => switchDraft(e.target.value)}>
-          {drafts.map((draft) => (
-            <option key={draft.id} value={draft.id}>{draft.name}</option>
-          ))}
-        </select>
-        <button className="btn" onClick={createNewDraft}>New</button>
-        <button className="btn" onClick={duplicateActiveDraft} disabled={!activeDraft}>Duplicate</button>
-        <button className="btn" onClick={renameActiveDraft} disabled={!activeDraft}>Rename</button>
-        <button className="btn" onClick={deleteActiveDraft} disabled={!activeDraft}>Delete</button>
-        <button className="btn" onClick={exportAppState}>Export App State</button>
-        <button className="btn" onClick={() => appStateImportRef.current?.click()}>Import App State</button>
+        <div className="drafts-primary-actions">
+          <label className="drafts-label" htmlFor="draft-select">Circuit</label>
+          <select id="draft-select" className="drafts-select" value={activeDraftId} onChange={(e) => switchDraft(e.target.value)}>
+            {drafts.map((draft) => (
+              <option key={draft.id} value={draft.id}>{draft.name}</option>
+            ))}
+          </select>
+          <button className="btn" onClick={createNewDraft}>New</button>
+          <button className="btn" onClick={duplicateActiveDraft} disabled={!activeDraft}>Duplicate</button>
+          <button className="btn" onClick={renameActiveDraft} disabled={!activeDraft}>Rename</button>
+          <button className="btn" onClick={deleteActiveDraft} disabled={!activeDraft}>Delete</button>
+        </div>
+
+        <div className="drafts-bar-spacer" aria-hidden="true" />
+
+        <div className="drafts-secondary-actions">
+          <button className="btn" onClick={exportAppState}>Export App State</button>
+          <button className="btn" onClick={() => appStateImportRef.current?.click()}>Import App State</button>
+        </div>
         <input
           ref={appStateImportRef}
           type="file"
@@ -705,7 +751,7 @@ const App: React.FC = () => {
         </aside>
 
         {/* ─── Main Area ─── */}
-        <main className="main-area" id="main-content" aria-label="Circuit workspace">
+        <main className="main-area" id="main-content" aria-label="Circuit workspace" ref={mainAreaRef}>
           {/* ─── Circuit Canvas ─── */}
           <div className="circuit-scroll">
             <CircuitGrid
@@ -888,7 +934,14 @@ const App: React.FC = () => {
           )}
 
           {/* ─── Results Panel ─── */}
-          <div className="results-panel">
+          <div className="results-panel" style={{ height: resultsPanelHeight }}>
+            <div
+              className={`main-horizontal-resizer${isResizingResults ? ' resizing' : ''}`}
+              onMouseDown={startResizingResults}
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize results panel"
+            />
             <div className="results-tabs" role="tablist" aria-label="Result views">
               {TABS.map((t, idx) => (
                 <button
