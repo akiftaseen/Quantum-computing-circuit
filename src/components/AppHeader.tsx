@@ -60,7 +60,10 @@ const AppHeader: React.FC<Props> = ({
 
   return (
     <header className="app-header">
-      <h1>Quantum Circuit Tutor</h1>
+      <h1 className="app-title">
+        <span className="app-title-emphasis">Quantum</span>
+        <span className="app-title-rest">Circuit Tutor</span>
+      </h1>
 
       <div className="header-adjuster" aria-label="Qubit count control">
         <button aria-label="Decrease qubits" disabled={!canDecQubits} onClick={() => onSetQubits(numQubits - 1)}>−</button>
