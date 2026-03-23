@@ -752,13 +752,16 @@ textarea:focus-visible {
 }
 
 .results-content {
-  padding: 16px;
+  padding: 16px clamp(24px, 4vw, 56px) 20px;
   overflow: auto;
   flex: 1;
   min-height: 80px;
 }
 
 .results-content > * {
+  width: min(1200px, 100%);
+  margin-left: auto;
+  margin-right: auto;
   animation: panel-fade-in 220ms ease;
 }
 
@@ -969,6 +972,69 @@ textarea:focus-visible {
   font-size: 12px;
   color: var(--text-2);
   line-height: 1.45;
+}
+
+.state-amp-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.state-amp-metric-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 70%, var(--card));
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.state-amp-metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  color: var(--text-3);
+  line-height: 1.3;
+}
+
+.state-amp-metric-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.state-amp-section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card) 90%, var(--bg));
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.state-amp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+@media (max-width: 980px) {
+  .state-amp-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.state-amp-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.55px;
+  color: var(--text-2);
+  line-height: 1.3;
 }
 
 .state-amplitude-table {
@@ -1947,6 +2013,10 @@ textarea:focus-visible {
   .results-panel {
     max-height: 260px;
     resize: none;
+  }
+
+  .results-content {
+    padding: 14px 14px 16px;
   }
 
   .noise-controls,

@@ -140,37 +140,54 @@ const QuantumStateInsightsPanel: React.FC<Props> = ({
 
       <section className="state-insights-card state-insights-card-wide">
         <div className="state-insights-card-title">Amplitude and Interference</div>
-        <div className="state-inline-metrics">
-          <div>Coherence: <strong>{(coherence * 100).toFixed(1)}%</strong></div>
-          <div>Constructive: <strong>{(interference.constructive * 100).toFixed(1)}%</strong></div>
-          <div>Destructive: <strong>{(interference.destructive * 100).toFixed(1)}%</strong></div>
+        <div className="state-amp-metrics">
+          <div className="state-amp-metric-card">
+            <div className="state-amp-metric-label">Coherence</div>
+            <div className="state-amp-metric-value">{(coherence * 100).toFixed(1)}%</div>
+          </div>
+          <div className="state-amp-metric-card">
+            <div className="state-amp-metric-label">Constructive Interference</div>
+            <div className="state-amp-metric-value">{(interference.constructive * 100).toFixed(1)}%</div>
+          </div>
+          <div className="state-amp-metric-card">
+            <div className="state-amp-metric-label">Destructive Interference</div>
+            <div className="state-amp-metric-value">{(interference.destructive * 100).toFixed(1)}%</div>
+          </div>
         </div>
 
-        <div className="state-amplitude-table">
-          <div className="state-amplitude-head">Basis</div>
-          <div className="state-amplitude-head">Amplitude</div>
-          <div className="state-amplitude-head">|amp|</div>
-          <div className="state-amplitude-head">Probability</div>
-          <div className="state-amplitude-head">Phase</div>
-          {amplitudeEntries.map((entry) => (
-            <React.Fragment key={entry.basis}>
-              <div>|{entry.basis}⟩</div>
-              <div className="state-mono">{formatComplex(entry.amplitude, 3)}</div>
-              <div>{entry.magnitude.toFixed(3)}</div>
-              <div>{(entry.probability * 100).toFixed(2)}%</div>
-              <div>{entry.phase.toFixed(2)} rad</div>
-            </React.Fragment>
-          ))}
-        </div>
-
-        <div className="state-phase-list">
-          {phaseRels.slice(0, 5).map((rel) => (
-            <div key={`${rel.fromBasis}-${rel.toBasis}`} className="state-phase-item">
-              <span>|{rel.fromBasis}⟩ vs |{rel.toBasis}⟩</span>
-              <span>{rel.phaseDelta.toFixed(2)} rad</span>
-              <span className={`state-tag state-tag-${rel.type}`}>{rel.type}</span>
+        <div className="state-amp-grid">
+          <div className="state-amp-section">
+            <div className="state-amp-section-title">Top Amplitudes</div>
+            <div className="state-amplitude-table">
+              <div className="state-amplitude-head">Basis</div>
+              <div className="state-amplitude-head">Amplitude</div>
+              <div className="state-amplitude-head">|amp|</div>
+              <div className="state-amplitude-head">Probability</div>
+              <div className="state-amplitude-head">Phase</div>
+              {amplitudeEntries.map((entry) => (
+                <React.Fragment key={entry.basis}>
+                  <div>|{entry.basis}⟩</div>
+                  <div className="state-mono">{formatComplex(entry.amplitude, 3)}</div>
+                  <div>{entry.magnitude.toFixed(3)}</div>
+                  <div>{(entry.probability * 100).toFixed(2)}%</div>
+                  <div>{entry.phase.toFixed(2)} rad</div>
+                </React.Fragment>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="state-amp-section">
+            <div className="state-amp-section-title">Phase Relationships</div>
+            <div className="state-phase-list">
+              {phaseRels.slice(0, 5).map((rel) => (
+                <div key={`${rel.fromBasis}-${rel.toBasis}`} className="state-phase-item">
+                  <span>|{rel.fromBasis}⟩ vs |{rel.toBasis}⟩</span>
+                  <span>{rel.phaseDelta.toFixed(2)} rad</span>
+                  <span className={`state-tag state-tag-${rel.type}`}>{rel.type}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
