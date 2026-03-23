@@ -17,6 +17,13 @@
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
   --radius: 10px;
+  --fs-xxs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 14px;
+  --fs-xl2: 18px;
+  --fs-xl: 17px;
 }
 
 /* ---- Dark theme ---- */
@@ -217,7 +224,7 @@
   border-radius: 8px;
   background: var(--primary);
   color: #ffffff;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
   text-decoration: none;
   transition: top 0.12s ease;
@@ -251,8 +258,8 @@ textarea:focus-visible {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
+  gap: 8px;
+  padding: 8px 20px;
   background: var(--card);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -267,7 +274,7 @@ textarea:focus-visible {
   margin: 0;
   white-space: nowrap;
   color: var(--text);
-  font-size: 17px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   letter-spacing: 0.08px;
   line-height: 1;
@@ -311,7 +318,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text-2);
   margin-left: 12px;
@@ -327,7 +334,7 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   background: var(--card);
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   font-weight: 500;
   color: var(--text);
   transition: background 0.12s ease;
@@ -340,7 +347,7 @@ textarea:focus-visible {
 /* ---- Shared Buttons ---- */
 .btn {
   padding: 7px 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.08px;
   border-radius: 8px;
@@ -420,7 +427,7 @@ textarea:focus-visible {
 }
 
 .drafts-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
   font-weight: 700;
   text-transform: uppercase;
@@ -433,7 +440,7 @@ textarea:focus-visible {
   border-radius: 7px;
   background: var(--card);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   height: 30px;
   padding: 4px 8px;
 }
@@ -443,7 +450,7 @@ textarea:focus-visible {
   min-height: 30px;
   padding: 0 10px;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.05px;
 }
 
@@ -495,7 +502,7 @@ textarea:focus-visible {
   top: 0;
   bottom: 0;
   left: 3px;
-  width: 2px;
+  width: 1px;
   background: color-mix(in srgb, var(--primary) 25%, var(--border));
   transition: background-color 140ms ease;
 }
@@ -559,13 +566,13 @@ textarea:focus-visible {
 
 .sidebar-note {
   margin: 0 0 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 1.4;
   color: var(--text-2);
 }
 
 .sidebar-heading {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
@@ -581,7 +588,7 @@ textarea:focus-visible {
   width: 100%;
   padding: 8px 10px;
   margin-bottom: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-align: left;
   border: 1px solid var(--border);
@@ -615,7 +622,7 @@ textarea:focus-visible {
 }
 
 .template-group-title {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -633,7 +640,7 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 80%, #ffffff);
   color: var(--text-2);
-  font-size: 10px;
+  font-size: var(--fs-xxs);
   font-weight: 700;
   line-height: 1.2;
 }
@@ -793,7 +800,7 @@ textarea:focus-visible {
   border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
   background: color-mix(in srgb, var(--primary-bg) 85%, var(--card));
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   letter-spacing: 0.08px;
   box-shadow: var(--shadow-sm);
@@ -817,7 +824,7 @@ textarea:focus-visible {
 }
 
 .stepper-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-2);
   letter-spacing: 0.08px;
@@ -831,7 +838,7 @@ textarea:focus-visible {
 }
 
 .stepper-val {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--primary);
   min-width: 56px;
@@ -844,7 +851,7 @@ textarea:focus-visible {
 .shots-input {
   width: 72px;
   padding: 4px 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--card);
@@ -884,7 +891,7 @@ textarea:focus-visible {
   border: none;
   background: transparent;
   color: var(--text-2);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 4px 10px;
   cursor: pointer;
@@ -907,7 +914,7 @@ textarea:focus-visible {
 }
 
 .init-state-item span {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-2);
   letter-spacing: 0.08px;
@@ -917,7 +924,7 @@ textarea:focus-visible {
   width: 100%;
   min-height: 30px;
   padding: 5px 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: var(--font-mono);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -947,7 +954,7 @@ textarea:focus-visible {
 }
 
 .statevector-input-label span {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-2);
 }
@@ -957,7 +964,7 @@ textarea:focus-visible {
   min-height: 64px;
   resize: vertical;
   padding: 7px 9px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: var(--font-mono);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -996,7 +1003,7 @@ textarea:focus-visible {
 }
 
 .inline-symbol-title {
-  font-size: 10px;
+  font-size: var(--fs-xxs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -1020,7 +1027,7 @@ textarea:focus-visible {
   background: var(--card);
   color: var(--text);
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
 }
 
@@ -1029,7 +1036,7 @@ textarea:focus-visible {
   border-radius: 6px;
   background: var(--card);
   color: var(--text-2);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
   padding: 3px 8px;
   cursor: pointer;
@@ -1042,7 +1049,7 @@ textarea:focus-visible {
 }
 
 .init-state-hint {
-  font-size: 10px;
+  font-size: var(--fs-xxs);
   color: var(--text-3);
   line-height: 1.35;
 }
@@ -1060,7 +1067,7 @@ textarea:focus-visible {
 }
 
 .info-card h4 {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
@@ -1083,7 +1090,7 @@ textarea:focus-visible {
 .param-card .param-row input[type='number'] {
   width: 70px;
   padding: 4px 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--card);
@@ -1092,7 +1099,7 @@ textarea:focus-visible {
 }
 
 .param-card .param-row span {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   font-weight: 500;
 }
@@ -1129,7 +1136,7 @@ textarea:focus-visible {
   align-items: center;
   gap: 7px;
   padding: 10px 14px;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-2);
   border: none;
@@ -1156,7 +1163,7 @@ textarea:focus-visible {
   justify-content: center;
   width: 16px;
   height: 16px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: color-mix(in srgb, var(--text-2) 78%, var(--primary));
 }
 
@@ -1178,6 +1185,48 @@ textarea:focus-visible {
   animation: panel-fade-in 220ms ease;
 }
 
+.results-tab-surface {
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg) 82%, var(--card));
+  box-shadow: var(--shadow-sm);
+  padding: 12px;
+}
+
+.results-surface-head {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.results-surface-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.06px;
+}
+
+.results-surface-subtitle {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.results-tab-surface > * {
+  width: 100%;
+}
+
+.results-tab-surface .analysis-tab-wrap,
+.results-tab-surface .state-insights-panel,
+.results-tab-surface .algorithm-studio-panel,
+.results-tab-surface .shots-panel {
+  max-width: none;
+}
+
 .noise-controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
@@ -1193,7 +1242,7 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
   font-weight: 600;
   line-height: 1.35;
@@ -1205,9 +1254,19 @@ textarea:focus-visible {
 }
 
 .noise-value {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--primary);
   line-height: 1.35;
+}
+
+.noise-controls label input[type="number"] {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  padding: 4px 6px;
 }
 
 .noise-controls label input[type="range"] {
@@ -1236,7 +1295,7 @@ textarea:focus-visible {
 
 .shots-subtitle {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: 1.45;
 }
@@ -1245,7 +1304,7 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 8px;
-  font-size: 10px;
+  font-size: var(--fs-xxs);
   font-weight: 700;
   letter-spacing: 0.4px;
   color: var(--text-2);
@@ -1275,7 +1334,7 @@ textarea:focus-visible {
 }
 
 .shots-summary-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.45px;
   color: var(--text-2);
@@ -1284,14 +1343,14 @@ textarea:focus-visible {
 
 .shots-summary-value {
   margin-top: 4px;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--text);
 }
 
 .shots-summary-note {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
   line-height: 1.4;
 }
@@ -1311,7 +1370,7 @@ textarea:focus-visible {
 
 .shots-title {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-2);
   text-transform: uppercase;
@@ -1327,7 +1386,7 @@ textarea:focus-visible {
 
 .shots-empty-note {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: 1.45;
 }
@@ -1341,7 +1400,7 @@ textarea:focus-visible {
 }
 
 .shots-basis-title {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.45px;
   color: var(--text-2);
@@ -1358,7 +1417,7 @@ textarea:focus-visible {
 .shots-basis-item {
   display: grid;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
 }
 
@@ -1367,7 +1426,7 @@ textarea:focus-visible {
   border-radius: 8px;
   background: var(--card);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 4px 6px;
 }
 
@@ -1385,12 +1444,6 @@ textarea:focus-visible {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 12px;
   align-items: stretch;
-}
-
-.state-insights-title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text);
 }
 
 .state-insights-card {
@@ -1411,7 +1464,7 @@ textarea:focus-visible {
 }
 
 .state-insights-card-title {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--primary);
   letter-spacing: 0.08px;
@@ -1421,7 +1474,7 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: 1.45;
 }
@@ -1442,7 +1495,7 @@ textarea:focus-visible {
 }
 
 .state-amp-metric-label {
-  font-size: 10px;
+  font-size: var(--fs-xxs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.45px;
@@ -1451,7 +1504,7 @@ textarea:focus-visible {
 }
 
 .state-amp-metric-value {
-  font-size: 17px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text);
   line-height: 1.2;

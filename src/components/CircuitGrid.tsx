@@ -14,6 +14,7 @@ interface CircuitGridProps {
   onSelect: (id: string | null) => void;
   stepCol: number | null;
   qubitStateLabels?: string[];
+  theme?: 'light' | 'dark';
 }
 
 /* ---- Layout constants ---- */
@@ -27,7 +28,7 @@ const BOX = 34;
 const R_TGT = 11;
 
 /* ---- Gate colors [fill, stroke, text] ---- */
-const COLORS: Record<string, [string, string, string]> = {
+const LIGHT_GATE_COLORS: Record<string, [string, string, string]> = {
   H:   ['#dbeafe', '#60a5fa', '#1e40af'],
   X:   ['#fee2e2', '#f87171', '#b91c1c'],
   Y:   ['#fef9c3', '#facc15', '#854d0e'],
@@ -43,8 +44,31 @@ const COLORS: Record<string, [string, string, string]> = {
   I:   ['#f3f4f6', '#d1d5db', '#6b7280'],
   M:   ['#f1f5f9', '#64748b', '#334155'],
 };
-const DEFAULT_C: [string, string, string] = ['#f3f4f6', '#d1d5db', '#374151'];
-const gc = (g: string) => COLORS[g] ?? DEFAULT_C;
+
+const DARK_GATE_COLORS: Record<string, [string, string, string]> = {
+  H:   ['#1e3a5f', '#60a5fa', '#dbeafe'],
+  X:   ['#4c1d1d', '#f87171', '#fecaca'],
+  Y:   ['#4b3a06', '#facc15', '#fde68a'],
+  Z:   ['#312e81', '#818cf8', '#e0e7ff'],
+  S:   ['#3b1f65', '#a78bfa', '#ede9fe'],
+  T:   ['#3b1f65', '#a78bfa', '#ede9fe'],
+  Sdg: ['#3b1f65', '#a78bfa', '#ede9fe'],
+  Tdg: ['#3b1f65', '#a78bfa', '#ede9fe'],
+  Rx:  ['#0f3d34', '#34d399', '#ccfbf1'],
+  Ry:  ['#0f3d34', '#34d399', '#ccfbf1'],
+  Rz:  ['#0f3d34', '#34d399', '#ccfbf1'],
+  P:   ['#4b3a06', '#facc15', '#fde68a'],
+  I:   ['#1f2937', '#4b5563', '#d1d5db'],
+  M:   ['#1f2d3d', '#64748b', '#dbe7f5'],
+};
+
+const DEFAULT_LIGHT_GATE_COLOR: [string, string, string] = ['#f3f4f6', '#d1d5db', '#374151'];
+const DEFAULT_DARK_GATE_COLOR: [string, string, string] = ['#1f2937', '#4b5563', '#d1d5db'];
+
+const gateColorsFor = (gateName: string, isDarkTheme: boolean): [string, string, string] => {
+  if (isDarkTheme) return DARK_GATE_COLORS[gateName] ?? DEFAULT_DARK_GATE_COLOR;
+  return LIGHT_GATE_COLORS[gateName] ?? DEFAULT_LIGHT_GATE_COLOR;
+};
 
 interface DragMeta {
   gateId?: string;
@@ -72,8 +96,10 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
   onSelect,
   stepCol,
   qubitStateLabels,
+  theme = 'light',
 }) => {
   const { numQubits, numColumns, gates } = circuit;
+  const isDarkTheme = theme === 'dark';
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingGateId, setDraggingGateId] = useState<string | null>(null);
   const [dragHover, setDragHover] = useState<{ col: number; qubit: number } | null>(null);
@@ -418,11 +444,11 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const ty = qy(g.targets[0]);
         els.push(
           <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
-            <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={sw} />
-            <circle cx={x} cy={cy} r={5} fill={accent ?? '#1e40af'} />
-            <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#1e40af'} strokeWidth={sw} />
-            <line x1={x - R_TGT} y1={ty} x2={x + R_TGT} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={1.5} />
-            <line x1={x} y1={ty - R_TGT} x2={x} y2={ty + R_TGT} stroke={accent ?? '#1e40af'} strokeWidth={1.5} />
+            <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? (isDarkTheme ? '#93c5fd' : '#1e40af')} strokeWidth={sw} />
+            <circle cx={x} cy={cy} r={5} fill={accent ?? (isDarkTheme ? '#93c5fd' : '#1e40af')} />
+            <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? (isDarkTheme ? '#93c5fd' : '#1e40af')} strokeWidth={sw} />
+            <line x1={x - R_TGT} y1={ty} x2={x + R_TGT} y2={ty} stroke={accent ?? (isDarkTheme ? '#93c5fd' : '#1e40af')} strokeWidth={1.5} />
+            <line x1={x} y1={ty - R_TGT} x2={x} y2={ty + R_TGT} stroke={accent ?? (isDarkTheme ? '#93c5fd' : '#1e40af')} strokeWidth={1.5} />
           </g>,
         );
         return;
@@ -434,9 +460,9 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const ty = qy(g.targets[0]);
         els.push(
           <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
-            <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#4527a0'} strokeWidth={sw} />
-            <circle cx={x} cy={cy} r={5} fill={accent ?? '#4527a0'} />
-            <circle cx={x} cy={ty} r={5} fill={accent ?? '#4527a0'} />
+            <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? (isDarkTheme ? '#c4b5fd' : '#4527a0')} strokeWidth={sw} />
+            <circle cx={x} cy={cy} r={5} fill={accent ?? (isDarkTheme ? '#c4b5fd' : '#4527a0')} />
+            <circle cx={x} cy={ty} r={5} fill={accent ?? (isDarkTheme ? '#c4b5fd' : '#4527a0')} />
           </g>,
         );
         return;
@@ -449,11 +475,11 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const d = 7;
         els.push(
           <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
-            <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#c2410c'} strokeWidth={sw} />
-            <line x1={x - d} y1={y1 - d} x2={x + d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
-            <line x1={x + d} y1={y1 - d} x2={x - d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
-            <line x1={x - d} y1={y2 - d} x2={x + d} y2={y2 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
-            <line x1={x + d} y1={y2 - d} x2={x - d} y2={y2 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
+            <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? (isDarkTheme ? '#fdba74' : '#c2410c')} strokeWidth={sw} />
+            <line x1={x - d} y1={y1 - d} x2={x + d} y2={y1 + d} stroke={accent ?? (isDarkTheme ? '#fdba74' : '#c2410c')} strokeWidth={2.2} />
+            <line x1={x + d} y1={y1 - d} x2={x - d} y2={y1 + d} stroke={accent ?? (isDarkTheme ? '#fdba74' : '#c2410c')} strokeWidth={2.2} />
+            <line x1={x - d} y1={y2 - d} x2={x + d} y2={y2 + d} stroke={accent ?? (isDarkTheme ? '#fdba74' : '#c2410c')} strokeWidth={2.2} />
+            <line x1={x + d} y1={y2 - d} x2={x - d} y2={y2 + d} stroke={accent ?? (isDarkTheme ? '#fdba74' : '#c2410c')} strokeWidth={2.2} />
           </g>,
         );
         return;
@@ -467,11 +493,11 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const label = gateDisplayName[g.gate] ?? g.gate;
         els.push(
           <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
-            <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#0f766e'} strokeWidth={sw} />
-            <circle cx={x} cy={y1} r={4.5} fill={accent ?? '#0f766e'} />
-            <circle cx={x} cy={y2} r={4.5} fill={accent ?? '#0f766e'} />
-            <rect x={x - 13} y={mid - 10} width={26} height={20} rx={4} fill="#ecfeff" stroke={accent ?? '#0f766e'} strokeWidth={1.5} />
-            <text x={x} y={mid} textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700} fill="#115e59">{label}</text>
+            <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? (isDarkTheme ? '#5eead4' : '#0f766e')} strokeWidth={sw} />
+            <circle cx={x} cy={y1} r={4.5} fill={accent ?? (isDarkTheme ? '#5eead4' : '#0f766e')} />
+            <circle cx={x} cy={y2} r={4.5} fill={accent ?? (isDarkTheme ? '#5eead4' : '#0f766e')} />
+            <rect x={x - 13} y={mid - 10} width={26} height={20} rx={4} fill={isDarkTheme ? '#12363a' : '#ecfeff'} stroke={accent ?? (isDarkTheme ? '#5eead4' : '#0f766e')} strokeWidth={1.5} />
+            <text x={x} y={mid} textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700} fill={isDarkTheme ? '#99f6e4' : '#115e59'}>{label}</text>
           </g>,
         );
         return;
@@ -484,13 +510,13 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const ty = qy(g.targets[0]);
         els.push(
           <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
-            <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={Math.max(c1, c2)} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
-            <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={ty} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
-            <circle cx={x} cy={c1} r={5} fill={accent ?? '#5b21b6'} />
-            <circle cx={x} cy={c2} r={5} fill={accent ?? '#5b21b6'} />
-            <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
-            <line x1={x - R_TGT} y1={ty} x2={x + R_TGT} y2={ty} stroke={accent ?? '#5b21b6'} strokeWidth={1.5} />
-            <line x1={x} y1={ty - R_TGT} x2={x} y2={ty + R_TGT} stroke={accent ?? '#5b21b6'} strokeWidth={1.5} />
+            <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={Math.max(c1, c2)} stroke={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} strokeWidth={sw} />
+            <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={ty} stroke={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} strokeWidth={sw} />
+            <circle cx={x} cy={c1} r={5} fill={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} />
+            <circle cx={x} cy={c2} r={5} fill={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} />
+            <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} strokeWidth={sw} />
+            <line x1={x - R_TGT} y1={ty} x2={x + R_TGT} y2={ty} stroke={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} strokeWidth={1.5} />
+            <line x1={x} y1={ty - R_TGT} x2={x} y2={ty + R_TGT} stroke={accent ?? (isDarkTheme ? '#c4b5fd' : '#5b21b6')} strokeWidth={1.5} />
           </g>,
         );
         return;
@@ -499,7 +525,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       /* ---------- Single-qubit gates ---------- */
       const tgt = g.targets[0];
       const y = qy(tgt);
-      const [fl, st, tx] = gc(g.gate);
+      const [fl, st, tx] = gateColorsFor(g.gate, isDarkTheme);
       const label = gateDisplayName[g.gate] ?? g.gate;
       const fontSize = label.length > 2 ? 10 : 14;
 
@@ -518,7 +544,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     });
 
     return els;
-  }, [gates, onSelect, selectedId, draggingGateId, gateInteractionProps]);
+  }, [gates, onSelect, selectedId, draggingGateId, gateInteractionProps, isDarkTheme]);
 
   const dragPreview = useMemo(() => {
     if (!dragHover || !dragMeta) return null;

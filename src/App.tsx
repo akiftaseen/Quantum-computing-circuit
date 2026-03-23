@@ -46,6 +46,37 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'sim', label: 'Simulator Lab', icon: '⊕' },
 ];
 
+const TAB_SURFACE_META: Record<Tab, { title: string; subtitle: string }> = {
+  prob: {
+    title: 'State Probabilities',
+    subtitle: 'Amplitude-derived basis-state probabilities for the current circuit state.',
+  },
+  bloch: {
+    title: 'Bloch Spheres',
+    subtitle: 'Per-qubit geometric state view in Bloch-vector form.',
+  },
+  dirac: {
+    title: 'Dirac Notation',
+    subtitle: 'Ranked ket amplitudes, probabilities, and phase relationships.',
+  },
+  math: {
+    title: 'Math Lens',
+    subtitle: 'Matrix-level perspective on the composed unitary action.',
+  },
+  shots: {
+    title: 'Shot Statistics',
+    subtitle: 'Sampled measurement distributions with optional noise modeling.',
+  },
+  analysis: {
+    title: 'Analysis and State Insights',
+    subtitle: 'Entanglement, coherence, measurements, and circuit-level diagnostics.',
+  },
+  sim: {
+    title: 'Simulator Lab',
+    subtitle: 'Advanced tooling for sweeps, optimization, calibration, and experiment workflows.',
+  },
+};
+
 const isTextEntryTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
@@ -86,7 +117,7 @@ const App: React.FC = () => {
   const initialWorkspace = loadDraftWorkspace(INIT);
   const persisted = useMemo(() => loadPersistedAppState(), []);
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(initialWorkspace.activeCircuit);
-  const { mode: themeMode, cycleThemeMode } = useTheme();
+  const { mode: themeMode, theme, cycleThemeMode } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(persisted.sidebarCollapsed ?? false);
   const [stepCol, setStepCol] = useState<number | null>(persisted.stepCol ?? null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -597,6 +628,16 @@ const App: React.FC = () => {
     document.getElementById(`results-tab-${nextTab.key}`)?.focus();
   };
 
+  const renderResultsSurfaceHead = (tabKey: Tab) => {
+    const meta = TAB_SURFACE_META[tabKey];
+    return (
+      <div className="results-surface-head">
+        <h3 className="results-surface-title">{meta.title}</h3>
+        <p className="results-surface-subtitle">{meta.subtitle}</p>
+      </div>
+    );
+  };
+
   const exportAppState = () => {
     try {
       const localStorageEntries: Record<string, string> = {};
@@ -762,6 +803,7 @@ const App: React.FC = () => {
               onSelect={setSelectedId}
               stepCol={stepCol}
               qubitStateLabels={initialQubitLabels}
+              theme={theme}
             />
             {/* Stepper bar */}
             <div className="stepper-row">
@@ -968,51 +1010,65 @@ const App: React.FC = () => {
               aria-labelledby={`results-tab-${tab}`}
             >
               {tab === 'prob' && (
-                <ProbabilityChart state={simResult.state} numQubits={circuit.numQubits} />
+                <section className="results-tab-surface results-tab-surface-prob">
+                  {renderResultsSurfaceHead('prob')}
+                  <ProbabilityChart state={simResult.state} numQubits={circuit.numQubits} />
+                </section>
               )}
 
               {tab === 'bloch' && (
-                <Suspense fallback={<p className="empty-msg">Loading Bloch view...</p>}>
-                  <div className="bloch-grid">
-                    {blochVectors.map((v, i) => (
-                      <BlochSphere key={i} vector={v} label={`q${i}`} />
-                    ))}
-                  </div>
-                </Suspense>
+                <section className="results-tab-surface results-tab-surface-bloch">
+                  {renderResultsSurfaceHead('bloch')}
+                  <Suspense fallback={<p className="empty-msg">Loading Bloch view...</p>}>
+                    <div className="bloch-grid">
+                      {blochVectors.map((v, i) => (
+                        <BlochSphere key={i} vector={v} label={`q${i}`} />
+                      ))}
+                    </div>
+                  </Suspense>
+                </section>
               )}
 
               {tab === 'dirac' && (
-                <Suspense fallback={<p className="empty-msg">Loading Dirac view...</p>}>
-                  <DiracNotation state={simResult.state} numQubits={circuit.numQubits} />
-                </Suspense>
+                <section className="results-tab-surface results-tab-surface-dirac">
+                  {renderResultsSurfaceHead('dirac')}
+                  <Suspense fallback={<p className="empty-msg">Loading Dirac view...</p>}>
+                    <DiracNotation state={simResult.state} numQubits={circuit.numQubits} />
+                  </Suspense>
+                </section>
               )}
 
               {tab === 'math' && (
-                <div className="math-panel">
-                  {unitaryMatrix ? (
-                    <div>
-                      <h4>Overall Unitary ({1 << circuit.numQubits}×{1 << circuit.numQubits})</h4>
-                      <div className="matrix-wrap">
-                        <table className="matrix-table">
-                          <tbody>
-                            {unitaryMatrix.map((row, i) => (
-                              <tr key={i}>
-                                {row.map((z, j) => (
-                                  <td key={j} className="mat-cell">{formatComplex(z, 3)}</td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                <section className="results-tab-surface results-tab-surface-math">
+                  {renderResultsSurfaceHead('math')}
+                  <div className="math-panel">
+                    {unitaryMatrix ? (
+                      <div>
+                        <h4>Overall Unitary ({1 << circuit.numQubits}×{1 << circuit.numQubits})</h4>
+                        <div className="matrix-wrap">
+                          <table className="matrix-table">
+                            <tbody>
+                              {unitaryMatrix.map((row, i) => (
+                                <tr key={i}>
+                                  {row.map((z, j) => (
+                                    <td key={j} className="mat-cell">{formatComplex(z, 3)}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <p className="empty-msg">Unable to compute unitary for this circuit configuration.</p>
-                  )}
-                </div>
+                    ) : (
+                      <p className="empty-msg">Unable to compute unitary for this circuit configuration.</p>
+                    )}
+                  </div>
+                </section>
               )}
 
               {tab === 'shots' && (
+                <section className="results-tab-surface results-tab-surface-shots">
+                {renderResultsSurfaceHead('shots')}
                 <div className="shots-panel">
                   <div className="shots-header-row">
                     <p className="shots-subtitle">
@@ -1222,9 +1278,12 @@ const App: React.FC = () => {
                     </div>
                   )}
                 </div>
+                </section>
               )}
 
               {tab === 'analysis' && (
+                <section className="results-tab-surface results-tab-surface-analysis">
+                {renderResultsSurfaceHead('analysis')}
                 <div className="analysis-tab-wrap">
                   <Suspense fallback={<p className="empty-msg">Loading state insights...</p>}>
                     <QuantumStateInsightsPanel
@@ -1255,30 +1314,34 @@ const App: React.FC = () => {
                     />
                   </Suspense>
                 </div>
+                </section>
               )}
 
               {tab === 'sim' && (
-                <Suspense fallback={<p className="empty-msg">Loading simulator lab...</p>}>
-                  <SimulatorLabPanel
-                    state={simResult.state}
-                    numQubits={circuit.numQubits}
-                    circuit={circuit}
-                    initialState={initialState}
-                    noise={noise}
-                    numShots={numShots}
-                    shotsBasisAxes={shotsBasisAxes}
-                    symbolBindings={symbolBindings}
-                    onSetSymbolBindings={setSymbolBindings}
-                    onApplyShotsConfig={(config) => {
-                      setNumShots(config.numShots);
-                      setNoise(config.noise);
-                      setShotsBasisAxes(config.shotsBasisAxes);
-                    }}
-                    onApplyMacroCircuit={applyMacroCircuit}
-                    onApplyStatevectorExpression={applyStatevectorExpression}
-                    onApplyQubitExpressions={applyQubitExpressions}
-                  />
-                </Suspense>
+                <section className="results-tab-surface results-tab-surface-sim">
+                  {renderResultsSurfaceHead('sim')}
+                  <Suspense fallback={<p className="empty-msg">Loading simulator lab...</p>}>
+                    <SimulatorLabPanel
+                      state={simResult.state}
+                      numQubits={circuit.numQubits}
+                      circuit={circuit}
+                      initialState={initialState}
+                      noise={noise}
+                      numShots={numShots}
+                      shotsBasisAxes={shotsBasisAxes}
+                      symbolBindings={symbolBindings}
+                      onSetSymbolBindings={setSymbolBindings}
+                      onApplyShotsConfig={(config) => {
+                        setNumShots(config.numShots);
+                        setNoise(config.noise);
+                        setShotsBasisAxes(config.shotsBasisAxes);
+                      }}
+                      onApplyMacroCircuit={applyMacroCircuit}
+                      onApplyStatevectorExpression={applyStatevectorExpression}
+                      onApplyQubitExpressions={applyQubitExpressions}
+                    />
+                  </Suspense>
+                </section>
               )}
 
             </div>

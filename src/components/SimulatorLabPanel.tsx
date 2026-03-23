@@ -1225,7 +1225,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
   return (
     <div className="sim-lab-panel" ref={panelRef}>
-      <h4 className="sim-lab-title">Simulator Lab</h4>
       <div className="sim-lab-feature-nav">
         <input
           type="search"

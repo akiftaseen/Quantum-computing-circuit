@@ -134,8 +134,6 @@ const QuantumStateInsightsPanel: React.FC<Props> = ({
 
   return (
     <div className="state-insights-panel">
-      <h4 className="state-insights-title">State Insights</h4>
-
       <div className="state-insights-grid">
 
       <section className="state-insights-card state-insights-card-wide">
