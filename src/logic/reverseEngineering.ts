@@ -38,7 +38,7 @@ const suggestFromState = (state: Complex[], numQubits: number): ReverseEngineeri
     const bits = top.toString(2).padStart(numQubits, '0');
     const lines: string[] = [];
     for (let q = 0; q < numQubits; q += 1) {
-      if (bits[q] === '1') lines.push(`X(${q})`);
+      if (((top >> q) & 1) === 1) lines.push(`X(${q})`);
     }
     return {
       valid: true,

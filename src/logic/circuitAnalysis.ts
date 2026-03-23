@@ -38,10 +38,9 @@ export const analyzeCircuit = (circuit: CircuitState): CircuitMetrics => {
   });
 
   const totalGates = circuit.gates.filter(g => g.gate !== 'Barrier').length;
-  const estimatedQubits = Math.max(
-    circuit.numQubits,
-    ...circuit.gates.flatMap(g => [...g.targets, ...g.controls])
-  ) + 1;
+  const referencedQubits = circuit.gates.flatMap((g) => [...g.targets, ...g.controls]);
+  const highestReferenced = referencedQubits.length > 0 ? Math.max(...referencedQubits) : -1;
+  const estimatedQubits = Math.max(circuit.numQubits, highestReferenced + 1);
 
   return {
     totalGates,

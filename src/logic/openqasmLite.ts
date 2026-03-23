@@ -67,7 +67,7 @@ export const parseOpenQasmLite = (source: string, fallbackQubits = 2): { valid: 
     if (m) { macroLines.push(`CZ(${parseIndex(m[2])},${parseIndex(m[4])})`); continue; }
 
     m = clean.match(new RegExp(`^cp\\(([^)]+)\\)\\s+${q}\\s*,\\s*${q}$`, 'i'));
-    if (m) { macroLines.push(`P(${parseIndex(m[4])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`P(${parseIndex(m[5])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^swap\\s+${q}\\s*,\\s*${q}$`, 'i'));
     if (m) { macroLines.push(`SWAP(${parseIndex(m[2])},${parseIndex(m[4])})`); continue; }
@@ -79,30 +79,30 @@ export const parseOpenQasmLite = (source: string, fallbackQubits = 2): { valid: 
     }
 
     m = clean.match(new RegExp(`^rxx\\(([^)]+)\\)\\s+${q}\\s*,\\s*${q}$`, 'i'));
-    if (m) { macroLines.push(`XX(${parseIndex(m[2])},${parseIndex(m[4])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`XX(${parseIndex(m[3])},${parseIndex(m[5])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^ryy\\(([^)]+)\\)\\s+${q}\\s*,\\s*${q}$`, 'i'));
-    if (m) { macroLines.push(`YY(${parseIndex(m[2])},${parseIndex(m[4])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`YY(${parseIndex(m[3])},${parseIndex(m[5])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^rzz\\(([^)]+)\\)\\s+${q}\\s*,\\s*${q}$`, 'i'));
-    if (m) { macroLines.push(`ZZ(${parseIndex(m[2])},${parseIndex(m[4])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`ZZ(${parseIndex(m[3])},${parseIndex(m[5])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^rx\\(([^)]+)\\)\\s+${q}$`, 'i'));
-    if (m) { macroLines.push(`Rx(${parseIndex(m[2])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`Rx(${parseIndex(m[3])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^ry\\(([^)]+)\\)\\s+${q}$`, 'i'));
-    if (m) { macroLines.push(`Ry(${parseIndex(m[2])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`Ry(${parseIndex(m[3])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^rz\\(([^)]+)\\)\\s+${q}$`, 'i'));
-    if (m) { macroLines.push(`Rz(${parseIndex(m[2])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`Rz(${parseIndex(m[3])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^p\\(([^)]+)\\)\\s+${q}$`, 'i'));
-    if (m) { macroLines.push(`P(${parseIndex(m[2])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`P(${parseIndex(m[3])},${angleToMacro(m[1])})`); continue; }
 
     // OpenQASM 2.0 U3(theta,phi,lambda) decomposition
     m = clean.match(new RegExp(`^u3?\\(([^,]+),([^,]+),([^)]+)\\)\\s+${q}$`, 'i'));
     if (m) {
-      const qi = parseIndex(m[4]);
+      const qi = parseIndex(m[5]);
       macroLines.push(`Rz(${qi},${angleToMacro(m[3])})`);
       macroLines.push(`Ry(${qi},${angleToMacro(m[1])})`);
       macroLines.push(`Rz(${qi},${angleToMacro(m[2])})`);
@@ -111,7 +111,7 @@ export const parseOpenQasmLite = (source: string, fallbackQubits = 2): { valid: 
 
     m = clean.match(new RegExp(`^u2\\(([^,]+),([^)]+)\\)\\s+${q}$`, 'i'));
     if (m) {
-      const qi = parseIndex(m[3]);
+      const qi = parseIndex(m[4]);
       macroLines.push(`Rz(${qi},${angleToMacro(m[2])})`);
       macroLines.push(`Ry(${qi},pi/2)`);
       macroLines.push(`Rz(${qi},${angleToMacro(m[1])})`);
@@ -119,11 +119,11 @@ export const parseOpenQasmLite = (source: string, fallbackQubits = 2): { valid: 
     }
 
     m = clean.match(new RegExp(`^u1\\(([^)]+)\\)\\s+${q}$`, 'i'));
-    if (m) { macroLines.push(`P(${parseIndex(m[2])},${angleToMacro(m[1])})`); continue; }
+    if (m) { macroLines.push(`P(${parseIndex(m[3])},${angleToMacro(m[1])})`); continue; }
 
     m = clean.match(new RegExp(`^measure\\s+${q}\\s*->\\s*([A-Za-z_][A-Za-z0-9_]*)\\[(\\d+)\\]$`, 'i'));
     if (m) {
-      macroLines.push(`// measure ${m[1]}[${m[2]}] -> ${m[3]}[${m[4]}] ignored in lite mode`);
+      // Measurements are intentionally ignored in lite mode.
       continue;
     }
 
