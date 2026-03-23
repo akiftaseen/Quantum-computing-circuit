@@ -1,6 +1,7 @@
 /* ===================== Theme Variables ===================== */
 :root {
   --bg: #f4f6f8;
+  --bg-elev: #edf2f7;
   --card: #ffffff;
   --text: #0f172a;
   --text-2: #475569;
@@ -21,6 +22,7 @@
 /* ---- Dark theme ---- */
 [data-theme='dark'] {
   --bg: #06111d;
+  --bg-elev: #13263a;
   --card: #0d1a29;
   --text: #e6f0fb;
   --text-2: #9cb3c9;
@@ -2307,70 +2309,125 @@ textarea:focus-visible {
 
 /* ---- Simulator Lab ---- */
 .sim-lab-panel {
+  --lab-surface: color-mix(in srgb, var(--bg) 84%, var(--card));
+  --lab-surface-strong: color-mix(in srgb, var(--bg-elev) 68%, var(--card));
+  --lab-border-soft: color-mix(in srgb, var(--border) 86%, transparent);
+  --lab-border-strong: color-mix(in srgb, var(--primary) 28%, var(--border));
+  --lab-shadow-card: 0 10px 24px rgba(15, 23, 42, 0.06);
+  --lab-shadow-hover: 0 14px 28px rgba(15, 23, 42, 0.1);
+  --lab-focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+  --lab-radius-card: 14px;
+  --lab-radius-control: 10px;
+  --lab-gap-card: 12px;
+  --lab-accent-ok: #15803d;
+  --lab-accent-warn: #b45309;
+  --lab-accent-danger: #b91c1c;
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .sim-lab-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
   color: var(--text);
 }
 
 .sim-lab-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows: 8px;
+  grid-auto-flow: dense;
+  gap: 14px;
+  align-items: start;
 }
 
 .sim-lab-feature-nav {
   display: grid;
-  grid-template-columns: auto minmax(220px, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
   align-items: center;
 }
 
-.sim-lab-mode-switch {
+.sim-lab-feature-actions {
   display: inline-flex;
-  gap: 6px;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sim-lab-toggle-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+  user-select: none;
+}
+
+.sim-lab-toggle-inline input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
 }
 
 .sim-lab-feature-nav input {
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--card);
+  border-radius: var(--lab-radius-control);
+  border: 1px solid var(--lab-border-soft);
+  background: var(--lab-surface-strong);
   color: var(--text);
-  padding: 7px 10px;
+  padding: 9px 11px;
   font-size: 12px;
+  line-height: 1.35;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.sim-lab-feature-nav input:focus-visible {
+  border-color: var(--lab-border-strong);
+  box-shadow: var(--lab-focus-ring);
+  outline: none;
 }
 
 .sim-lab-feature-count {
   font-size: 12px;
   color: var(--text-2);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .sim-lab-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid var(--lab-border-soft);
+  border-radius: var(--lab-radius-card);
   background: var(--card);
-  padding: 12px;
+  box-shadow: var(--lab-shadow-card);
+  padding: 13px;
   display: grid;
-  gap: 10px;
+  gap: var(--lab-gap-card);
   align-content: start;
+  min-width: 0;
+  grid-row-end: span var(--sim-lab-row-span, 1);
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.sim-lab-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  box-shadow: var(--lab-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .sim-lab-card-is-pinned {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent),
+    var(--lab-shadow-card);
 }
 
 .sim-lab-card-title {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.2px;
   color: var(--text);
 }
@@ -2382,15 +2439,23 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.sim-lab-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .sim-lab-pin-btn {
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   border-radius: 999px;
-  background: var(--bg);
+  background: var(--lab-surface-strong);
   color: var(--text-2);
-  padding: 2px 8px;
+  padding: 3px 9px;
   font-size: 10px;
   font-weight: 700;
   cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
 }
 
 .sim-lab-pin-btn:hover {
@@ -2400,33 +2465,130 @@ textarea:focus-visible {
 
 .sim-lab-pin-btn.is-pinned {
   color: var(--primary);
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--border));
   background: color-mix(in srgb, var(--primary-bg) 64%, var(--card));
 }
 
 .sim-lab-note {
   margin: 0;
   font-size: 12px;
+  line-height: 1.45;
   color: var(--text-2);
 }
 
-.sim-lab-textarea {
-  width: 100%;
-  min-height: 100px;
-  resize: vertical;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  padding: 8px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+.sim-lab-status {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lab-border-soft);
+  background: var(--lab-surface-strong);
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text-2);
 }
 
-.sim-lab-textarea:focus {
+.sim-lab-status.success {
+  border-color: color-mix(in srgb, var(--lab-accent-ok) 35%, var(--lab-border-soft));
+  background: color-mix(in srgb, var(--lab-accent-ok) 12%, var(--card));
+  color: color-mix(in srgb, var(--lab-accent-ok) 78%, var(--text));
+}
+
+.sim-lab-status.error {
+  border-color: color-mix(in srgb, var(--lab-accent-danger) 34%, var(--lab-border-soft));
+  background: color-mix(in srgb, var(--lab-accent-danger) 12%, var(--card));
+  color: color-mix(in srgb, var(--lab-accent-danger) 78%, var(--text));
+}
+
+.sim-lab-status.neutral {
+  border-color: color-mix(in srgb, var(--lab-accent-warn) 30%, var(--lab-border-soft));
+  background: color-mix(in srgb, var(--lab-accent-warn) 10%, var(--card));
+  color: color-mix(in srgb, var(--lab-accent-warn) 72%, var(--text));
+}
+
+.sim-lab-card label {
+  display: grid;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.sim-lab-card input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']),
+.sim-lab-card select,
+.sim-lab-card textarea {
+  width: 100%;
+  border-radius: var(--lab-radius-control);
+  border: 1px solid var(--lab-border-soft);
+  background: var(--lab-surface);
+  color: var(--text);
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.35;
+  min-height: 34px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.sim-lab-card textarea {
+  min-height: 100px;
+  resize: vertical;
+  font-family: var(--font-mono);
+}
+
+.sim-lab-card input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']):focus-visible,
+.sim-lab-card select:focus-visible,
+.sim-lab-card textarea:focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  border-color: var(--lab-border-strong);
+  box-shadow: var(--lab-focus-ring);
+}
+
+.sim-lab-textarea {
+  min-height: 100px;
+}
+
+.sim-lab-card button:not(.sim-lab-pin-btn),
+.sim-lab-panel .btn {
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary-bg) 70%, var(--card));
+  color: color-mix(in srgb, var(--primary) 84%, var(--text));
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 11px;
+  height: 34px;
+  min-height: 34px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.sim-sweep-controls > .btn {
+  align-self: end;
+}
+
+.sim-lab-card button:not(.sim-lab-pin-btn):hover,
+.sim-lab-panel .btn:hover {
+  background: color-mix(in srgb, var(--primary-bg) 84%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--border));
+}
+
+.sim-lab-card button:not(.sim-lab-pin-btn):disabled,
+.sim-lab-panel .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: saturate(0.75);
+  border-color: var(--lab-border-soft);
+  background: var(--lab-surface);
+  color: var(--text-3);
 }
 
 .sim-lab-chips {
@@ -2437,17 +2599,18 @@ textarea:focus-visible {
 
 .sim-lab-chip {
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
   background: color-mix(in srgb, var(--primary-bg) 76%, var(--card));
   color: var(--primary);
   font-size: 11px;
   font-weight: 700;
   padding: 5px 10px;
   cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .sim-lab-chip:hover {
-  background: #fff;
+  background: color-mix(in srgb, var(--card) 82%, #ffffff);
   color: var(--text);
 }
 
@@ -2458,9 +2621,10 @@ textarea:focus-visible {
 }
 
 .sim-lab-results-wrap {
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   border-radius: 10px;
   overflow: hidden;
+  background: var(--lab-surface-strong);
 }
 
 .sim-lab-results-head,
@@ -2474,16 +2638,17 @@ textarea:focus-visible {
 }
 
 .sim-lab-results-head {
-  background: color-mix(in srgb, var(--bg) 70%, var(--card));
+  background: color-mix(in srgb, var(--bg-elev) 70%, var(--card));
   color: var(--text-2);
   font-weight: 700;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--lab-border-soft);
 }
 
 .sim-lab-row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--lab-border-soft);
   font-family: var(--font-mono);
   color: var(--text);
+  background: var(--card);
 }
 
 .sim-lab-row:last-child {
@@ -2491,14 +2656,14 @@ textarea:focus-visible {
 }
 
 .sim-lab-row.invalid {
-  background: color-mix(in srgb, #ef4444 10%, var(--card));
-  color: color-mix(in srgb, #b91c1c 75%, var(--text));
+  background: color-mix(in srgb, #ef4444 12%, var(--card));
+  color: color-mix(in srgb, var(--lab-accent-danger) 74%, var(--text));
 }
 
 .sim-lab-error-note {
   margin: 0;
   font-size: 11px;
-  color: color-mix(in srgb, #b91c1c 80%, var(--text));
+  color: color-mix(in srgb, var(--lab-accent-danger) 78%, var(--text));
 }
 
 .sim-basis-grid {
@@ -2515,12 +2680,7 @@ textarea:focus-visible {
 }
 
 .sim-basis-item select {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-  padding: 4px 6px;
+  min-height: 32px;
 }
 
 .sim-lab-inline-metrics {
@@ -2529,6 +2689,7 @@ textarea:focus-visible {
   gap: 12px;
   font-size: 12px;
   color: var(--text-2);
+  align-items: center;
 }
 
 .sim-wizard-grid {
@@ -2538,9 +2699,9 @@ textarea:focus-visible {
 }
 
 .sim-wizard-item {
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--bg) 75%, var(--card));
+  background: var(--lab-surface-strong);
   padding: 8px;
   display: grid;
   gap: 6px;
@@ -2554,7 +2715,6 @@ textarea:focus-visible {
 }
 
 .sim-wizard-item label {
-  display: grid;
   gap: 4px;
 }
 
@@ -2569,35 +2729,24 @@ textarea:focus-visible {
 }
 
 .sim-sweep-controls label {
-  display: grid;
   gap: 4px;
   font-size: 11px;
   color: var(--text-2);
 }
 
-.sim-sweep-controls input,
-.sim-sweep-controls select {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  padding: 5px 7px;
-  font-size: 12px;
-}
-
 .sim-sweep-chart {
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   border-radius: 10px;
   padding: 6px;
-  background: color-mix(in srgb, var(--bg) 78%, var(--card));
+  background: var(--lab-surface-strong);
 }
 
 .sim-lab-pre {
   margin: 0;
   padding: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--bg) 76%, var(--card));
+  background: var(--lab-surface-strong);
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -2617,21 +2766,7 @@ textarea:focus-visible {
 }
 
 .sim-symbol-row input {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  padding: 5px 7px;
-  font-size: 12px;
-}
-
-.sim-algo-box {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px;
-  background: color-mix(in srgb, var(--bg) 82%, var(--card));
-  display: grid;
-  gap: 8px;
+  min-height: 34px;
 }
 
 .sim-heatmap-wrap {
@@ -2656,12 +2791,7 @@ textarea:focus-visible {
 }
 
 .sim-heatmap-controls select {
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg);
-  color: var(--text);
-  padding: 4px 6px;
-  font-size: 12px;
+  min-height: 30px;
 }
 
 .sim-heatmap-legend {
@@ -2676,7 +2806,7 @@ textarea:focus-visible {
   width: 120px;
   height: 8px;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
 }
 
 .sim-heatmap-legend.magnitude .sim-heatmap-legend-bar {
@@ -2727,7 +2857,7 @@ textarea:focus-visible {
 }
 
 .sim-ent-cell {
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   border-radius: 8px;
   min-height: 34px;
   display: grid;
@@ -2735,7 +2865,7 @@ textarea:focus-visible {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text);
-  background: color-mix(in srgb, var(--bg) 78%, var(--card));
+  background: var(--lab-surface-strong);
 }
 
 .sim-ent-cell.diag {
@@ -2747,9 +2877,9 @@ textarea:focus-visible {
   width: 100%;
   height: 10px;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--lab-border-soft);
   overflow: hidden;
-  background: color-mix(in srgb, var(--bg) 80%, var(--card));
+  background: var(--lab-surface-strong);
 }
 
 .sim-progress-bar {
@@ -2759,7 +2889,35 @@ textarea:focus-visible {
 }
 
 [data-theme='dark'] .sim-lab-chip:hover {
-  background: color-mix(in srgb, var(--bg-elev) 80%, #ffffff 20%);
+  background: color-mix(in srgb, var(--bg-elev) 88%, #ffffff 12%);
+}
+
+@media (max-width: 860px) {
+  .sim-lab-feature-nav {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .sim-lab-feature-actions {
+    justify-content: flex-start;
+  }
+
+  .sim-lab-feature-count {
+    white-space: normal;
+  }
+
+  .sim-sweep-controls,
+  .sim-wizard-grid,
+  .sim-symbol-row,
+  .sim-heatmap-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-lab-results-head,
+  .sim-lab-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 3px;
+  }
 }
 
 /* ===================== Gate Palette ===================== */

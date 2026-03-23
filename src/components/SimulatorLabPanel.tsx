@@ -23,7 +23,6 @@ import type { NoiseConfig } from '../logic/noiseModel';
 import type { MeasurementBasisAxis } from '../logic/measurementBasis';
 import { applySymbolBindings, type SymbolBinding } from '../logic/symbolBindings';
 import { optimizeSingleParameter } from '../logic/parameterOptimizer';
-import { ASSIGNMENTS, evaluateAssignment } from '../logic/classroomMode';
 import { histogramToProbArray, klDivergence, stateFidelity, traceDistanceApprox } from '../logic/stateMetrics';
 import { findCorrelatedQubitPairs } from '../logic/entanglementAnalysis';
 import { fitNoiseModelFromHistogram, parseHistogramText, type CalibrationResult } from '../logic/noiseCalibration';
@@ -102,27 +101,6 @@ const compareUnitaryUpToGlobalPhase = (a: Complex[][], b: Complex[][]): { equal:
   return { equal: maxDelta < 1e-6, maxDelta };
 };
 
-const ALGORITHMS: Array<{ name: string; summary: string; macro: string; steps: string[] }> = [
-  {
-    name: 'Bell Pair',
-    summary: 'Create a maximally entangled 2-qubit state.',
-    macro: 'H(0);\nCNOT(0,1)',
-    steps: ['Apply H on q0', 'Entangle q1 using CNOT(0,1)', 'Expect 50/50 on |00⟩ and |11⟩'],
-  },
-  {
-    name: 'GHZ (3 qubits)',
-    summary: 'Generate long-range entanglement.',
-    macro: 'H(0);\nCNOT(0,1);\nCNOT(1,2)',
-    steps: ['Create superposition on q0', 'Spread entanglement to q1', 'Spread entanglement to q2'],
-  },
-  {
-    name: 'QFT-lite (3 qubits)',
-    summary: 'Approximate QFT sequence for education.',
-    macro: 'H(0);\nCNOT(0,1);\nRz(1,pi/2);\nCNOT(0,1);\nH(1);\nCNOT(1,2);\nRz(2,pi/2);\nCNOT(1,2);\nH(2)',
-    steps: ['Apply layered Hadamards', 'Inject controlled phases', 'Observe basis redistribution'],
-  },
-];
-
 const FEATURE_RELATED_TERMS: Record<string, string[]> = {
   'Results Compare Tray': ['compare', 'raw', 'noisy', 'mitigated', 'delta'],
   'Symbolic Parameters': ['variables', 'symbols', 'constants', 'expressions'],
@@ -142,7 +120,6 @@ const FEATURE_RELATED_TERMS: Record<string, string[]> = {
   'Fidelity and Distance Metrics': ['trace distance', 'fidelity', 'kl', 'tv distance'],
   'Stabilizer Fast Path': ['clifford', 'stabilizer', 'fast simulation'],
   'Session and Project Save Packs': ['save', 'load', 'packs', 'project state'],
-  'Classroom and Assignment Mode': ['rubric', 'grading', 'education', 'assignment'],
   'Observable Expectations': ['pauli', 'expectation value', 'operators', 'measurements'],
   'State Preparation Wizard (Rz(phi)Ry(theta)|0⟩)': ['initial state', 'theta', 'phi', 'bloch sphere'],
   'Initial-State Template Library': ['templates', 'ghz', 'bell', 'w state', 'haar'],
@@ -152,7 +129,6 @@ const FEATURE_RELATED_TERMS: Record<string, string[]> = {
   'Circuit Profiler': ['runtime', 'performance', 'cost', 'profiling'],
   'Circuit Expression Macros': ['macro language', 'dsl', 'repeat syntax'],
   'Circuit Equivalence Checker': ['equivalent', 'global phase', 'compare circuits'],
-  'Algorithm Gallery Walkthrough': ['guided', 'tutorial', 'bell', 'ghz', 'qft'],
   'Reverse Engineering Assistant': ['state prep suggestion', 'inverse', 'derive circuit'],
   'Export and Import Tools': ['json', 'qasm', 'download', 'upload'],
   'Multi-Run Experiment Manager': ['compare runs', 'experiment history', 'saved runs'],
@@ -194,7 +170,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [compareBasis, setCompareBasis] = useState(() => '0'.repeat(numQubits));
   const [importExpr, setImportExpr] = useState('');
   const [importMessage, setImportMessage] = useState('');
-  const [activeAlgorithm, setActiveAlgorithm] = useState(ALGORITHMS[0]?.name ?? '');
   const [tomoQubit, setTomoQubit] = useState('0');
   const [tomoPair, setTomoPair] = useState('0,1');
   const [tomoShots, setTomoShots] = useState('1024');
@@ -217,6 +192,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [randomDepth, setRandomDepth] = useState('18');
   const [randomSeed, setRandomSeed] = useState('7');
   const [qasmPreview, setQasmPreview] = useState('');
+  const [qasmCopyMessage, setQasmCopyMessage] = useState('');
   const [qasmInteropMessage, setQasmInteropMessage] = useState('');
   const [qasmInteropSuggestions, setQasmInteropSuggestions] = useState<string[]>([]);
   const [optimizerGateId, setOptimizerGateId] = useState('');
@@ -247,9 +223,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
   });
   const [savePackNotes, setSavePackNotes] = useState('');
   const [selectedPackId, setSelectedPackId] = useState('');
-  const [assignmentId, setAssignmentId] = useState(ASSIGNMENTS[0]?.id ?? '');
-  const [assignmentFeedback, setAssignmentFeedback] = useState('');
-  const [assignmentScore, setAssignmentScore] = useState<number | null>(null);
   const [profilerLimit, setProfilerLimit] = useState('40');
   const [experimentName, setExperimentName] = useState('experiment-1');
   const [savedExperiments, setSavedExperiments] = useState<Array<{
@@ -295,6 +268,16 @@ const SimulatorLabPanel: React.FC<Props> = ({
       return [];
     }
   });
+  const [pinnedOnly, setPinnedOnly] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('qc-sim-lab-ui-v1');
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as Partial<{ pinnedOnly: boolean }>;
+      return parsed.pinnedOnly === true;
+    } catch {
+      return false;
+    }
+  });
   const [mitigationShots, setMitigationShots] = useState('2048');
   const [mitigationBasisBits, setMitigationBasisBits] = useState(() => '0'.repeat(numQubits));
   const [mitigationReadoutError, setMitigationReadoutError] = useState('');
@@ -307,17 +290,19 @@ const SimulatorLabPanel: React.FC<Props> = ({
   }>(null);
   const observableInputRef = useRef<HTMLTextAreaElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
       localStorage.setItem('qc-sim-lab-ui-v1', JSON.stringify({
         featureQuery,
         pinnedTools,
+        pinnedOnly,
       }));
     } catch {
       // Ignore localStorage write failures.
     }
-  }, [featureQuery, pinnedTools]);
+  }, [featureQuery, pinnedOnly, pinnedTools]);
 
   useEffect(() => {
     try {
@@ -336,6 +321,29 @@ const SimulatorLabPanel: React.FC<Props> = ({
   }, [savedPacks]);
 
   const parametricGates = useMemo(() => circuit.gates.filter((g) => isParametric(g.gate)), [circuit.gates]);
+  const normalizeBitString = useCallback((raw: string) => (
+    raw.replace(/[^01]/g, '').padEnd(numQubits, '0').slice(0, numQubits)
+  ), [numQubits]);
+  const normalizeMeasurementAxes = useCallback((axes: MeasurementBasisAxis[]) => (
+    Array.from({ length: numQubits }, (_, i) => axes[i] ?? 'Z')
+  ), [numQubits]);
+  const basisAxesView = useMemo<BasisAxis[]>(
+    () => Array.from({ length: numQubits }, (_, i) => basisAxes[i] ?? 'Z'),
+    [basisAxes, numQubits],
+  );
+  const wizardThetaView = useMemo<number[]>(
+    () => Array.from({ length: numQubits }, (_, i) => wizardTheta[i] ?? Math.PI / 2),
+    [wizardTheta, numQubits],
+  );
+  const wizardPhiView = useMemo<number[]>(
+    () => Array.from({ length: numQubits }, (_, i) => wizardPhi[i] ?? 0),
+    [wizardPhi, numQubits],
+  );
+  const sweepBasisView = useMemo(() => normalizeBitString(sweepBasis), [normalizeBitString, sweepBasis]);
+  const compareBasisView = useMemo(() => normalizeBitString(compareBasis), [compareBasis, normalizeBitString]);
+  const noiseSweepBasisView = useMemo(() => normalizeBitString(noiseSweepBasis), [noiseSweepBasis, normalizeBitString]);
+  const mitigationBasisBitsView = useMemo(() => normalizeBitString(mitigationBasisBits), [mitigationBasisBits, normalizeBitString]);
+  const optimizerBasisView = useMemo(() => normalizeBitString(optimizerBasis), [optimizerBasis, normalizeBitString]);
   const effectiveOptimizerGateId = useMemo(() => {
     if (parametricGates.length === 0) return '';
     if (parametricGates.some((g) => g.id === optimizerGateId)) return optimizerGateId;
@@ -401,8 +409,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
   );
 
   const basisDist = useMemo(
-    () => computeBasisDistribution(state, numQubits, basisAxes),
-    [state, numQubits, basisAxes],
+    () => computeBasisDistribution(state, numQubits, basisAxesView),
+    [state, numQubits, basisAxesView],
   );
 
   const topOutcomes = basisDist.slice(0, 8);
@@ -458,7 +466,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     const start = parseAngle(applySymbolBindings(sweepStart, symbolBindings), 0);
     const end = parseAngle(applySymbolBindings(sweepEnd, symbolBindings), Math.PI);
     const steps = Math.max(2, Math.min(200, Math.round(Number(sweepSteps) || 16)));
-    const basisIndex = Number.parseInt(sweepBasis || '0', 2);
+    const basisIndex = Number.parseInt(sweepBasisView || '0', 2);
     const safeBasisIndex = Number.isFinite(basisIndex) ? basisIndex : 0;
 
     const data: Array<{ theta: number; value: number }> = [];
@@ -492,7 +500,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     initialState,
     numQubits,
     parametricGates,
-    sweepBasis,
+    sweepBasisView,
     sweepEnd,
     effectiveSweepGateId,
     sweepMetric,
@@ -553,12 +561,31 @@ const SimulatorLabPanel: React.FC<Props> = ({
     };
   }, [distributionMetrics.ideal, distributionMetrics.kl, distributionMetrics.l1, distributionMetrics.noisy, mitigationSummary?.delta, numShots]);
 
+  const applyMasonryRowSpans = useCallback(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const style = getComputedStyle(grid);
+    const rowHeight = Number.parseFloat(style.getPropertyValue('grid-auto-rows')) || 8;
+    const rowGap = Number.parseFloat(style.getPropertyValue('row-gap')) || 14;
+    const cards = Array.from(grid.querySelectorAll('.sim-lab-card:not(.sim-lab-card-system)')) as HTMLElement[];
+
+    cards.forEach((card) => {
+      if (card.style.display === 'none') {
+        card.style.removeProperty('--sim-lab-row-span');
+        return;
+      }
+      const cardHeight = card.getBoundingClientRect().height;
+      const span = Math.max(1, Math.ceil((cardHeight + rowGap) / (rowHeight + rowGap)));
+      card.style.setProperty('--sim-lab-row-span', String(span));
+    });
+  }, []);
+
 
   useEffect(() => {
     const q = featureQuery.trim().toLowerCase();
     const queryTokens = q.split(/\s+/).filter(Boolean);
     const cards = panelRef.current
-      ? Array.from(panelRef.current.querySelectorAll('.sim-lab-card')) as HTMLElement[]
+      ? Array.from(panelRef.current.querySelectorAll('.sim-lab-card:not(.sim-lab-card-system)')) as HTMLElement[]
       : [];
     let visible = 0;
 
@@ -573,7 +600,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
       const relatedTerms = (FEATURE_RELATED_TERMS[title] ?? []).join(' ').toLowerCase();
       const searchableText = `${title.toLowerCase()} ${noteText} ${relatedTerms}`;
       const allowedBySearch = queryTokens.length === 0 || queryTokens.every((token) => searchableText.includes(token));
-      const show = allowedBySearch;
+      const allowedByPinned = !pinnedOnly || pinnedTools.includes(title);
+      const show = allowedBySearch && allowedByPinned;
       card.style.display = show ? '' : 'none';
       card.style.order = pinnedTools.includes(title) ? '-1' : '0';
       card.classList.toggle('sim-lab-card-is-pinned', pinnedTools.includes(title));
@@ -582,6 +610,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
     const rafId = requestAnimationFrame(() => {
       setVisibleFeatureCount(visible);
+      applyMasonryRowSpans();
     });
 
     return () => {
@@ -591,11 +620,37 @@ const SimulatorLabPanel: React.FC<Props> = ({
         card.style.order = '';
       });
     };
-  }, [featureQuery, pinnedTools]);
+  }, [applyMasonryRowSpans, featureQuery, pinnedOnly, pinnedTools]);
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        applyMasonryRowSpans();
+      });
+    });
+
+    observer.observe(grid);
+    Array.from(grid.querySelectorAll('.sim-lab-card:not(.sim-lab-card-system)')).forEach((card) => observer.observe(card));
+
+    const onWindowResize = () => {
+      requestAnimationFrame(() => {
+        applyMasonryRowSpans();
+      });
+    };
+    window.addEventListener('resize', onWindowResize);
+
+    return () => {
+      window.removeEventListener('resize', onWindowResize);
+      observer.disconnect();
+    };
+  }, [applyMasonryRowSpans, featureQuery, pinnedTools]);
 
   useEffect(() => {
     const cards = panelRef.current
-      ? Array.from(panelRef.current.querySelectorAll('.sim-lab-card')) as HTMLElement[]
+      ? Array.from(panelRef.current.querySelectorAll('.sim-lab-card:not(.sim-lab-card-system)')) as HTMLElement[]
       : [];
 
     const cleanups: Array<() => void> = [];
@@ -608,10 +663,13 @@ const SimulatorLabPanel: React.FC<Props> = ({
       if (!rawTitle) return;
       card.dataset.toolTitle = rawTitle;
 
-      const previous = titleEl.querySelector('.sim-lab-pin-btn');
+      const previous = titleEl.querySelector('.sim-lab-card-actions');
       if (previous) previous.remove();
 
       titleEl.classList.add('sim-lab-card-title-with-pin');
+
+      const actions = document.createElement('div');
+      actions.className = 'sim-lab-card-actions';
 
       const button = document.createElement('button');
       const isPinned = pinnedTools.includes(rawTitle);
@@ -632,11 +690,12 @@ const SimulatorLabPanel: React.FC<Props> = ({
       };
 
       button.addEventListener('click', onClick);
-      titleEl.appendChild(button);
+      actions.appendChild(button);
+      titleEl.appendChild(actions);
 
       cleanups.push(() => {
         button.removeEventListener('click', onClick);
-        button.remove();
+        actions.remove();
       });
     });
 
@@ -647,8 +706,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
   const applyWizard = () => {
     const exprs = Array.from({ length: numQubits }, (_, q) => {
-      const theta = wizardTheta[q] ?? Math.PI / 2;
-      const phi = wizardPhi[q] ?? 0;
+      const theta = wizardThetaView[q] ?? Math.PI / 2;
+      const phi = wizardPhiView[q] ?? 0;
       const a = Math.cos(theta / 2);
       const bRe = Math.cos(phi) * Math.sin(theta / 2);
       const bIm = Math.sin(phi) * Math.sin(theta / 2);
@@ -656,6 +715,13 @@ const SimulatorLabPanel: React.FC<Props> = ({
     });
     onApplyQubitExpressions(exprs);
   };
+
+  const statusClassForMessage = useCallback((msg: string) => {
+    const text = msg.toLowerCase();
+    if (text.includes('invalid') || text.includes('not ') || text.includes('error') || text.includes('warning')) return 'sim-lab-status error';
+    if (text.includes('applied') || text.includes('passed') || text.includes('completed') || text.includes('imported') || text.includes('equivalent')) return 'sim-lab-status success';
+    return 'sim-lab-status neutral';
+  }, []);
 
   const applyTemplate = (kind: StatevectorTemplateKind) => {
     onApplyStatevectorExpression(getStatevectorTemplateExpression(kind, numQubits));
@@ -701,7 +767,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
     const colMax = Math.max(circuit.numColumns, candidateCircuit.numColumns);
     const limit = Math.min(colMax, 90);
-    const basisIndex = Number.parseInt(compareBasis || '0', 2);
+    const basisIndex = Number.parseInt(compareBasisView || '0', 2);
     const safeBasis = Number.isFinite(basisIndex) ? basisIndex : 0;
 
     const rows: Array<{ col: number; current: number; candidate: number; delta: number }> = [];
@@ -713,7 +779,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
       rows.push({ col, current, candidate, delta: Math.abs(current - candidate) });
     }
     return rows;
-  }, [candidateCircuit, circuit, compareBasis, initialState]);
+  }, [candidateCircuit, circuit, compareBasisView, initialState]);
 
   const runTomography = () => {
     const q = Math.max(0, Math.min(numQubits - 1, Math.round(Number(tomoQubit) || 0)));
@@ -853,7 +919,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     }
 
     const objective = optimizerObjective === 'prob'
-      ? { kind: 'probability' as const, basisBits: optimizerBasis }
+      ? { kind: 'probability' as const, basisBits: optimizerBasisView }
       : { kind: 'observable' as const, expr: optimizerObservable };
 
     const result = optimizeSingleParameter(
@@ -874,7 +940,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     const start = Math.max(0, Number(noiseSweepStart) || 0);
     const end = Math.max(0, Number(noiseSweepEnd) || 0.12);
     const steps = Math.max(4, Math.min(50, Math.round(Number(noiseSweepSteps) || 12)));
-    const basisIndex = Number.parseInt(noiseSweepBasis || '0', 2);
+    const basisIndex = Number.parseInt(noiseSweepBasisView || '0', 2);
     const safeBasis = Number.isFinite(basisIndex) ? basisIndex : 0;
 
     const rows: Array<{ noise: number; value: number }> = [];
@@ -889,11 +955,11 @@ const SimulatorLabPanel: React.FC<Props> = ({
       rows.push({ noise: p, value: hit / total });
     }
     setNoiseSweepData(rows);
-  }, [circuit, initialState, noise, noiseSweepBasis, noiseSweepEnd, noiseSweepParam, noiseSweepStart, noiseSweepSteps, numQubits, numShots, shotsBasisAxes]);
+  }, [circuit, initialState, noise, noiseSweepBasisView, noiseSweepEnd, noiseSweepParam, noiseSweepStart, noiseSweepSteps, numQubits, numShots, shotsBasisAxes]);
 
   const runReadoutMitigation = useCallback(() => {
     const shots = Math.max(256, Math.min(20000, Math.round(Number(mitigationShots) || 2048)));
-    const targetBits = mitigationBasisBits.replace(/[^01]/g, '').padEnd(numQubits, '0').slice(0, numQubits);
+    const targetBits = mitigationBasisBitsView;
     const readoutError = (() => {
       const parsed = Number(mitigationReadoutError);
       if (!Number.isFinite(parsed)) return Math.max(0, Math.min(0.49, noise.readoutError));
@@ -924,7 +990,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
       topRaw,
       topMitigated,
     });
-  }, [circuit, initialState, mitigationBasisBits, mitigationReadoutError, mitigationShots, noise, numQubits, shotsBasisAxes]);
+  }, [circuit, initialState, mitigationBasisBitsView, mitigationReadoutError, mitigationShots, noise, numQubits, shotsBasisAxes]);
 
   const savePack = () => {
     const id = `pack-${Date.now()}`;
@@ -948,13 +1014,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     if (!pack) return;
     onApplyMacroCircuit(pack.circuit);
     onSetSymbolBindings(pack.symbols);
-    onApplyShotsConfig({ numShots: pack.shots.numShots, noise: pack.shots.noise, shotsBasisAxes: pack.shots.basis });
-  };
-
-  const runAssignmentCheck = () => {
-    const result = evaluateAssignment(assignmentId, circuit, initialState);
-    setAssignmentScore(result.score);
-    setAssignmentFeedback(`${result.passed ? 'Passed' : 'Not passed'}: ${result.feedback.join(' | ')}`);
+    onApplyShotsConfig({ numShots: pack.shots.numShots, noise: pack.shots.noise, shotsBasisAxes: normalizeMeasurementAxes(pack.shots.basis) });
   };
 
   const runNoiseCalibration = () => {
@@ -980,6 +1040,60 @@ const SimulatorLabPanel: React.FC<Props> = ({
     });
   };
 
+  const optimizerStepsNum = Number(optimizerSteps);
+  const noiseSweepStepsNum = Number(noiseSweepSteps);
+  const noiseSweepStartNum = Number(noiseSweepStart);
+  const noiseSweepEndNum = Number(noiseSweepEnd);
+  const mitigationShotsNum = Number(mitigationShots);
+  const tomoShotsNum = Number(tomoShots);
+  const tomoQubitNum = Number(tomoQubit);
+  const canRunNoiseCalibration = observedHistogramInput.trim().length > 0;
+  const canRunOptimizer = Boolean(effectiveOptimizerGateId)
+    && Number.isFinite(optimizerStepsNum)
+    && optimizerStepsNum >= 8
+    && optimizerStepsNum <= 400;
+  const canRunNoiseSweep = Number.isFinite(noiseSweepStepsNum)
+    && noiseSweepStepsNum >= 4
+    && noiseSweepStepsNum <= 200
+    && Number.isFinite(noiseSweepStartNum)
+    && Number.isFinite(noiseSweepEndNum)
+    && noiseSweepEndNum >= noiseSweepStartNum;
+  const canRunMitigation = Number.isFinite(mitigationShotsNum)
+    && mitigationShotsNum >= 256
+    && mitigationShotsNum <= 20000;
+  const canSavePack = savePackName.trim().length > 0;
+  const canLoadPack = selectedPackId.trim().length > 0 && savedPacks.some((pack) => pack.id === selectedPackId);
+  const canApplyFittedNoise = Boolean(calibrationResult);
+  const canRunTomography = Number.isFinite(tomoShotsNum)
+    && tomoShotsNum >= 64
+    && tomoShotsNum <= 100000
+    && Number.isFinite(tomoQubitNum)
+    && tomoQubitNum >= 0
+    && tomoQubitNum < numQubits;
+  const canApplyMacro = macroExpr.trim().length > 0;
+  const canRunEquivalence = equivExpr.trim().length > 0;
+  const canRunReverseEngineering = reverseTarget.trim().length > 0;
+  const canImport = importExpr.trim().length > 0;
+  const canSaveExperiment = sweepData.length > 0 && experimentName.trim().length > 0;
+  const canApplySelectedExperimentConfig = savedExperiments.length > 0;
+
+  const noiseCalibrationDisabledReason = canRunNoiseCalibration ? '' : 'Provide observed histogram text first.';
+  const applyFittedNoiseDisabledReason = canApplyFittedNoise ? '' : 'Fit noise first to enable applying calibrated settings.';
+  const optimizerDisabledReason = canRunOptimizer ? '' : (!effectiveOptimizerGateId
+    ? 'Add at least one parametric gate to optimize.'
+    : 'Set optimizer steps between 8 and 400.');
+  const noiseSweepDisabledReason = canRunNoiseSweep ? '' : 'Set valid finite start/end values and steps between 4 and 200 (end >= start).';
+  const mitigationDisabledReason = canRunMitigation ? '' : 'Set mitigation shots between 256 and 20000.';
+  const savePackDisabledReason = canSavePack ? '' : 'Enter a pack name before saving.';
+  const loadPackDisabledReason = canLoadPack ? '' : 'Select a saved pack to load it.';
+  const tomographyDisabledReason = canRunTomography ? '' : `Use a valid qubit index (0-${Math.max(0, numQubits - 1)}) and shots in [64, 100000].`;
+  const macroDisabledReason = canApplyMacro ? '' : 'Enter a macro expression before applying.';
+  const equivalenceDisabledReason = canRunEquivalence ? '' : 'Enter a candidate circuit expression before checking.';
+  const reverseDisabledReason = canRunReverseEngineering ? '' : 'Provide a target state expression first.';
+  const importDisabledReason = canImport ? '' : 'Paste macro, JSON, or QASM text before importing.';
+  const experimentDisabledReason = canSaveExperiment ? '' : 'Provide a run name and ensure sweep data exists before saving.';
+  const applyExperimentConfigDisabledReason = canApplySelectedExperimentConfig ? '' : 'Save at least one run before applying a run config.';
+
   const isFullLabView = true;
 
   return (
@@ -993,11 +1107,21 @@ const SimulatorLabPanel: React.FC<Props> = ({
           placeholder="Search features..."
           aria-label="Search Simulator Lab features"
         />
-        <span className="sim-lab-feature-count">{visibleFeatureCount} sections visible</span>
+        <div className="sim-lab-feature-actions">
+          <label className="sim-lab-toggle-inline">
+            <input
+              type="checkbox"
+              checked={pinnedOnly}
+              onChange={(e) => setPinnedOnly(e.target.checked)}
+            />
+            Pinned only
+          </label>
+          <span className="sim-lab-feature-count">{visibleFeatureCount} sections visible</span>
+        </div>
       </div>
 
       {visibleFeatureCount === 0 && (
-        <div className="sim-lab-card">
+        <div className="sim-lab-card sim-lab-card-system">
           <div className="sim-lab-card-title">No matching sections</div>
           <p className="sim-lab-note">No Simulator Lab section matches your search query.</p>
           <div className="sim-lab-inline-metrics">
@@ -1007,7 +1131,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="sim-lab-grid">
+      <div className="sim-lab-grid" ref={gridRef}>
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Results Compare Tray</div>
           <p className="sim-lab-note">Compact comparison of ideal, noisy, and mitigated outcomes.</p>
@@ -1110,11 +1234,11 @@ const SimulatorLabPanel: React.FC<Props> = ({
             placeholder="00: 520\n11: 504"
           />
           <div className="sim-lab-inline-metrics">
-            <button type="button" className="btn" onClick={runNoiseCalibration}>Fit Noise</button>
+            <button type="button" className="btn" onClick={runNoiseCalibration} disabled={!canRunNoiseCalibration}>Fit Noise</button>
             <button
               type="button"
               className="btn"
-              disabled={!calibrationResult}
+              disabled={!canApplyFittedNoise}
               onClick={() => {
                 if (!calibrationResult) return;
                 onApplyShotsConfig({ numShots, noise: calibrationResult.bestNoise, shotsBasisAxes });
@@ -1123,6 +1247,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
               Apply Fitted Noise
             </button>
           </div>
+          {!canRunNoiseCalibration && <p className="sim-lab-status neutral">{noiseCalibrationDisabledReason}</p>}
+          {!canApplyFittedNoise && <p className="sim-lab-status neutral">{applyFittedNoiseDisabledReason}</p>}
           {calibrationResult && (
             <div className="sim-lab-results-wrap">
               <div className="sim-lab-results-head"><span>Parameter</span><span>Fitted</span></div>
@@ -1174,7 +1300,12 @@ const SimulatorLabPanel: React.FC<Props> = ({
               className="btn"
               onClick={async () => {
                 const text = qasmPreview || exportOpenQasm2(circuit);
-                await navigator.clipboard.writeText(text);
+                try {
+                  await navigator.clipboard.writeText(text);
+                  setQasmCopyMessage('QASM copied to clipboard.');
+                } catch {
+                  setQasmCopyMessage('Copy failed: clipboard permission denied by browser.');
+                }
                 setQasmPreview(text);
               }}
             >
@@ -1187,11 +1318,13 @@ const SimulatorLabPanel: React.FC<Props> = ({
                 const text = qasmPreview || exportOpenQasm2(circuit);
                 downloadText('circuit.qasm', text);
                 setQasmPreview(text);
+                setQasmCopyMessage('QASM downloaded as .qasm file.');
               }}
             >
               Download .qasm
             </button>
           </div>
+          {qasmCopyMessage && <p className={statusClassForMessage(qasmCopyMessage)}>{qasmCopyMessage}</p>}
 
           <textarea
             className="sim-lab-textarea"
@@ -1199,7 +1332,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             onChange={(e) => setQasmPreview(e.target.value)}
             placeholder="OPENQASM 2.0 preview appears here"
           />
-          {transpileMessage && <p className="sim-lab-note">{transpileMessage}</p>}
+          {transpileMessage && <p className={statusClassForMessage(transpileMessage)}>{transpileMessage}</p>}
         </section>
 
         {isFullLabView && (
@@ -1228,7 +1361,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             {optimizerObjective === 'prob' ? (
               <label>
                 Basis bits
-                <input value={optimizerBasis} onChange={(e) => setOptimizerBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+                <input value={optimizerBasisView} onChange={(e) => setOptimizerBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
               </label>
             ) : (
               <label>
@@ -1250,9 +1383,10 @@ const SimulatorLabPanel: React.FC<Props> = ({
               Steps
               <input value={optimizerSteps} onChange={(e) => setOptimizerSteps(e.target.value)} />
             </label>
-            <button type="button" className="btn" onClick={runOptimizer}>Run Optimizer</button>
+            <button type="button" className="btn" onClick={runOptimizer} disabled={!canRunOptimizer}>Run Optimizer</button>
           </div>
-          {optimizerMessage && <p className="sim-lab-note">{optimizerMessage}</p>}
+          {!canRunOptimizer && <p className="sim-lab-status neutral">{optimizerDisabledReason}</p>}
+          {optimizerMessage && <p className={statusClassForMessage(optimizerMessage)}>{optimizerMessage}</p>}
           {optimizerData.length > 0 && (
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
@@ -1298,10 +1432,11 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </label>
             <label>
               Basis bits
-              <input value={noiseSweepBasis} onChange={(e) => setNoiseSweepBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+              <input value={noiseSweepBasisView} onChange={(e) => setNoiseSweepBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
             </label>
-            <button type="button" className="btn" onClick={runNoiseSweep}>Run Noise Sweep</button>
+            <button type="button" className="btn" onClick={runNoiseSweep} disabled={!canRunNoiseSweep}>Run Noise Sweep</button>
           </div>
+          {!canRunNoiseSweep && <p className="sim-lab-status neutral">{noiseSweepDisabledReason}</p>}
           {noiseSweepData.length > 0 && (
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
@@ -1327,14 +1462,15 @@ const SimulatorLabPanel: React.FC<Props> = ({
             </label>
             <label>
               Target basis bits
-              <input value={mitigationBasisBits} onChange={(e) => setMitigationBasisBits(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+              <input value={mitigationBasisBitsView} onChange={(e) => setMitigationBasisBits(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
             </label>
             <label>
               Readout error p (optional)
               <input value={mitigationReadoutError} onChange={(e) => setMitigationReadoutError(e.target.value)} placeholder={`${noise.readoutError.toFixed(3)} default`} />
             </label>
-            <button type="button" className="btn" onClick={runReadoutMitigation}>Run Mitigation</button>
+            <button type="button" className="btn" onClick={runReadoutMitigation} disabled={!canRunMitigation}>Run Mitigation</button>
           </div>
+          {!canRunMitigation && <p className="sim-lab-status neutral">{mitigationDisabledReason}</p>}
           {mitigationSummary && (
             <div className="sim-lab-results-wrap">
               <div className="sim-lab-results-head"><span>Metric</span><span>Value</span></div>
@@ -1375,7 +1511,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
           <p className="sim-lab-note">Validate QASM snippets and get decomposition suggestions before import.</p>
           <div className="sim-lab-inline-metrics">
             <button type="button" className="btn" onClick={runQasmInteropAnalysis}>Analyze QASM Interop</button>
-            {qasmInteropMessage && <span>{qasmInteropMessage}</span>}
+            {qasmInteropMessage && <span className={statusClassForMessage(qasmInteropMessage)}>{qasmInteropMessage}</span>}
           </div>
           {qasmInteropSuggestions.length > 0 && (
             <div className="sim-lab-results-wrap">
@@ -1414,44 +1550,13 @@ const SimulatorLabPanel: React.FC<Props> = ({
             placeholder="Pack notes (goals, expected outcomes, lab context)"
           />
           <div className="sim-lab-inline-metrics">
-            <button type="button" className="btn" onClick={savePack}>Save Pack</button>
-            <button type="button" className="btn" onClick={loadSelectedPack}>Load Pack</button>
+            <button type="button" className="btn" onClick={savePack} disabled={!canSavePack}>Save Pack</button>
+            <button type="button" className="btn" onClick={loadSelectedPack} disabled={!canLoadPack}>Load Pack</button>
             <button type="button" className="btn" onClick={() => setSavedPacks([])}>Clear Packs</button>
           </div>
+          {!canSavePack && <p className="sim-lab-status neutral">{savePackDisabledReason}</p>}
+          {!canLoadPack && <p className="sim-lab-status neutral">{loadPackDisabledReason}</p>}
         </section>
-
-        {isFullLabView && (
-        <section className="sim-lab-card">
-          <div className="sim-lab-card-title">Classroom and Assignment Mode</div>
-          <p className="sim-lab-note">Run rubric-based checks for educational assignments.</p>
-          <div className="sim-sweep-controls">
-            <label>
-              Assignment
-              <select value={assignmentId} onChange={(e) => setAssignmentId(e.target.value)}>
-                {ASSIGNMENTS.map((assignment) => (
-                  <option key={assignment.id} value={assignment.id}>{assignment.title}</option>
-                ))}
-              </select>
-            </label>
-            <button type="button" className="btn" onClick={runAssignmentCheck}>Check Assignment</button>
-          </div>
-          {assignmentScore !== null && (
-            <div className="sim-lab-inline-metrics">
-              <span>Score: <strong>{assignmentScore.toFixed(3)}</strong></span>
-              <span>{assignmentFeedback}</span>
-            </div>
-          )}
-          {ASSIGNMENTS.filter((a) => a.id === assignmentId).map((assignment) => (
-            <div key={assignment.id} className="sim-algo-box">
-              <strong>{assignment.title}</strong>
-              <p className="sim-lab-note">{assignment.objective}</p>
-              <div className="sim-lab-inline-metrics">
-                {assignment.rubric.map((item) => <span key={item}>• {item}</span>)}
-              </div>
-            </div>
-          ))}
-        </section>
-        )}
 
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Observable Expectations</div>
@@ -1509,7 +1614,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
                     min={0}
                     max={Math.PI}
                     step={0.01}
-                    value={wizardTheta[q] ?? Math.PI / 2}
+                    value={wizardThetaView[q] ?? Math.PI / 2}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       setWizardTheta((prev) => {
@@ -1527,7 +1632,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
                     min={-Math.PI}
                     max={Math.PI}
                     step={0.01}
-                    value={wizardPhi[q] ?? 0}
+                    value={wizardPhiView[q] ?? 0}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       setWizardPhi((prev) => {
@@ -1538,7 +1643,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
                     }}
                   />
                 </label>
-                <span>θ={(wizardTheta[q] ?? 0).toFixed(2)} rad, φ={(wizardPhi[q] ?? 0).toFixed(2)} rad</span>
+                <span>θ={(wizardThetaView[q] ?? 0).toFixed(2)} rad, φ={(wizardPhiView[q] ?? 0).toFixed(2)} rad</span>
               </div>
             ))}
           </div>
@@ -1609,7 +1714,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
             {sweepMetric === 'prob' ? (
               <label>
                 Basis bits
-                <input value={sweepBasis} onChange={(e) => setSweepBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+                <input value={sweepBasisView} onChange={(e) => setSweepBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
               </label>
             ) : (
               <label>
@@ -1640,7 +1745,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
               <label key={q} className="sim-basis-item">
                 <span>q{q}</span>
                 <select
-                  value={basisAxes[q] ?? 'Z'}
+                  value={basisAxesView[q] ?? 'Z'}
                   onChange={(e) => {
                     const axis = e.target.value as BasisAxis;
                     setBasisAxes((prev) => {
@@ -1696,7 +1801,8 @@ const SimulatorLabPanel: React.FC<Props> = ({
               <input value={tomoShots} onChange={(e) => setTomoShots(e.target.value)} />
             </label>
           </div>
-          <button type="button" className="btn" onClick={runTomography}>Run Tomography</button>
+          <button type="button" className="btn" onClick={runTomography} disabled={!canRunTomography}>Run Tomography</button>
+          {!canRunTomography && <p className="sim-lab-status neutral">{tomographyDisabledReason}</p>}
           {tomoResult && (
             <>
               <div className="sim-lab-results-wrap">
@@ -1786,9 +1892,10 @@ const SimulatorLabPanel: React.FC<Props> = ({
             placeholder="repeat(3){H(0); CNOT(0,1)}"
           />
           <div className="sim-lab-inline-metrics">
-            <button type="button" className="btn" onClick={() => handleApplyMacro(macroExpr)}>Apply Macro as Circuit</button>
-            {macroMessage && <span>{macroMessage}</span>}
+            <button type="button" className="btn" onClick={() => handleApplyMacro(macroExpr)} disabled={!canApplyMacro}>Apply Macro as Circuit</button>
+            {macroMessage && <span className={statusClassForMessage(macroMessage)}>{macroMessage}</span>}
           </div>
+          {!canApplyMacro && <p className="sim-lab-status neutral">{macroDisabledReason}</p>}
         </section>
 
         {isFullLabView && (
@@ -1802,13 +1909,14 @@ const SimulatorLabPanel: React.FC<Props> = ({
             placeholder="H(0); CNOT(0,1)"
           />
           <div className="sim-lab-inline-metrics">
-            <button type="button" className="btn" onClick={runEquivalenceCheck}>Check Equivalence</button>
-            {equivResult && <span>{equivResult}</span>}
+            <button type="button" className="btn" onClick={runEquivalenceCheck} disabled={!canRunEquivalence}>Check Equivalence</button>
+            {equivResult && <span className={statusClassForMessage(equivResult)}>{equivResult}</span>}
           </div>
+          {!canRunEquivalence && <p className="sim-lab-status neutral">{equivalenceDisabledReason}</p>}
           <div className="sim-sweep-controls">
             <label>
               Comparison basis bits
-              <input value={compareBasis} onChange={(e) => setCompareBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+              <input value={compareBasisView} onChange={(e) => setCompareBasis(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
             </label>
           </div>
           {compareChartData.length > 0 && (
@@ -1832,29 +1940,6 @@ const SimulatorLabPanel: React.FC<Props> = ({
         </section>
         )}
 
-        <section className="sim-lab-card">
-          <div className="sim-lab-card-title">Algorithm Gallery Walkthrough</div>
-          <p className="sim-lab-note">Apply guided algorithms with short step checklists.</p>
-          <div className="sim-lab-chips">
-            {ALGORITHMS.map((algo) => (
-              <button key={algo.name} type="button" className="sim-lab-chip" onClick={() => setActiveAlgorithm(algo.name)}>
-                {algo.name}
-              </button>
-            ))}
-          </div>
-          {ALGORITHMS.filter((algo) => algo.name === activeAlgorithm).map((algo) => (
-            <div key={algo.name} className="sim-algo-box">
-              <strong>{algo.name}</strong>
-              <p className="sim-lab-note">{algo.summary}</p>
-              <pre className="sim-lab-pre">{algo.macro}</pre>
-              <div className="sim-lab-inline-metrics">
-                {algo.steps.map((step) => <span key={step}>• {step}</span>)}
-              </div>
-              <button type="button" className="btn" onClick={() => handleApplyMacro(algo.macro)}>Apply Algorithm Circuit</button>
-            </div>
-          ))}
-        </section>
-
         {isFullLabView && (
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Reverse Engineering Assistant</div>
@@ -1866,9 +1951,10 @@ const SimulatorLabPanel: React.FC<Props> = ({
             placeholder="(1/sqrt(2))*|00⟩ + (1/sqrt(2))*|11⟩"
           />
           <div className="sim-lab-inline-metrics">
-            <button type="button" className="btn" onClick={runReverseEngineer}>Suggest Prep Macro</button>
-            {reverseMessage && <span>{reverseMessage}</span>}
+            <button type="button" className="btn" onClick={runReverseEngineer} disabled={!canRunReverseEngineering}>Suggest Prep Macro</button>
+            {reverseMessage && <span className={statusClassForMessage(reverseMessage)}>{reverseMessage}</span>}
           </div>
+          {!canRunReverseEngineering && <p className="sim-lab-status neutral">{reverseDisabledReason}</p>}
           {reverseMacro && (
             <>
               <pre className="sim-lab-pre">{reverseMacro}</pre>
@@ -1892,9 +1978,10 @@ const SimulatorLabPanel: React.FC<Props> = ({
             placeholder="Paste macro, circuit JSON, or OPENQASM 2.0 snippet"
           />
           <div className="sim-lab-inline-metrics">
-            <button type="button" className="btn" onClick={runImport}>Import</button>
-            {importMessage && <span>{importMessage}</span>}
+            <button type="button" className="btn" onClick={runImport} disabled={!canImport}>Import</button>
+            {importMessage && <span className={statusClassForMessage(importMessage)}>{importMessage}</span>}
           </div>
+          {!canImport && <p className="sim-lab-status neutral">{importDisabledReason}</p>}
         </section>
 
         {isFullLabView && (
@@ -1940,6 +2027,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
                 setSavedExperiments((prev) => [...prev, payload]);
                 setSelectedExperimentIds((prev) => Array.from(new Set([...prev, id])));
               }}
+              disabled={!canSaveExperiment}
             >
               Save Current Run
             </button>
@@ -1949,13 +2037,16 @@ const SimulatorLabPanel: React.FC<Props> = ({
               onClick={() => {
                 const active = savedExperiments.find((exp) => selectedExperimentIds.includes(exp.id)) ?? savedExperiments[savedExperiments.length - 1];
                 if (!active) return;
-                onApplyShotsConfig({ numShots: active.numShots, noise: active.noise, shotsBasisAxes: active.basis });
+                onApplyShotsConfig({ numShots: active.numShots, noise: active.noise, shotsBasisAxes: normalizeMeasurementAxes(active.basis) });
               }}
+              disabled={!canApplySelectedExperimentConfig}
             >
               Apply Selected Config to Shots
             </button>
             <button type="button" className="btn" onClick={() => setSavedExperiments([])}>Clear Runs</button>
           </div>
+          {!canSaveExperiment && <p className="sim-lab-status neutral">{experimentDisabledReason}</p>}
+          {!canApplySelectedExperimentConfig && <p className="sim-lab-status neutral">{applyExperimentConfigDisabledReason}</p>}
           {experimentCompareData.length > 0 && (
             <div className="sim-sweep-chart">
               <ResponsiveContainer width="100%" height={220}>
