@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Complex } from '../logic/complex';
 import { cAbs2 } from '../logic/complex';
@@ -34,6 +34,7 @@ import { BENCHMARK_SUITES, runBenchmarkSuite, type BenchmarkResult } from '../lo
 import { runQasmRoundTrip, type QasmRoundTripReport } from '../logic/qasmRoundTrip';
 import { fitNoiseModelFromHistogram, parseHistogramText, type CalibrationResult } from '../logic/noiseCalibration';
 import { optimizeMultiObjective, type MultiObjectivePoint } from '../logic/multiObjectiveOptimizer';
+import { mitigateReadoutHistogram } from '../logic/readoutMitigation';
 
 interface Props {
   state: Complex[];
@@ -130,6 +131,12 @@ const ALGORITHMS: Array<{ name: string; summary: string; macro: string; steps: s
 ];
 
 const FEATURE_RELATED_TERMS: Record<string, string[]> = {
+  'Hardware Readiness Workspace': ['hardware', 'constraints', 'transpile', 'layout', 'compatibility'],
+  'Parameter and Sweep Workspace': ['optimizer', 'sweep', 'batch', 'multi objective', 'theta'],
+  'Interoperability Workspace': ['qasm', 'import', 'export', 'diagnostics', 'roundtrip', 'diff'],
+  'Verification and Teaching Workspace': ['golden', 'benchmark', 'assignment', 'rubric', 'validation'],
+  'Quick Actions': ['favorites', 'shortcuts', 'run now', 'productivity'],
+  'Results Compare Tray': ['compare', 'raw', 'noisy', 'mitigated', 'delta'],
   'Symbolic Parameters': ['variables', 'symbols', 'constants', 'expressions'],
   'Hardware Profile Presets': ['backend', 'native gates', 'connectivity', 'coupling map'],
   'Live Transpilation Hints': ['optimize', 'optimization', 'cancellation', 'merge', 'depth'],
@@ -178,8 +185,23 @@ const CORE_FEATURE_TITLES = new Set<string>([
 ]);
 
 const OVERLAP_HIDDEN_TITLES = new Set<string>([
-  'Parametric Sweep Studio',
   'Multi-Run Experiment Manager',
+  'Hardware Profile Presets',
+  'Constraints Assistant',
+  'Live Transpilation Hints',
+  'Hardware-Aware Auto-Layout Pass',
+  'Parameter Optimizer (VQE-style Grid Search)',
+  'Parametric Sweep Studio',
+  'Batch Experiment Runner',
+  'Multi-Objective Optimizer',
+  'Circuit Diff View',
+  'OpenQASM Interop Diagnostics',
+  'OpenQASM Round-Trip Verifier',
+  'Export and Import Tools',
+  'Golden Test Harness',
+  'Preset Benchmark Suites',
+  'Classroom and Assignment Mode',
+  'Classroom Assignment Pack Export',
 ]);
 
 const SimulatorLabPanel: React.FC<Props> = ({
@@ -312,8 +334,56 @@ const SimulatorLabPanel: React.FC<Props> = ({
   const [featureQuery, setFeatureQuery] = useState('');
   const [visibleFeatureCount, setVisibleFeatureCount] = useState(0);
   const [labMode, setLabMode] = useState<'core' | 'advanced'>('core');
+  const [workspaceMode, setWorkspaceMode] = useState<'sweep' | 'optimizer' | 'batch' | 'multi'>('sweep');
+  const [favoriteQuickActions, setFavoriteQuickActions] = useState<string[]>(['shots', 'transpile', 'autolayout']);
+  const [activeTask, setActiveTask] = useState<string | null>(null);
+  const [mitigationShots, setMitigationShots] = useState('2048');
+  const [mitigationBasisBits, setMitigationBasisBits] = useState(() => '0'.repeat(numQubits));
+  const [mitigationReadoutError, setMitigationReadoutError] = useState('');
+  const [mitigationSummary, setMitigationSummary] = useState<null | {
+    raw: number;
+    mitigated: number;
+    delta: number;
+    topRaw: Array<{ basis: string; p: number }>;
+    topMitigated: Array<{ basis: string; p: number }>;
+  }>(null);
   const observableInputRef = useRef<HTMLTextAreaElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const batchCancelRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('qc-sim-lab-ui-v1');
+      if (!raw) return;
+      const ui = JSON.parse(raw) as Partial<{
+        labMode: 'core' | 'advanced';
+        featureQuery: string;
+        workspaceMode: 'sweep' | 'optimizer' | 'batch' | 'multi';
+        favoriteQuickActions: string[];
+      }>;
+      if (ui.labMode === 'core' || ui.labMode === 'advanced') setLabMode(ui.labMode);
+      if (typeof ui.featureQuery === 'string') setFeatureQuery(ui.featureQuery);
+      if (ui.workspaceMode && ['sweep', 'optimizer', 'batch', 'multi'].includes(ui.workspaceMode)) {
+        setWorkspaceMode(ui.workspaceMode as 'sweep' | 'optimizer' | 'batch' | 'multi');
+      }
+      if (Array.isArray(ui.favoriteQuickActions)) setFavoriteQuickActions(ui.favoriteQuickActions.filter((x) => typeof x === 'string'));
+    } catch {
+      // Ignore malformed persisted lab UI state.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('qc-sim-lab-ui-v1', JSON.stringify({
+        labMode,
+        featureQuery,
+        workspaceMode,
+        favoriteQuickActions,
+      }));
+    } catch {
+      // Ignore localStorage write failures.
+    }
+  }, [featureQuery, favoriteQuickActions, labMode, workspaceMode]);
 
   useEffect(() => {
     try {
@@ -648,6 +718,41 @@ const SimulatorLabPanel: React.FC<Props> = ({
 
   const isFullLabView = labMode === 'advanced';
 
+  const constraintsSuggestions = useMemo(() => {
+    const items: string[] = [];
+    if (hardwareReport.unsupportedTotal > 0) {
+      items.push(`Decompose unsupported gates (${hardwareReport.unsupportedTotal}) using transpile level 2/3.`);
+    }
+    if (hardwareReport.edgeViolations > 0) {
+      items.push(`Run auto-layout to route ${hardwareReport.edgeViolations} connectivity violation(s).`);
+    }
+    if (hardwareReport.compatibilityScore < 60) {
+      items.push('Switch to a closer hardware profile or reduce two-qubit density.');
+    }
+    if (liveTranspileHints.length > 0) {
+      items.push(`Apply top transpilation hint: ${liveTranspileHints[0].title} - ${liveTranspileHints[0].detail}`);
+    }
+    if (items.length === 0) {
+      items.push('No critical constraints detected. Current circuit is hardware-friendly for this profile.');
+    }
+    return items;
+  }, [hardwareReport, liveTranspileHints]);
+
+  const compareTray = useMemo(() => {
+    const rawTop = Array.from(distributionMetrics.ideal.entries())
+      .sort((a, b) => b[1] - a[1])[0];
+    const noisyTop = Array.from(distributionMetrics.noisy.entries())
+      .sort((a, b) => b[1] - a[1])[0];
+    return {
+      rawTop: rawTop ? { basis: rawTop[0], p: rawTop[1] / Math.max(1, numShots) } : null,
+      noisyTop: noisyTop ? { basis: noisyTop[0], p: noisyTop[1] / Math.max(1, numShots) } : null,
+      tv: distributionMetrics.l1,
+      kl: distributionMetrics.kl,
+      mitigationDelta: mitigationSummary?.delta ?? null,
+    };
+  }, [distributionMetrics.ideal, distributionMetrics.kl, distributionMetrics.l1, distributionMetrics.noisy, mitigationSummary?.delta, numShots]);
+
+
   useEffect(() => {
     const q = featureQuery.trim().toLowerCase();
     const queryTokens = q.split(/\s+/).filter(Boolean);
@@ -861,13 +966,13 @@ const SimulatorLabPanel: React.FC<Props> = ({
     setQasmInteropSuggestions([...report.warnings, ...report.suggestions]);
   };
 
-  const runTranspilePreset = () => {
+  const runTranspilePreset = useCallback(() => {
     const report = transpileLikePresetReport(circuit, transpileLevel);
     onApplyMacroCircuit(report.circuit);
     setTranspileMessage(
       `Applied optimization level ${transpileLevel}: gates ${report.beforeGateCount} -> ${report.afterGateCount}, depth ${report.beforeDepth} -> ${report.afterDepth}, fused/cancelled ${report.fusedOrCancelled}.`,
     );
-  };
+  }, [circuit, onApplyMacroCircuit, transpileLevel]);
 
   const runRandomCircuit = () => {
     const depth = Math.max(1, Math.min(128, Math.round(Number(randomDepth) || 18)));
@@ -877,12 +982,12 @@ const SimulatorLabPanel: React.FC<Props> = ({
     setTranspileMessage(`Generated seeded random circuit (depth ${depth}, seed ${seed}) with ${generated.gates.length} gates.`);
   };
 
-  const buildQasmPreview = () => {
+  const buildQasmPreview = useCallback(() => {
     const qasm = exportOpenQasm2(circuit);
     setQasmPreview(qasm);
-  };
+  }, [circuit]);
 
-  const runCircuitDiff = () => {
+  const runCircuitDiff = useCallback(() => {
     const candidate = parseCircuitMacro(applySymbolBindings(diffExpr, symbolBindings), numQubits);
     if (!candidate.valid) {
       setDiffSummaryText(`Candidate invalid: ${candidate.message}`);
@@ -890,7 +995,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     }
     const diff = diffCircuits(circuit, candidate.circuit);
     setDiffSummaryText(`Changed ${diff.changed}, added ${diff.added}, removed ${diff.removed}, depth delta ${diff.depthDelta}.`);
-  };
+  }, [circuit, diffExpr, numQubits, symbolBindings]);
 
   const runOptimizer = () => {
     if (!optimizerGateId) {
@@ -916,7 +1021,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
     setOptimizerMessage(`Best θ=${result.bestTheta.toFixed(5)} with score ${result.bestValue.toFixed(6)}.`);
   };
 
-  const runNoiseSweep = () => {
+  const runNoiseSweep = useCallback(() => {
     const start = Math.max(0, Number(noiseSweepStart) || 0);
     const end = Math.max(0, Number(noiseSweepEnd) || 0.12);
     const steps = Math.max(4, Math.min(50, Math.round(Number(noiseSweepSteps) || 12)));
@@ -935,7 +1040,42 @@ const SimulatorLabPanel: React.FC<Props> = ({
       rows.push({ noise: p, value: hit / total });
     }
     setNoiseSweepData(rows);
-  };
+  }, [circuit, initialState, noise, noiseSweepBasis, noiseSweepEnd, noiseSweepParam, noiseSweepStart, noiseSweepSteps, numQubits, numShots, shotsBasisAxes]);
+
+  const runReadoutMitigation = useCallback(() => {
+    const shots = Math.max(256, Math.min(20000, Math.round(Number(mitigationShots) || 2048)));
+    const targetBits = mitigationBasisBits.replace(/[^01]/g, '').padEnd(numQubits, '0').slice(0, numQubits);
+    const readoutError = (() => {
+      const parsed = Number(mitigationReadoutError);
+      if (!Number.isFinite(parsed)) return Math.max(0, Math.min(0.49, noise.readoutError));
+      return Math.max(0, Math.min(0.49, parsed));
+    })();
+
+    const rawHist = runWithNoiseShots(circuit, shots, { ...noise, enabled: true }, initialState, shotsBasisAxes);
+    const mitigated = mitigateReadoutHistogram(rawHist, numQubits, readoutError);
+
+    const rawTotal = Array.from(rawHist.values()).reduce((sum, v) => sum + v, 0) || 1;
+    const rawTarget = (rawHist.get(targetBits) ?? 0) / rawTotal;
+    const mitTarget = mitigated.get(targetBits) ?? 0;
+
+    const topRaw = Array.from(rawHist.entries())
+      .map(([basis, count]) => ({ basis, p: count / rawTotal }))
+      .sort((a, b) => b.p - a.p)
+      .slice(0, 3);
+
+    const topMitigated = Array.from(mitigated.entries())
+      .map(([basis, p]) => ({ basis, p }))
+      .sort((a, b) => b.p - a.p)
+      .slice(0, 3);
+
+    setMitigationSummary({
+      raw: rawTarget,
+      mitigated: mitTarget,
+      delta: mitTarget - rawTarget,
+      topRaw,
+      topMitigated,
+    });
+  }, [circuit, initialState, mitigationBasisBits, mitigationReadoutError, mitigationShots, noise, numQubits, shotsBasisAxes]);
 
   const savePack = () => {
     const id = `pack-${Date.now()}`;
@@ -984,9 +1124,15 @@ const SimulatorLabPanel: React.FC<Props> = ({
     const rows: Array<{ job: string; parameter: number; successRate: number; fidelity: number; runtimeMs: number }> = [];
     setBatchRunnerRunning(true);
     setBatchRunnerProgress(0);
+    setActiveTask('batch');
+    batchCancelRef.current = false;
 
     try {
       for (let i = 0; i < steps; i += 1) {
+        if (batchCancelRef.current) {
+          setBatchRunnerMessage(`Batch runner canceled after ${i} / ${steps} jobs.`);
+          break;
+        }
         const alpha = steps === 1 ? 0 : i / (steps - 1);
         const paramValue = start + (end - start) * alpha;
         const t0 = performance.now();
@@ -1025,6 +1171,7 @@ const SimulatorLabPanel: React.FC<Props> = ({
       }
     } finally {
       setBatchRunnerRunning(false);
+      setActiveTask(null);
     }
 
     setBatchRunnerRows(rows);
@@ -1036,10 +1183,14 @@ const SimulatorLabPanel: React.FC<Props> = ({
     }
   };
 
-  const runAutoLayoutPass = () => {
+  const cancelBatchRunner = () => {
+    batchCancelRef.current = true;
+  };
+
+  const runAutoLayoutPass = useCallback(() => {
     const report = routeCircuitForHardware(circuit, hardwareProfile);
     setLayoutReport(report);
-  };
+  }, [circuit, hardwareProfile]);
 
   const runGoldenHarness = () => {
     const lines = goldenSpec.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -1155,6 +1306,25 @@ const SimulatorLabPanel: React.FC<Props> = ({
     });
   };
 
+  const quickActions = useMemo(() => ([
+    { id: 'shots', label: 'Run Noise Sweep', run: runNoiseSweep },
+    { id: 'mitigate', label: 'Run Readout Mitigation', run: runReadoutMitigation },
+    { id: 'transpile', label: 'Apply Transpile', run: runTranspilePreset },
+    { id: 'autolayout', label: 'Run Auto-Layout', run: runAutoLayoutPass },
+    { id: 'qasm', label: 'Build QASM Preview', run: buildQasmPreview },
+    { id: 'diff', label: 'Compute Circuit Diff', run: runCircuitDiff },
+  ]), [buildQasmPreview, runAutoLayoutPass, runCircuitDiff, runNoiseSweep, runReadoutMitigation, runTranspilePreset]);
+
+  const favoriteActionSet = useMemo(() => new Set(favoriteQuickActions), [favoriteQuickActions]);
+
+  const toggleFavoriteQuickAction = (id: string) => {
+    setFavoriteQuickActions((prev) => (
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id].slice(-8)
+    ));
+  };
+
   return (
     <div className="sim-lab-panel" ref={panelRef}>
       <h4 className="sim-lab-title">Simulator Lab</h4>
@@ -1190,6 +1360,153 @@ const SimulatorLabPanel: React.FC<Props> = ({
       </div>
 
       <div className="sim-lab-grid">
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Quick Actions</div>
+          <p className="sim-lab-note">Pin your most-used actions for one-click execution.</p>
+          <div className="sim-lab-inline-metrics">
+            {quickActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className={`sim-lab-chip${favoriteActionSet.has(action.id) ? ' active' : ''}`}
+                onClick={() => toggleFavoriteQuickAction(action.id)}
+              >
+                {favoriteActionSet.has(action.id) ? '★' : '☆'} {action.label}
+              </button>
+            ))}
+          </div>
+          <div className="sim-lab-inline-metrics">
+            {quickActions.filter((action) => favoriteActionSet.has(action.id)).map((action) => (
+              <button key={`run-${action.id}`} type="button" className="btn" onClick={action.run}>{action.label}</button>
+            ))}
+          </div>
+          {activeTask && <p className="sim-lab-note">Running task: {activeTask}</p>}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Results Compare Tray</div>
+          <p className="sim-lab-note">Compact comparison of ideal, noisy, and mitigated outcomes.</p>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Signal</span><span>Value</span></div>
+            <div className="sim-lab-row"><span>Ideal top outcome</span><span>{compareTray.rawTop ? `${compareTray.rawTop.basis} (${(compareTray.rawTop.p * 100).toFixed(2)}%)` : 'n/a'}</span></div>
+            <div className="sim-lab-row"><span>Noisy top outcome</span><span>{compareTray.noisyTop ? `${compareTray.noisyTop.basis} (${(compareTray.noisyTop.p * 100).toFixed(2)}%)` : 'n/a'}</span></div>
+            <div className="sim-lab-row"><span>Total variation distance</span><span>{compareTray.tv.toFixed(6)}</span></div>
+            <div className="sim-lab-row"><span>KL divergence</span><span>{compareTray.kl.toFixed(6)}</span></div>
+            <div className="sim-lab-row"><span>Mitigation delta</span><span>{compareTray.mitigationDelta === null ? 'n/a' : `${(compareTray.mitigationDelta * 100).toFixed(2)}%`}</span></div>
+          </div>
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Hardware Readiness Workspace</div>
+          <p className="sim-lab-note">Profile selection, constraints advice, transpilation hints, and direct fix actions.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Hardware backend
+              <select value={hardwareProfileId} onChange={(e) => setHardwareProfileId(e.target.value)}>
+                {HARDWARE_PROFILES.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn" onClick={runTranspilePreset}>Apply Transpile</button>
+            <button type="button" className="btn" onClick={runAutoLayoutPass}>Run Auto-Layout</button>
+          </div>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Readiness</span><span>Value</span></div>
+            <div className="sim-lab-row"><span>Compatibility score</span><span>{hardwareReport.compatibilityScore.toFixed(1)} / 100</span></div>
+            <div className="sim-lab-row"><span>Unsupported gates</span><span>{hardwareReport.unsupportedTotal}</span></div>
+            <div className="sim-lab-row"><span>Connectivity violations</span><span>{hardwareReport.edgeViolations}</span></div>
+            <div className="sim-lab-row"><span>Estimated SWAP overhead</span><span>{hardwareReport.estimatedSwapOverhead}</span></div>
+          </div>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Assistant</span><span>Suggestion</span></div>
+            {constraintsSuggestions.map((item, idx) => (
+              <div key={`${item}-${idx}`} className="sim-lab-row"><span>{idx + 1}</span><span>{item}</span></div>
+            ))}
+          </div>
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Parameter and Sweep Workspace</div>
+          <p className="sim-lab-note">Single hub for sweep, optimizer, batch runner, and multi-objective tuning.</p>
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className={`sim-lab-chip${workspaceMode === 'sweep' ? ' active' : ''}`} onClick={() => setWorkspaceMode('sweep')}>Sweep</button>
+            <button type="button" className={`sim-lab-chip${workspaceMode === 'optimizer' ? ' active' : ''}`} onClick={() => setWorkspaceMode('optimizer')}>Optimizer</button>
+            <button type="button" className={`sim-lab-chip${workspaceMode === 'batch' ? ' active' : ''}`} onClick={() => setWorkspaceMode('batch')}>Batch</button>
+            <button type="button" className={`sim-lab-chip${workspaceMode === 'multi' ? ' active' : ''}`} onClick={() => setWorkspaceMode('multi')}>Multi-Objective</button>
+          </div>
+
+          {workspaceMode === 'sweep' && (
+            <div className="sim-lab-inline-metrics">
+              <button type="button" className="btn" onClick={() => runNoiseSweep()}>Run Noise Sweep</button>
+              <span>Gate sweep outputs update in Parametric Sweep Studio.</span>
+            </div>
+          )}
+
+          {workspaceMode === 'optimizer' && (
+            <div className="sim-lab-inline-metrics">
+              <button type="button" className="btn" onClick={() => runOptimizer()}>Run Optimizer</button>
+              <span>{optimizerMessage || 'Run single-parameter optimization on selected gate.'}</span>
+            </div>
+          )}
+
+          {workspaceMode === 'batch' && (
+            <div className="sim-lab-inline-metrics">
+              <button type="button" className="btn" onClick={() => void runBatchRunner()} disabled={batchRunnerRunning}>Run Batch</button>
+              <button type="button" className="btn" onClick={cancelBatchRunner} disabled={!batchRunnerRunning}>Cancel Batch</button>
+              <span>{batchRunnerRunning ? `Progress ${(batchRunnerProgress * 100).toFixed(1)}%` : (batchRunnerMessage || 'Batch runner idle')}</span>
+            </div>
+          )}
+
+          {workspaceMode === 'multi' && (
+            <div className="sim-lab-inline-metrics">
+              <button type="button" className="btn" onClick={() => runMultiObjective()}>Run Multi-Objective</button>
+              <span>{multiObjectiveMessage || 'Tune probability/depth/two-qubit trade-off.'}</span>
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Interoperability Workspace</div>
+          <p className="sim-lab-note">Import/export, QASM diagnostics, round-trip checks, and candidate diff in one place.</p>
+          <textarea
+            className="sim-lab-textarea"
+            value={importExpr}
+            onChange={(e) => setImportExpr(e.target.value)}
+            placeholder="Paste macro, JSON, or OpenQASM-lite here"
+          />
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runImport}>Import</button>
+            <button type="button" className="btn" onClick={buildQasmPreview}>Build QASM</button>
+            <button type="button" className="btn" onClick={runQasmInteropAnalysis}>Interop Diagnostics</button>
+            <button type="button" className="btn" onClick={runRoundTripVerifier}>Round-Trip Verify</button>
+            <button type="button" className="btn" onClick={runCircuitDiff}>Candidate Diff</button>
+          </div>
+          {(importMessage || qasmInteropMessage || diffSummaryText) && (
+            <div className="sim-lab-inline-metrics">
+              {importMessage && <span>{importMessage}</span>}
+              {qasmInteropMessage && <span>{qasmInteropMessage}</span>}
+              {diffSummaryText && <span>{diffSummaryText}</span>}
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Verification and Teaching Workspace</div>
+          <p className="sim-lab-note">Golden checks, benchmarks, and assignment evaluation from one panel.</p>
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runGoldenHarness}>Run Golden Harness</button>
+            <button type="button" className="btn" onClick={runSelectedBenchmark}>Run Benchmark</button>
+            <button type="button" className="btn" onClick={runAssignmentCheck}>Check Assignment</button>
+          </div>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Verification</span><span>Status</span></div>
+            <div className="sim-lab-row"><span>Golden checks</span><span>{goldenResults.length === 0 ? 'not run' : `${goldenResults.filter((r) => r.ok).length}/${goldenResults.length} pass`}</span></div>
+            <div className="sim-lab-row"><span>Benchmark score</span><span>{benchmarkResult ? benchmarkResult.score.toFixed(4) : 'not run'}</span></div>
+            <div className="sim-lab-row"><span>Assignment score</span><span>{assignmentScore === null ? 'not run' : assignmentScore.toFixed(3)}</span></div>
+          </div>
+        </section>
+
         <section className="sim-lab-card">
           <div className="sim-lab-card-title">Symbolic Parameters</div>
           <p className="sim-lab-note">Define symbols once, reuse across observables, sweeps, macros, and reverse engineering.</p>
@@ -1240,6 +1557,21 @@ const SimulatorLabPanel: React.FC<Props> = ({
           )}
           <div className="sim-lab-inline-metrics">
             {hardwareReport.notes.map((note) => <span key={note}>{note}</span>)}
+          </div>
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Constraints Assistant</div>
+          <p className="sim-lab-note">Actionable hardware-compatibility recommendations for the selected backend profile.</p>
+          <div className="sim-lab-results-wrap">
+            <div className="sim-lab-results-head"><span>Assistant</span><span>Suggestion</span></div>
+            {constraintsSuggestions.map((item, idx) => (
+              <div key={`${item}-${idx}`} className="sim-lab-row"><span>{idx + 1}</span><span>{item}</span></div>
+            ))}
+          </div>
+          <div className="sim-lab-inline-metrics">
+            <button type="button" className="btn" onClick={runAutoLayoutPass}>Run Auto-Layout</button>
+            <button type="button" className="btn" onClick={runTranspilePreset}>Apply Transpile Preset</button>
           </div>
         </section>
 
@@ -1794,6 +2126,36 @@ const SimulatorLabPanel: React.FC<Props> = ({
                   <Line type="monotone" dataKey="value" stroke="#ef4444" dot={false} strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
+        <section className="sim-lab-card">
+          <div className="sim-lab-card-title">Error Mitigation Mini-Lab (Readout)</div>
+          <p className="sim-lab-note">Apply independent readout-error mitigation and compare raw vs corrected target probability.</p>
+          <div className="sim-sweep-controls">
+            <label>
+              Shots
+              <input value={mitigationShots} onChange={(e) => setMitigationShots(e.target.value)} />
+            </label>
+            <label>
+              Target basis bits
+              <input value={mitigationBasisBits} onChange={(e) => setMitigationBasisBits(e.target.value.replace(/[^01]/g, '').slice(0, numQubits))} />
+            </label>
+            <label>
+              Readout error p (optional)
+              <input value={mitigationReadoutError} onChange={(e) => setMitigationReadoutError(e.target.value)} placeholder={`${noise.readoutError.toFixed(3)} default`} />
+            </label>
+            <button type="button" className="btn" onClick={runReadoutMitigation}>Run Mitigation</button>
+          </div>
+          {mitigationSummary && (
+            <div className="sim-lab-results-wrap">
+              <div className="sim-lab-results-head"><span>Metric</span><span>Value</span></div>
+              <div className="sim-lab-row"><span>Target raw probability</span><span>{(mitigationSummary.raw * 100).toFixed(2)}%</span></div>
+              <div className="sim-lab-row"><span>Target mitigated probability</span><span>{(mitigationSummary.mitigated * 100).toFixed(2)}%</span></div>
+              <div className="sim-lab-row"><span>Delta</span><span>{(mitigationSummary.delta * 100).toFixed(2)}%</span></div>
+              <div className="sim-lab-row"><span>Top raw outcomes</span><span>{mitigationSummary.topRaw.map((x) => `${x.basis}:${(x.p * 100).toFixed(1)}%`).join(' | ')}</span></div>
+              <div className="sim-lab-row"><span>Top mitigated outcomes</span><span>{mitigationSummary.topMitigated.map((x) => `${x.basis}:${(x.p * 100).toFixed(1)}%`).join(' | ')}</span></div>
             </div>
           )}
         </section>

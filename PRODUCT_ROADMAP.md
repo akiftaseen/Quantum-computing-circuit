@@ -119,13 +119,16 @@ Decision rule:
 - Draft metadata basics.
 
 ### Sprint 3
-- Observable panel.
-- Error mitigation mini-lab (readout correction).
+- [done] Observable panel.
+- [done] Error mitigation mini-lab (readout correction).
 
 ### Sprint 4
-- Parameter sweep workspace.
-- Constraints assistant.
-- Final cleanup pass based on usage analytics.
+- [done] Parameter sweep workspace.
+- [done] Constraints assistant.
+- [done] Final cleanup pass based on usage analytics (core/advanced gating + overlap reduction + roadmap-based pruning pass).
+
+Post-sprint polish update:
+- [done] Advanced lab tools remain visible by default in Advanced mode; discoverability is improved through search without hidden-by-default constraints.
 
 ## Design Guardrails
 

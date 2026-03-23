@@ -59,12 +59,15 @@ The app follows a core-first UX approach:
 - Core/Advanced mode toggle to keep common workflows lightweight while still exposing power tools.
 - Feature search that live-filters visible tool sections by title, description text, and related terms.
 - Circuit diff view for comparing current and candidate circuits.
+- Constraints assistant with actionable hardware-compatibility recommendations.
 - Hardware profile presets with compatibility scoring (native gates, coupling limits, and estimated SWAP overhead).
 - Live transpilation hints for cancellation, fusion, depth compaction, and backend decomposition warnings.
 - Hardware-aware auto-layout pass that inserts SWAP routing for constrained backends.
 - Entanglement map visualization (pairwise strength heatmap + pair trend over circuit depth).
 - Gate-fusion aware optimization reports and memoized simulation paths for faster local runs.
 - Parameter optimizer (VQE-style grid sweep) for single-parameter tuning.
+- Parametric sweep workspace for probability/observable trend analysis across theta ranges.
+- Readout-error mitigation mini-lab for raw vs corrected measurement outcome estimates.
 - Noise sweep dashboard with success-probability trend chart.
 - Batch experiment runner for queued multi-job sweeps with progress tracking and CSV export.
 - Golden test harness for regression assertions on basis probabilities and observables.
