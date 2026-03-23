@@ -107,7 +107,7 @@ describe('circuitRunner shot engine', () => {
     expect(hist.get('1') ?? 0).toBe(0);
   });
 
-  it('accumulates amplitude damping over circuit layers', () => {
+  it('accumulates T1 damping over circuit depth', () => {
     const circuit: CircuitState = {
       numQubits: 1,
       numColumns: 3,
@@ -119,15 +119,17 @@ describe('circuitRunner shot engine', () => {
     const noise: NoiseConfig = {
       ...defaultNoise,
       enabled: true,
-      amplitudeDamping: 0.5,
+      t1Microseconds: 1,
+      gateTime1qNs: 1000,
+      idleTimeNs: 1000,
     };
 
     const shots = 4096;
     const hist = runWithNoiseShots(circuit, shots, noise, undefined, undefined, { seed: 2026 });
     const p1 = (hist.get('1') ?? 0) / shots;
 
-    // With layer-wise damping and 3 columns, expected excited-state population is (1-gamma)^3 = 0.125.
-    expect(p1).toBeGreaterThan(0.09);
-    expect(p1).toBeLessThan(0.16);
+    // With T1=1us and 1us per layer for 3 layers, expected excited-state population is exp(-3) ~ 0.0498.
+    expect(p1).toBeGreaterThan(0.03);
+    expect(p1).toBeLessThan(0.07);
   });
 });

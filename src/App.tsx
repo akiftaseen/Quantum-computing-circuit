@@ -30,6 +30,13 @@ const ExperimentWorkbenchPanel = lazy(() => import('./components/ExperimentWorkb
 const SimulatorLabPanel = lazy(() => import('./components/SimulatorLabPanel'));
 
 const INIT: CircuitState = { numQubits: 2, numColumns: 10, gates: [] };
+const INITIAL_DRAFT_ID = 'draft-initial';
+
+interface CircuitDraft {
+  id: string;
+  name: string;
+  circuit: CircuitState;
+}
 
 type Tab = 'prob' | 'bloch' | 'dirac' | 'math' | 'shots' | 'analysis' | 'sim';
 
@@ -50,9 +57,15 @@ const isTextEntryTarget = (target: EventTarget | null): boolean => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 };
 
+const createDraftId = () => `draft-${Math.random().toString(36).slice(2, 10)}`;
+
 const App: React.FC = () => {
   const { circuit, setCircuit, undo, redo, reset, canUndo, canRedo } = useCircuitHistory(INIT);
   const { mode: themeMode, cycleThemeMode } = useTheme();
+  const [drafts, setDrafts] = useState<CircuitDraft[]>([
+    { id: INITIAL_DRAFT_ID, name: 'Circuit 1', circuit: INIT },
+  ]);
+  const [activeDraftId, setActiveDraftId] = useState(INITIAL_DRAFT_ID);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [stepCol, setStepCol] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -158,6 +171,15 @@ const App: React.FC = () => {
     circuit.gates.find(g => g.id === selectedId) ?? null,
   [circuit.gates, selectedId]);
 
+  const activeDraft = useMemo(
+    () => drafts.find((d) => d.id === activeDraftId) ?? drafts[0],
+    [drafts, activeDraftId],
+  );
+
+  useEffect(() => {
+    setDrafts((prev) => prev.map((d) => (d.id === activeDraftId ? { ...d, circuit } : d)));
+  }, [activeDraftId, circuit]);
+
   const paramEdit = useMemo(() => {
     if (!selectedGate || !isParametric(selectedGate.gate)) return null;
     return { id: selectedGate.id, value: selectedGate.params[0] ?? Math.PI / 2 };
@@ -167,30 +189,39 @@ const App: React.FC = () => {
 
   const handlePlaceGate = useCallback((g: Omit<PlacedGate, 'id'>) => {
     const newGate: PlacedGate = { ...g, id: newGateId() };
-    // Auto-expand columns when placing near the end
-    let cols = circuit.numColumns;
-    if (newGate.column >= cols - 2) {
-      cols = newGate.column + 4;
-    }
-    setCircuit({
-      ...circuit,
-      numColumns: cols,
-      gates: circuit.gates.filter(
-        x => !(x.column === newGate.column && x.targets.some(t => newGate.targets.includes(t)) && x.controls.length === 0 && newGate.controls.length === 0)
-      ).concat(newGate),
+    setCircuit((prev) => {
+      // Auto-expand columns when placing near the end
+      let cols = prev.numColumns;
+      if (newGate.column >= cols - 2) {
+        cols = newGate.column + 4;
+      }
+      const occupiedByNew = new Set<number>([...newGate.targets, ...newGate.controls]);
+
+      return {
+        ...prev,
+        numColumns: cols,
+        gates: prev.gates.filter(
+          (x) => {
+            if (x.column !== newGate.column) return true;
+            const occupiedByExisting = [...x.targets, ...x.controls];
+            const conflicts = occupiedByExisting.some((q) => occupiedByNew.has(q));
+            return !conflicts;
+          }
+        ).concat(newGate),
+      };
     });
-  }, [circuit, setCircuit]);
+  }, [setCircuit]);
 
   const handleRemoveGate = useCallback((id: string) => {
-    setCircuit({ ...circuit, gates: circuit.gates.filter(g => g.id !== id) });
-  }, [circuit, setCircuit]);
+    setCircuit((prev) => ({ ...prev, gates: prev.gates.filter((g) => g.id !== id) }));
+  }, [setCircuit]);
 
   const handleUpdateGate = useCallback((id: string, updates: Partial<PlacedGate>) => {
-    setCircuit({
-      ...circuit,
-      gates: circuit.gates.map(g => g.id === id ? { ...g, ...updates } : g),
-    });
-  }, [circuit, setCircuit]);
+    setCircuit((prev) => ({
+      ...prev,
+      gates: prev.gates.map((g) => g.id === id ? { ...g, ...updates } : g),
+    }));
+  }, [setCircuit]);
 
   const handleSetQubits = (n: number) => {
     if (!validateQubitCount(n)) return;
@@ -216,10 +247,13 @@ const App: React.FC = () => {
       ...noise,
       enabled:
         noise.depolarizing1q > 0 ||
+        noise.depolarizing2q > 0 ||
         noise.amplitudeDamping > 0 ||
         noise.bitFlip > 0 ||
         noise.phaseFlip > 0 ||
-        noise.readoutError > 0,
+        noise.readoutError > 0 ||
+        noise.t1Microseconds > 0 ||
+        noise.t2Microseconds > 0,
     };
     const hist = runWithShots(circuit, numShots, initialState, shotsBasisAxes, samplingOptions);
     setShotsResult(hist);
@@ -257,10 +291,13 @@ const App: React.FC = () => {
       const next: NoiseConfig = { ...prev, ...patch };
       next.enabled =
         next.depolarizing1q > 0 ||
+        next.depolarizing2q > 0 ||
         next.amplitudeDamping > 0 ||
         next.bitFlip > 0 ||
         next.phaseFlip > 0 ||
-        next.readoutError > 0;
+        next.readoutError > 0 ||
+        next.t1Microseconds > 0 ||
+        next.t2Microseconds > 0;
       return next;
     });
   };
@@ -340,6 +377,81 @@ const App: React.FC = () => {
     setNoisyShotsResult(null);
     setStepCol(null);
     setLiveMessage('Template loaded.');
+  };
+
+  const clearTransientResults = () => {
+    setSelectedId(null);
+    setShotsResult(null);
+    setNoisyShotsResult(null);
+    setStepCol(null);
+  };
+
+  const switchDraft = (id: string) => {
+    if (id === activeDraftId) return;
+    const next = drafts.find((d) => d.id === id);
+    if (!next) return;
+    setActiveDraftId(id);
+    reset(next.circuit);
+    clearTransientResults();
+    setLiveMessage(`Switched to ${next.name}.`);
+  };
+
+  const createNewDraft = () => {
+    const nextName = `Circuit ${drafts.length + 1}`;
+    const nextCircuit: CircuitState = {
+      numQubits: circuit.numQubits,
+      numColumns: Math.max(10, circuit.numColumns),
+      gates: [],
+    };
+    const next: CircuitDraft = { id: createDraftId(), name: nextName, circuit: nextCircuit };
+    setDrafts((prev) => [...prev, next]);
+    setActiveDraftId(next.id);
+    reset(next.circuit);
+    clearTransientResults();
+    setLiveMessage(`${nextName} created.`);
+  };
+
+  const duplicateActiveDraft = () => {
+    const base = activeDraft;
+    if (!base) return;
+    const next: CircuitDraft = {
+      id: createDraftId(),
+      name: `${base.name} Copy`,
+      circuit: {
+        ...circuit,
+        gates: circuit.gates.map((g) => ({ ...g })),
+      },
+    };
+    setDrafts((prev) => [...prev, next]);
+    setActiveDraftId(next.id);
+    reset(next.circuit);
+    clearTransientResults();
+    setLiveMessage(`${next.name} created.`);
+  };
+
+  const renameActiveDraft = () => {
+    const current = activeDraft;
+    if (!current) return;
+    const nextName = window.prompt('Rename circuit', current.name)?.trim();
+    if (!nextName) return;
+    setDrafts((prev) => prev.map((d) => (d.id === current.id ? { ...d, name: nextName } : d)));
+    setLiveMessage(`Renamed to ${nextName}.`);
+  };
+
+  const deleteActiveDraft = () => {
+    if (drafts.length <= 1) {
+      handleClear();
+      return;
+    }
+    const current = activeDraft;
+    if (!current) return;
+    const idx = drafts.findIndex((d) => d.id === current.id);
+    const fallback = drafts[idx > 0 ? idx - 1 : 1];
+    setDrafts((prev) => prev.filter((d) => d.id !== current.id));
+    setActiveDraftId(fallback.id);
+    reset(fallback.circuit);
+    clearTransientResults();
+    setLiveMessage(`${current.name} deleted.`);
   };
 
   // Keyboard shortcuts
@@ -475,6 +587,19 @@ const App: React.FC = () => {
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
       />
+
+      <div className="drafts-bar" aria-label="Circuit drafts">
+        <label className="drafts-label" htmlFor="draft-select">Circuit</label>
+        <select id="draft-select" className="drafts-select" value={activeDraftId} onChange={(e) => switchDraft(e.target.value)}>
+          {drafts.map((draft) => (
+            <option key={draft.id} value={draft.id}>{draft.name}</option>
+          ))}
+        </select>
+        <button className="btn" onClick={createNewDraft}>New</button>
+        <button className="btn" onClick={duplicateActiveDraft} disabled={!activeDraft}>Duplicate</button>
+        <button className="btn" onClick={renameActiveDraft} disabled={!activeDraft}>Rename</button>
+        <button className="btn" onClick={deleteActiveDraft} disabled={!activeDraft}>Delete</button>
+      </div>
 
       {/* ─── Body ─── */}
       <div className="app-body">
@@ -814,12 +939,20 @@ const App: React.FC = () => {
 
                   <div className="noise-controls">
                     <label>
-                      <span>Depolarizing</span>
+                      <span>Depolarizing (1q)</span>
                       <input type="range" min={0} max={0.2} step={0.005} value={noise.depolarizing1q}
                         className="ui-slider"
-                        aria-label="Depolarizing noise"
+                        aria-label="Depolarizing 1-qubit noise"
                         onChange={(e) => updateNoise({ depolarizing1q: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.depolarizing1q)}</strong>
+                    </label>
+                    <label>
+                      <span>Depolarizing (2q+)</span>
+                      <input type="range" min={0} max={0.35} step={0.005} value={noise.depolarizing2q}
+                        className="ui-slider"
+                        aria-label="Depolarizing 2-qubit noise"
+                        onChange={(e) => updateNoise({ depolarizing2q: Number(e.target.value) })} />
+                      <strong className="noise-value">{toPct(noise.depolarizing2q)}</strong>
                     </label>
                     <label>
                       <span>Amplitude damping</span>
@@ -852,6 +985,66 @@ const App: React.FC = () => {
                         aria-label="Phase flip noise"
                         onChange={(e) => updateNoise({ phaseFlip: Number(e.target.value) })} />
                       <strong className="noise-value">{toPct(noise.phaseFlip)}</strong>
+                    </label>
+                    <label>
+                      <span>T1 (microseconds)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100000}
+                        step={1}
+                        value={noise.t1Microseconds}
+                        onChange={(e) => updateNoise({ t1Microseconds: Math.max(0, Number(e.target.value) || 0) })}
+                      />
+                      <strong className="noise-value">{noise.t1Microseconds.toFixed(0)} us</strong>
+                    </label>
+                    <label>
+                      <span>T2 (microseconds)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100000}
+                        step={1}
+                        value={noise.t2Microseconds}
+                        onChange={(e) => updateNoise({ t2Microseconds: Math.max(0, Number(e.target.value) || 0) })}
+                      />
+                      <strong className="noise-value">{noise.t2Microseconds.toFixed(0)} us</strong>
+                    </label>
+                    <label>
+                      <span>1q gate time (ns)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100000}
+                        step={1}
+                        value={noise.gateTime1qNs}
+                        onChange={(e) => updateNoise({ gateTime1qNs: Math.max(1, Number(e.target.value) || 1) })}
+                      />
+                      <strong className="noise-value">{noise.gateTime1qNs.toFixed(0)} ns</strong>
+                    </label>
+                    <label>
+                      <span>2q gate time (ns)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100000}
+                        step={1}
+                        value={noise.gateTime2qNs}
+                        onChange={(e) => updateNoise({ gateTime2qNs: Math.max(1, Number(e.target.value) || 1) })}
+                      />
+                      <strong className="noise-value">{noise.gateTime2qNs.toFixed(0)} ns</strong>
+                    </label>
+                    <label>
+                      <span>Idle step time (ns)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100000}
+                        step={1}
+                        value={noise.idleTimeNs}
+                        onChange={(e) => updateNoise({ idleTimeNs: Math.max(1, Number(e.target.value) || 1) })}
+                      />
+                      <strong className="noise-value">{noise.idleTimeNs.toFixed(0)} ns</strong>
                     </label>
                   </div>
                   {shotsResult && noisyShotsResult ? (

@@ -58,6 +58,13 @@ const GatePalette: React.FC = () => {
   const onDragStart = (e: React.DragEvent, gateId: string) => {
     e.dataTransfer.setData('gateId', gateId);
     e.dataTransfer.effectAllowed = 'copy';
+
+    const chip = document.createElement('div');
+    chip.textContent = gateId;
+    chip.className = 'palette-drag-ghost';
+    document.body.appendChild(chip);
+    e.dataTransfer.setDragImage(chip, chip.offsetWidth / 2, chip.offsetHeight / 2);
+    requestAnimationFrame(() => chip.remove());
   };
 
   return (

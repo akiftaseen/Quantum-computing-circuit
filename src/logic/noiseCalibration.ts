@@ -52,6 +52,7 @@ export const fitNoiseModelFromHistogram = (
     for (const amplitudeDamping of grid) {
       for (const readoutError of grid) {
         const noise: NoiseConfig = {
+          ...defaultNoise,
           enabled: depolarizing1q > 0 || amplitudeDamping > 0 || readoutError > 0,
           depolarizing1q,
           amplitudeDamping,

@@ -17,6 +17,7 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 - Supports up to 6 qubits.
 - Auto-expands columns when placing gates near the end.
 - Undo/redo history.
+- Multi-circuit drafts: create, switch, duplicate, rename, and delete circuits without clearing current work.
 
 ### Quantum Gates
 - Single-qubit: `I H X Y Z S Sdg T Tdg Rx Ry Rz P`
@@ -84,6 +85,8 @@ Interactive quantum circuit simulator built with React + TypeScript + Vite.
 ### Noise Exploration
 - Toggle noise mode in Shots tab.
 - Configure depolarizing noise, amplitude damping, bit flip, phase flip, and readout error.
+- Configure separate 1-qubit and 2-qubit depolarizing rates.
+- Configure T1/T2 coherence times and gate/idle durations for hardware-style decoherence modeling.
 - Side-by-side ideal vs noisy histogram comparison for intuition.
 - Optional shot seed input for reproducible ideal/noisy sampling runs.
 - Noisy sampling uses exact density-matrix channel evolution, including circuits with mid-circuit measurement and classical feed-forward.

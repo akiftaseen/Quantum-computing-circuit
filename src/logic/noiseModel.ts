@@ -7,14 +7,31 @@ import type { Matrix2 } from './gate';
 export interface NoiseConfig {
   enabled: boolean;
   depolarizing1q: number;
+  depolarizing2q: number;
   amplitudeDamping: number;
   bitFlip: number;
   phaseFlip: number;
   readoutError: number;
+  t1Microseconds: number;
+  t2Microseconds: number;
+  gateTime1qNs: number;
+  gateTime2qNs: number;
+  idleTimeNs: number;
 }
 
 export const defaultNoise: NoiseConfig = {
-  enabled: false, depolarizing1q: 0, amplitudeDamping: 0, bitFlip: 0, phaseFlip: 0, readoutError: 0,
+  enabled: false,
+  depolarizing1q: 0,
+  depolarizing2q: 0,
+  amplitudeDamping: 0,
+  bitFlip: 0,
+  phaseFlip: 0,
+  readoutError: 0,
+  t1Microseconds: 0,
+  t2Microseconds: 0,
+  gateTime1qNs: 35,
+  gateTime2qNs: 240,
+  idleTimeNs: 35,
 };
 
 export const applyDepolarizing = (

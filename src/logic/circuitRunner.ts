@@ -45,6 +45,7 @@ interface CompiledCircuitPlan {
 
 type ComplexMatrix = Complex[][];
 type ClassicalBranch = { rho: ComplexMatrix; classicalBits: Map<number, number> };
+type ActiveArityPerQubit = number[];
 
 const RUN_CACHE_LIMIT = 256;
 const runCache = new Map<string, StepResult>();
@@ -327,62 +328,111 @@ const applyNoiseChannelsToDensity = (
   initialRho: ComplexMatrix,
   numQubits: number,
   noise: NoiseConfig,
+  activeArityPerQubit: ActiveArityPerQubit,
 ): ComplexMatrix => {
   let rho = initialRho;
   const dim = 1 << numQubits;
 
+  const t1 = Math.max(0, noise.t1Microseconds);
+  const t2 = Math.max(0, noise.t2Microseconds);
+
+  const clampProb = (v: number): number => Math.max(0, Math.min(1, v));
+
   for (let q = 0; q < numQubits; q++) {
-    if (noise.depolarizing1q > 0) {
-      const p = noise.depolarizing1q;
-      const I = buildSingleQubitOperator(numQubits, q, I_GATE);
-      const X = buildSingleQubitOperator(numQubits, q, X_GATE);
-      const Y = buildSingleQubitOperator(numQubits, q, Y_GATE);
-      const Z = buildSingleQubitOperator(numQubits, q, Z_GATE);
+    const arity = activeArityPerQubit[q] ?? 0;
+    const isActive = arity > 0;
+    const isTwoQOrMore = arity >= 2;
 
-      const termI = applyUnitaryToDensity(rho, I);
-      const termX = applyUnitaryToDensity(rho, X);
-      const termY = applyUnitaryToDensity(rho, Y);
-      const termZ = applyUnitaryToDensity(rho, Z);
+    if (isActive) {
+      const depProb = clampProb(isTwoQOrMore ? noise.depolarizing2q : noise.depolarizing1q);
+      if (depProb > 0) {
+        const I = buildSingleQubitOperator(numQubits, q, I_GATE);
+        const X = buildSingleQubitOperator(numQubits, q, X_GATE);
+        const Y = buildSingleQubitOperator(numQubits, q, Y_GATE);
+        const Z = buildSingleQubitOperator(numQubits, q, Z_GATE);
 
-      let mixed = zeroMatrix(dim);
-      mixed = matrixAddScaled(mixed, termI, 1 - p);
-      mixed = matrixAddScaled(mixed, termX, p / 3);
-      mixed = matrixAddScaled(mixed, termY, p / 3);
-      mixed = matrixAddScaled(mixed, termZ, p / 3);
-      rho = mixed;
+        const termI = applyUnitaryToDensity(rho, I);
+        const termX = applyUnitaryToDensity(rho, X);
+        const termY = applyUnitaryToDensity(rho, Y);
+        const termZ = applyUnitaryToDensity(rho, Z);
+
+        let mixed = zeroMatrix(dim);
+        mixed = matrixAddScaled(mixed, termI, 1 - depProb);
+        mixed = matrixAddScaled(mixed, termX, depProb / 3);
+        mixed = matrixAddScaled(mixed, termY, depProb / 3);
+        mixed = matrixAddScaled(mixed, termZ, depProb / 3);
+        rho = mixed;
+      }
+
+      if (noise.amplitudeDamping > 0) {
+        const gamma = clampProb(noise.amplitudeDamping);
+        const K0: Matrix2 = [c(1), c(0), c(0), c(Math.sqrt(1 - gamma))];
+        const K1: Matrix2 = [c(0), c(Math.sqrt(gamma)), c(0), c(0)];
+        const opK0 = buildSingleQubitOperator(numQubits, q, K0);
+        const opK1 = buildSingleQubitOperator(numQubits, q, K1);
+        rho = applyKrausChannel(rho, [opK0, opK1]);
+      }
+
+      if (noise.bitFlip > 0) {
+        const p = clampProb(noise.bitFlip);
+        const I = buildSingleQubitOperator(numQubits, q, I_GATE);
+        const X = buildSingleQubitOperator(numQubits, q, X_GATE);
+        const termI = applyUnitaryToDensity(rho, I);
+        const termX = applyUnitaryToDensity(rho, X);
+        let mixed = zeroMatrix(dim);
+        mixed = matrixAddScaled(mixed, termI, 1 - p);
+        mixed = matrixAddScaled(mixed, termX, p);
+        rho = mixed;
+      }
+
+      if (noise.phaseFlip > 0) {
+        const p = clampProb(noise.phaseFlip);
+        const I = buildSingleQubitOperator(numQubits, q, I_GATE);
+        const Z = buildSingleQubitOperator(numQubits, q, Z_GATE);
+        const termI = applyUnitaryToDensity(rho, I);
+        const termZ = applyUnitaryToDensity(rho, Z);
+        let mixed = zeroMatrix(dim);
+        mixed = matrixAddScaled(mixed, termI, 1 - p);
+        mixed = matrixAddScaled(mixed, termZ, p);
+        rho = mixed;
+      }
     }
 
-    if (noise.amplitudeDamping > 0) {
-      const gamma = noise.amplitudeDamping;
-      const K0: Matrix2 = [c(1), c(0), c(0), c(Math.sqrt(1 - gamma))];
-      const K1: Matrix2 = [c(0), c(Math.sqrt(gamma)), c(0), c(0)];
-      const opK0 = buildSingleQubitOperator(numQubits, q, K0);
-      const opK1 = buildSingleQubitOperator(numQubits, q, K1);
-      rho = applyKrausChannel(rho, [opK0, opK1]);
+    const dtNs = isTwoQOrMore
+      ? Math.max(1, noise.gateTime2qNs)
+      : (isActive ? Math.max(1, noise.gateTime1qNs) : Math.max(1, noise.idleTimeNs));
+    const dtUs = dtNs / 1000;
+
+    if (t1 > 0) {
+      const gammaT1 = clampProb(1 - Math.exp(-dtUs / t1));
+      if (gammaT1 > 0) {
+        const K0: Matrix2 = [c(1), c(0), c(0), c(Math.sqrt(1 - gammaT1))];
+        const K1: Matrix2 = [c(0), c(Math.sqrt(gammaT1)), c(0), c(0)];
+        const opK0 = buildSingleQubitOperator(numQubits, q, K0);
+        const opK1 = buildSingleQubitOperator(numQubits, q, K1);
+        rho = applyKrausChannel(rho, [opK0, opK1]);
+      }
     }
 
-    if (noise.bitFlip > 0) {
-      const p = noise.bitFlip;
-      const I = buildSingleQubitOperator(numQubits, q, I_GATE);
-      const X = buildSingleQubitOperator(numQubits, q, X_GATE);
-      const termI = applyUnitaryToDensity(rho, I);
-      const termX = applyUnitaryToDensity(rho, X);
-      let mixed = zeroMatrix(dim);
-      mixed = matrixAddScaled(mixed, termI, 1 - p);
-      mixed = matrixAddScaled(mixed, termX, p);
-      rho = mixed;
-    }
-
-    if (noise.phaseFlip > 0) {
-      const p = noise.phaseFlip;
-      const I = buildSingleQubitOperator(numQubits, q, I_GATE);
-      const Z = buildSingleQubitOperator(numQubits, q, Z_GATE);
-      const termI = applyUnitaryToDensity(rho, I);
-      const termZ = applyUnitaryToDensity(rho, Z);
-      let mixed = zeroMatrix(dim);
-      mixed = matrixAddScaled(mixed, termI, 1 - p);
-      mixed = matrixAddScaled(mixed, termZ, p);
-      rho = mixed;
+    if (t2 > 0) {
+      let invTphi = 1 / t2;
+      if (t1 > 0) {
+        invTphi = invTphi - (1 / (2 * t1));
+      }
+      if (invTphi > 0) {
+        const lambdaPhi = Math.exp(-dtUs * invTphi);
+        const pPhi = clampProb((1 - lambdaPhi) / 2);
+        if (pPhi > 0) {
+          const I = buildSingleQubitOperator(numQubits, q, I_GATE);
+          const Z = buildSingleQubitOperator(numQubits, q, Z_GATE);
+          const termI = applyUnitaryToDensity(rho, I);
+          const termZ = applyUnitaryToDensity(rho, Z);
+          let mixed = zeroMatrix(dim);
+          mixed = matrixAddScaled(mixed, termI, 1 - pPhi);
+          mixed = matrixAddScaled(mixed, termZ, pPhi);
+          rho = mixed;
+        }
+      }
     }
   }
 
@@ -428,68 +478,92 @@ const evolveCircuitDensityWithClassicalBranches = (
 
   for (let col = 0; col < circuit.numColumns; col++) {
     const colGates = plan.columns[col] ?? [];
-    for (const gate of colGates) {
-      if (gate.gate === 'Barrier') continue;
+    const nextColumnBranches: ClassicalBranch[] = [];
 
-      const nextBranches: ClassicalBranch[] = [];
+    for (const baseBranch of branches) {
+      type WorkingBranch = ClassicalBranch & { activeArity: ActiveArityPerQubit };
+      let working: WorkingBranch[] = [{
+        rho: baseBranch.rho,
+        classicalBits: new Map(baseBranch.classicalBits),
+        activeArity: Array(circuit.numQubits).fill(0),
+      }];
 
-      for (const branch of branches) {
-        if (gate.condition !== undefined && branch.classicalBits.get(gate.condition) !== 1) {
-          nextBranches.push(branch);
-          continue;
-        }
+      for (const gate of colGates) {
+        if (gate.gate === 'Barrier') continue;
+        const step: WorkingBranch[] = [];
 
-        if (gate.gate === 'M') {
-          const target = gate.targets[0];
-          const P0 = buildSingleQubitProjector(circuit.numQubits, target, 0);
-          const P1 = buildSingleQubitProjector(circuit.numQubits, target, 1);
-          const rho0Branch = matrixMul(matrixMul(P0, branch.rho), P0);
-          const rho1Branch = matrixMul(matrixMul(P1, branch.rho), P1);
-
-          if (gate.classicalBit === undefined) {
-            nextBranches.push({
-              rho: addDensityMatrices(rho0Branch, rho1Branch),
-              classicalBits: new Map(branch.classicalBits),
-            });
+        for (const w of working) {
+          if (gate.condition !== undefined && w.classicalBits.get(gate.condition) !== 1) {
+            step.push(w);
             continue;
           }
 
-          const tr0 = traceDensity(rho0Branch);
-          const tr1 = traceDensity(rho1Branch);
+          if (gate.gate === 'M') {
+            const target = gate.targets[0];
+            const P0 = buildSingleQubitProjector(circuit.numQubits, target, 0);
+            const P1 = buildSingleQubitProjector(circuit.numQubits, target, 1);
+            const rho0Branch = matrixMul(matrixMul(P0, w.rho), P0);
+            const rho1Branch = matrixMul(matrixMul(P1, w.rho), P1);
 
-          if (tr0 > 1e-15) {
-            const cb0 = new Map(branch.classicalBits);
-            cb0.set(gate.classicalBit, 0);
-            nextBranches.push({ rho: rho0Branch, classicalBits: cb0 });
-          }
-          if (tr1 > 1e-15) {
-            const cb1 = new Map(branch.classicalBits);
-            cb1.set(gate.classicalBit, 1);
-            nextBranches.push({ rho: rho1Branch, classicalBits: cb1 });
+            if (gate.classicalBit === undefined) {
+              step.push({
+                rho: addDensityMatrices(rho0Branch, rho1Branch),
+                classicalBits: new Map(w.classicalBits),
+                activeArity: [...w.activeArity],
+              });
+              continue;
+            }
+
+            const tr0 = traceDensity(rho0Branch);
+            const tr1 = traceDensity(rho1Branch);
+
+            if (tr0 > 1e-15) {
+              const cb0 = new Map(w.classicalBits);
+              cb0.set(gate.classicalBit, 0);
+              step.push({ rho: rho0Branch, classicalBits: cb0, activeArity: [...w.activeArity] });
+            }
+            if (tr1 > 1e-15) {
+              const cb1 = new Map(w.classicalBits);
+              cb1.set(gate.classicalBit, 1);
+              step.push({ rho: rho1Branch, classicalBits: cb1, activeArity: [...w.activeArity] });
+            }
+            continue;
           }
 
-          continue;
+          const U = buildGateOperator(gate, circuit.numQubits);
+          if (!U) {
+            step.push(w);
+            continue;
+          }
+
+          const acted = [...gate.targets, ...gate.controls];
+          const arity = acted.length >= 2 ? 2 : 1;
+          const nextActive = [...w.activeArity];
+          for (const q of acted) {
+            nextActive[q] = Math.max(nextActive[q], arity);
+          }
+
+          step.push({
+            rho: applyUnitaryToDensity(w.rho, U),
+            classicalBits: new Map(w.classicalBits),
+            activeArity: nextActive,
+          });
         }
 
-        const U = buildGateOperator(gate, circuit.numQubits);
-        if (!U) {
-          nextBranches.push(branch);
-          continue;
-        }
-        nextBranches.push({ rho: applyUnitaryToDensity(branch.rho, U), classicalBits: new Map(branch.classicalBits) });
+        working = step;
       }
 
-      branches = nextBranches;
-      if (branches.length === 0) {
-        branches = [{ rho: zeroMatrix(dim), classicalBits: new Map<number, number>() }];
+      for (const w of working) {
+        const rho = noise && noise.enabled
+          ? applyNoiseChannelsToDensity(w.rho, circuit.numQubits, noise, w.activeArity)
+          : w.rho;
+        nextColumnBranches.push({ rho, classicalBits: w.classicalBits });
       }
     }
 
-    if (noise && noise.enabled) {
-      branches = branches.map((branch) => ({
-        rho: applyNoiseChannelsToDensity(branch.rho, circuit.numQubits, noise),
-        classicalBits: branch.classicalBits,
-      }));
+    branches = nextColumnBranches;
+    if (branches.length === 0) {
+      branches = [{ rho: zeroMatrix(dim), classicalBits: new Map<number, number>() }];
     }
   }
 

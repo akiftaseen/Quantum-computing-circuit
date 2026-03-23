@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import type { CircuitState, PlacedGate, GateName } from '../logic/circuitTypes';
 import { isMultiQubit, isParametric, gateDisplayName } from '../logic/circuitTypes';
 
@@ -46,10 +46,19 @@ const COLORS: Record<string, [string, string, string]> = {
 const DEFAULT_C: [string, string, string] = ['#f3f4f6', '#d1d5db', '#374151'];
 const gc = (g: string) => COLORS[g] ?? DEFAULT_C;
 
+interface DragMeta {
+  mode: 'palette' | 'move';
+  gateId?: string;
+  gateName?: GateName;
+  targetOffsets: number[];
+  controlOffsets: number[];
+}
+
 /* ================================================================== */
 const CircuitGrid: React.FC<CircuitGridProps> = ({
   circuit,
   onPlace,
+  onRemove,
   selectedId,
   onSelect,
   stepCol,
@@ -57,6 +66,11 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
 }) => {
   const { numQubits, numColumns, gates } = circuit;
   const svgRef = useRef<SVGSVGElement>(null);
+  const [draggingGateId, setDraggingGateId] = useState<string | null>(null);
+  const [dragHover, setDragHover] = useState<{ col: number; qubit: number } | null>(null);
+  const [dragMeta, setDragMeta] = useState<DragMeta | null>(null);
+  const [showDiscardHint, setShowDiscardHint] = useState(false);
+  const [pointerMoveGateId, setPointerMoveGateId] = useState<string | null>(null);
 
   const W = PAD_L + numColumns * COL_W + PAD_R;
   const H = PAD_T + Math.max(numQubits - 1, 0) * ROW_H + BOX + PAD_B;
@@ -88,18 +102,90 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     'aria-label': gateAriaLabel(g),
   }), [gateAriaLabel, handleGateKeyDown, onSelect, selectedId]);
 
+  const getPaletteOffsets = useCallback((gateName: GateName): { targetOffsets: number[]; controlOffsets: number[] } => {
+    if (gateName === 'CCX') {
+      return { targetOffsets: [2], controlOffsets: [0, 1] };
+    }
+    if (gateName === 'SWAP' || gateName === 'iSWAP' || gateName === 'XX' || gateName === 'YY' || gateName === 'ZZ') {
+      return { targetOffsets: [0, 1], controlOffsets: [] };
+    }
+    if (gateName === 'CNOT' || gateName === 'CZ') {
+      return { targetOffsets: [1], controlOffsets: [0] };
+    }
+    return { targetOffsets: [0], controlOffsets: [] };
+  }, []);
+
+  const getGridAnchorFromClientPoint = useCallback((clientX: number, clientY: number) => {
+    if (!svgRef.current) return null;
+    const rect = svgRef.current.getBoundingClientRect();
+    const col = Math.round((clientX - rect.left - PAD_L - COL_W / 2) / COL_W);
+    const qubit = Math.round((clientY - rect.top - PAD_T - BOX / 2) / ROW_H);
+    const inBounds = col >= 0 && col < numColumns && qubit >= 0 && qubit < numQubits;
+    const outsideRect = clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom;
+    return { col, qubit, inBounds, outsideRect };
+  }, [numColumns, numQubits]);
+
+  const movePlacedGate = useCallback((existing: PlacedGate, col: number, anchorQubit: number) => {
+    const occupied = [...existing.targets, ...existing.controls];
+    const anchor = Math.min(...occupied);
+    const targetOffsets = existing.targets.map((t) => t - anchor);
+    const controlOffsets = existing.controls.map((c) => c - anchor);
+
+    const nextTargets = targetOffsets.map((off) => anchorQubit + off);
+    const nextControls = controlOffsets.map((off) => anchorQubit + off);
+    const nextOccupied = [...nextTargets, ...nextControls];
+
+    const inBounds = nextOccupied.every((qLine) => qLine >= 0 && qLine < numQubits);
+    if (!inBounds) return false;
+
+    const noDuplicates = new Set(nextOccupied).size === nextOccupied.length;
+    if (!noDuplicates) return false;
+
+    onRemove(existing.id);
+    onPlace({
+      gate: existing.gate,
+      column: col,
+      targets: nextTargets,
+      controls: nextControls,
+      params: [...existing.params],
+      classicalBit: existing.classicalBit,
+      condition: existing.condition,
+    });
+    return true;
+  }, [numQubits, onPlace, onRemove]);
+
   /* ---- Drag and drop ---- */
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      const moveGateId = e.dataTransfer.getData('moveGateId');
       const gateName = e.dataTransfer.getData('gateId') as GateName;
-      if (!gateName || !svgRef.current) return;
+      if (!gateName && !moveGateId) return;
+      if (!svgRef.current) return;
 
       const rect = svgRef.current.getBoundingClientRect();
       const col = Math.round((e.clientX - rect.left - PAD_L - COL_W / 2) / COL_W);
       const qubit = Math.round((e.clientY - rect.top - PAD_T - BOX / 2) / ROW_H);
 
-      if (col < 0 || col >= numColumns || qubit < 0 || qubit >= numQubits) return;
+      if (col < 0 || col >= numColumns || qubit < 0 || qubit >= numQubits) {
+        setDragHover(null);
+        setShowDiscardHint(false);
+        return;
+      }
+
+      if (moveGateId) {
+        const existing = gates.find((x) => x.id === moveGateId);
+        if (!existing) return;
+        const moved = movePlacedGate(existing, col, qubit);
+        if (!moved) return;
+        setDraggingGateId(null);
+        setDragHover(null);
+        setDragMeta(null);
+        setShowDiscardHint(false);
+        return;
+      }
+
+      if (!gateName) return;
 
       if (isMultiQubit(gateName)) {
         const control = qubit;
@@ -124,9 +210,110 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const params = isParametric(gateName) ? [Math.PI / 2] : [];
         onPlace({ gate: gateName, column: col, targets: [qubit], controls: [], params });
       }
+      setDragHover(null);
+      setDragMeta(null);
+      setShowDiscardHint(false);
     },
-    [numColumns, numQubits, onPlace],
+    [gates, movePlacedGate, numColumns, numQubits, onPlace],
   );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (!svgRef.current) return;
+
+    const moveGateId = e.dataTransfer.getData('moveGateId');
+    const paletteGateId = e.dataTransfer.getData('gateId') as GateName;
+
+    if (moveGateId) {
+      const existing = gates.find((x) => x.id === moveGateId);
+      if (existing) {
+        const occupied = [...existing.targets, ...existing.controls];
+        const anchor = Math.min(...occupied);
+        setDragMeta({
+          mode: 'move',
+          gateId: moveGateId,
+          gateName: existing.gate,
+          targetOffsets: existing.targets.map((t) => t - anchor),
+          controlOffsets: existing.controls.map((c) => c - anchor),
+        });
+      }
+    } else if (paletteGateId) {
+      const offsets = getPaletteOffsets(paletteGateId);
+      setDragMeta({
+        mode: 'palette',
+        gateName: paletteGateId,
+        targetOffsets: offsets.targetOffsets,
+        controlOffsets: offsets.controlOffsets,
+      });
+    }
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const col = Math.round((e.clientX - rect.left - PAD_L - COL_W / 2) / COL_W);
+    const qubit = Math.round((e.clientY - rect.top - PAD_T - BOX / 2) / ROW_H);
+
+    const inBounds = col >= 0 && col < numColumns && qubit >= 0 && qubit < numQubits;
+    setDragHover(inBounds ? { col, qubit } : null);
+
+    if (draggingGateId) {
+      const outsideRect =
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom;
+      setShowDiscardHint(outsideRect);
+    }
+
+    const dropMode = moveGateId ? 'move' : 'copy';
+    e.dataTransfer.dropEffect = inBounds ? dropMode : 'none';
+  }, [draggingGateId, gates, getPaletteOffsets, numColumns, numQubits]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (!svgRef.current) return;
+    const nextTarget = e.relatedTarget as Node | null;
+    if (nextTarget && svgRef.current.contains(nextTarget)) return;
+    setDragHover(null);
+    setDragMeta(null);
+    setShowDiscardHint(Boolean(draggingGateId));
+  }, [draggingGateId]);
+
+  useEffect(() => {
+    if (!pointerMoveGateId) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      const gridPoint = getGridAnchorFromClientPoint(e.clientX, e.clientY);
+      if (!gridPoint) return;
+
+      setDragHover(gridPoint.inBounds ? { col: gridPoint.col, qubit: gridPoint.qubit } : null);
+      setShowDiscardHint(gridPoint.outsideRect);
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const existing = gates.find((gate) => gate.id === pointerMoveGateId);
+      const gridPoint = getGridAnchorFromClientPoint(e.clientX, e.clientY);
+
+      if (existing && gridPoint) {
+        if (gridPoint.outsideRect) {
+          onRemove(existing.id);
+          onSelect(null);
+        } else if (gridPoint.inBounds) {
+          movePlacedGate(existing, gridPoint.col, gridPoint.qubit);
+        }
+      }
+
+      setPointerMoveGateId(null);
+      setDraggingGateId(null);
+      setDragHover(null);
+      setDragMeta(null);
+      setShowDiscardHint(false);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [gates, getGridAnchorFromClientPoint, movePlacedGate, onRemove, onSelect, pointerMoveGateId]);
 
   /* ---- Deselect on blank click ---- */
   const handleBgClick = useCallback(
@@ -188,13 +375,36 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       const isSel = g.id === selectedId;
       const accent = isSel ? '#6366f1' : undefined;
       const sw = isSel ? 2.8 : 1.5;
+      const occupied = [...g.targets, ...g.controls];
+      const anchor = Math.min(...occupied);
+      const targetOffsets = g.targets.map((t) => t - anchor);
+      const controlOffsets = g.controls.map((c) => c - anchor);
+
+      const pointerDragProps = {
+        onPointerDown: (e: React.PointerEvent<SVGGElement>) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          onSelect(g.id);
+          setDraggingGateId(g.id);
+          setPointerMoveGateId(g.id);
+          setDragMeta({
+            mode: 'move',
+            gateId: g.id,
+            gateName: g.gate,
+            targetOffsets,
+            controlOffsets,
+          });
+          setShowDiscardHint(false);
+        },
+      };
+      const gateClassName = `qgate${draggingGateId === g.id ? ' dragging' : ''}`;
 
       /* ---------- CNOT ---------- */
       if (g.gate === 'CNOT' && g.controls.length > 0) {
         const cy = qy(g.controls[0]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
+          <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
             <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#1e40af'} strokeWidth={sw} />
             <circle cx={x} cy={cy} r={5} fill={accent ?? '#1e40af'} />
             <circle cx={x} cy={ty} r={R_TGT} fill="var(--card, #fff)" stroke={accent ?? '#1e40af'} strokeWidth={sw} />
@@ -210,7 +420,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const cy = qy(g.controls[0]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
+          <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
             <line x1={x} y1={cy} x2={x} y2={ty} stroke={accent ?? '#4527a0'} strokeWidth={sw} />
             <circle cx={x} cy={cy} r={5} fill={accent ?? '#4527a0'} />
             <circle cx={x} cy={ty} r={5} fill={accent ?? '#4527a0'} />
@@ -225,7 +435,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const y2 = qy(g.targets[1]);
         const d = 7;
         els.push(
-          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
+          <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
             <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#c2410c'} strokeWidth={sw} />
             <line x1={x - d} y1={y1 - d} x2={x + d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
             <line x1={x + d} y1={y1 - d} x2={x - d} y2={y1 + d} stroke={accent ?? '#c2410c'} strokeWidth={2.2} />
@@ -243,7 +453,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const mid = (y1 + y2) / 2;
         const label = gateDisplayName[g.gate] ?? g.gate;
         els.push(
-          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
+          <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
             <line x1={x} y1={y1} x2={x} y2={y2} stroke={accent ?? '#0f766e'} strokeWidth={sw} />
             <circle cx={x} cy={y1} r={4.5} fill={accent ?? '#0f766e'} />
             <circle cx={x} cy={y2} r={4.5} fill={accent ?? '#0f766e'} />
@@ -260,7 +470,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
         const c2 = qy(g.controls[1]);
         const ty = qy(g.targets[0]);
         els.push(
-          <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
+          <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
             <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={Math.max(c1, c2)} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
             <line x1={x} y1={Math.min(c1, c2)} x2={x} y2={ty} stroke={accent ?? '#5b21b6'} strokeWidth={sw} />
             <circle cx={x} cy={c1} r={5} fill={accent ?? '#5b21b6'} />
@@ -281,7 +491,7 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       const fontSize = label.length > 2 ? 10 : 14;
 
       els.push(
-        <g key={g.id} className="qgate" {...gateInteractionProps(g)}>
+        <g key={g.id} className={gateClassName} {...gateInteractionProps(g)} {...pointerDragProps}>
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX}
             fill="var(--card, #fff)" />
           <rect x={x - BOX / 2} y={y - BOX / 2} width={BOX} height={BOX} rx={4}
@@ -295,7 +505,54 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
     });
 
     return els;
-  }, [gates, selectedId, onSelect]);
+  }, [gates, onSelect, selectedId, draggingGateId, gateInteractionProps]);
+
+  const dragPreview = useMemo(() => {
+    if (!dragHover || !dragMeta) return null;
+    const previewRows = [...dragMeta.targetOffsets, ...dragMeta.controlOffsets].map((off) => dragHover.qubit + off);
+    const rowsInBounds = previewRows.every((q) => q >= 0 && q < numQubits);
+    if (!rowsInBounds) return null;
+
+    const targets = new Set(dragMeta.targetOffsets.map((off) => dragHover.qubit + off));
+    const controls = new Set(dragMeta.controlOffsets.map((off) => dragHover.qubit + off));
+
+    return (
+      <g className="drop-preview-group" pointerEvents="none">
+        {previewRows.map((q) => (
+          <rect
+            key={`preview-${q}`}
+            className={`drop-preview ${targets.has(q) ? 'target' : 'control'}`}
+            x={sx(dragHover.col) - COL_W / 2 + 2}
+            y={qy(q) - ROW_H / 2 + 2}
+            width={COL_W - 4}
+            height={ROW_H - 4}
+            rx={7}
+          />
+        ))}
+        {controls.size > 0 && targets.size > 0 && (
+          <line
+            className="drop-preview-link"
+            x1={sx(dragHover.col)}
+            y1={qy(Math.min(...controls))}
+            x2={sx(dragHover.col)}
+            y2={qy(Math.max(...targets))}
+          />
+        )}
+      </g>
+    );
+  }, [dragHover, dragMeta, numQubits]);
+
+  const discardHint = useMemo(() => {
+    if (!showDiscardHint || !draggingGateId) return null;
+    return (
+      <g className="drag-discard-hint" pointerEvents="none">
+        <rect x={W - 212} y={10} width={200} height={24} rx={12} />
+        <text x={W - 112} y={22} textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700}>
+          Release outside to discard gate
+        </text>
+      </g>
+    );
+  }, [W, showDiscardHint, draggingGateId]);
 
   /* ---- Empty drop zones ---- */
   const dropZones = useMemo(() => {
@@ -329,7 +586,8 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       ref={svgRef}
       width={W}
       height={H}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={handleBgClick}
       onKeyDown={(e) => {
@@ -342,6 +600,8 @@ const CircuitGrid: React.FC<CircuitGridProps> = ({
       <title>Quantum circuit grid</title>
       <rect className="bg-rect" width={W} height={H} fill="var(--card, #fff)" rx={10} />
       {stepHighlight}
+      {dragPreview}
+      {discardHint}
       {dropZones}
       {wires}
       {gateElements}

@@ -394,6 +394,32 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.drafts-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 92%, var(--bg));
+  flex-wrap: wrap;
+}
+
+.drafts-label {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.drafts-select {
+  min-width: 170px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
 /* ===================== Left Sidebar ===================== */
 .sidebar {
   position: relative;
@@ -593,18 +619,23 @@ textarea:focus-visible {
 
 .circuit-svg .qgate {
   cursor: pointer;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.14s ease, transform 0.14s ease, filter 0.14s ease;
 }
 
 .circuit-svg .qgate:hover {
-  opacity: 0.65;
-  filter: brightness(1.05);
+  opacity: 0.9;
+  filter: brightness(1.06);
 }
 
 .circuit-svg .qgate:focus-visible {
-  opacity: 0.8;
+  opacity: 1;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 60%, transparent));
   outline: none;
+}
+
+.circuit-svg .qgate.dragging {
+  opacity: 0.5;
+  filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.25));
 }
 
 .circuit-svg .drop-zone {
@@ -614,6 +645,66 @@ textarea:focus-visible {
 
 .circuit-svg .drop-zone:hover {
   fill: rgba(99, 102, 241, 0.05);
+}
+
+.circuit-svg .drop-preview {
+  fill: color-mix(in srgb, var(--primary) 16%, transparent);
+  stroke: color-mix(in srgb, var(--primary) 75%, #ffffff);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+  animation: drop-preview-pulse 520ms ease-in-out infinite alternate;
+}
+
+.circuit-svg .drop-preview.control {
+  fill: color-mix(in srgb, #334155 12%, transparent);
+  stroke: color-mix(in srgb, #334155 60%, var(--border));
+}
+
+.circuit-svg .drop-preview.target {
+  fill: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.circuit-svg .drop-preview-link {
+  stroke: color-mix(in srgb, var(--primary) 70%, var(--text-3));
+  stroke-width: 1.8;
+  stroke-dasharray: 4 3;
+  animation: drop-preview-pulse 520ms ease-in-out infinite alternate;
+}
+
+.circuit-svg .drag-discard-hint rect {
+  fill: color-mix(in srgb, #ef4444 14%, var(--card));
+  stroke: color-mix(in srgb, #ef4444 55%, var(--border));
+}
+
+.circuit-svg .drag-discard-hint text {
+  fill: color-mix(in srgb, #b91c1c 88%, var(--text));
+}
+
+@keyframes drop-preview-pulse {
+  from {
+    opacity: 0.72;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.palette-drag-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: color-mix(in srgb, var(--primary-bg) 85%, var(--card));
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
 }
 
 /* ---- Stepper Row ---- */
