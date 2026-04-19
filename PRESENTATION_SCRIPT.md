@@ -4,228 +4,82 @@ Date: 2026-04-19
 Deck target: slides.html (25 slides)
 Suggested pace: 18 to 25 minutes total
 
+This version is written as full narration so you can speak continuously without needing to improvise transitions.
+
 ## Slide 1 - Quantum Circuit Simulator
-Talk track:
-- Today I am presenting a browser-native quantum circuit simulator that combines education-focused UX with engineering-grade workflows.
-- The key idea is local-first execution: no backend required for building, simulating, analyzing, and exporting experiments.
-- The platform is built on React, TypeScript, and Vite, and it includes both ideal and noisy simulation paths.
-- I will first cover architecture and simulation internals, then move into advanced tooling, reliability, and roadmap.
-Transition:
-- Let us start with the problem this product was designed to solve.
+"Good [morning/afternoon], everyone. Today I am presenting a browser-native quantum circuit simulator that was designed to serve both education and engineering use cases in one product. The central idea is local-first execution: users can build circuits, run simulations, analyze outcomes, and export artifacts without depending on a backend service. Technically, the platform is built with React, TypeScript, and Vite, and it supports both ideal execution and realistic noisy execution paths. In this presentation, I will walk through architecture, simulation internals, advanced lab features, quality evidence, and finally the roadmap."
 
 ## Slide 2 - Problem and Motivation
-Talk track:
-- Existing quantum tooling often has two gaps: either it is too dependent on backend compute, or it is too specialized for beginners to use effectively.
-- We needed one environment where users can learn visually while still running reproducible, technical experiments.
-- A local-first model also improves privacy, portability, and offline resilience.
-- The product strategy is to keep the default workflow approachable while exposing advanced capabilities when needed.
-Transition:
-- That leads directly to how we positioned the product for two different user groups.
+"This project started from a practical gap in existing quantum tooling. On one side, many tools are tied to backend compute and introduce cost, latency, or setup friction. On the other side, many beginner tools are intuitive but too shallow for serious iteration. We wanted a system that keeps the interaction simple for learning while still enabling reproducible technical workflows. A local-first model also improves privacy, portability, and resilience when internet access is limited. So the core motivation was to build one coherent environment that does not force users to choose between approachability and depth."
 
 ## Slide 3 - Product Positioning
-Talk track:
-- The first audience is learners and educators, who need intuitive visual feedback like probabilities, Bloch vectors, and Dirac views.
-- The second audience is practitioners, who need seeded reproducibility, hardware checks, optimization workflows, and interop.
-- Instead of creating separate tools, we used progressive disclosure: simple primary workflow plus a deep lab workspace.
-- This keeps onboarding smooth without limiting power users.
-Transition:
-- Next, I will briefly summarize the technical stack behind this design.
+"The product is intentionally built for two personas. The first is learners and educators, who need immediate visual feedback such as probabilities, Bloch representations, and Dirac notation. The second is practitioners and researchers, who need deterministic shot runs, optimization tooling, hardware-awareness checks, and interoperability features. Instead of building two separate products, we used progressive disclosure. The main workflow stays clean and approachable, while deeper functionality is available in the Simulator Lab. That gives new users a low-friction entry point and power users the depth they need."
 
 ## Slide 4 - Technology Stack
-Talk track:
-- The frontend is React 19 with TypeScript strict mode, bundled with Vite for fast iteration and optimized builds.
-- Recharts powers chart visuals, and lucide-react keeps iconography consistent.
-- The app is PWA-enabled, including offline support and service worker update behavior.
-- Quality and reliability are enforced through ESLint, strict TypeScript settings, and Vitest-based testing.
-Transition:
-- With stack context set, let us look at the architecture layers.
+"From a technical perspective, the frontend uses React 19 and TypeScript with strict settings, and Vite is used for development speed and efficient bundling. Visualization is handled with Recharts, and icon consistency comes from lucide-react. The app is also configured as a PWA, so offline behavior is part of the product rather than an afterthought. For quality controls, we enforce linting, strict typing, and Vitest-based test coverage. In short, the stack balances delivery speed with long-term maintainability and reliability."
 
 ## Slide 5 - Architecture Overview
-Talk track:
-- The architecture has three clear layers: UI components, state hooks, and pure logic modules.
-- The UI layer handles interaction and visualization.
-- Hooks handle cross-cutting state concerns like history, drafts, and theme.
-- The logic layer contains the simulation and analysis engines, independent from React rendering.
-Transition:
-- Here is how data flows through those layers during a typical user interaction.
+"The architecture follows three clear layers. The UI layer handles rendering and user interaction. The hook layer encapsulates cross-cutting state concerns such as history, drafts, and theme behavior. The logic layer contains the pure computational modules for simulation, analysis, optimization, and interop. This separation is intentional: simulation correctness should not depend on React rendering behavior. It also makes testing cleaner because the logic layer can be validated independently from the UI lifecycle."
 
 ## Slide 6 - Data Flow Pipeline
-Talk track:
-- A user edits a circuit in the grid, which updates CircuitState through history-managed state transitions.
-- Inputs are then validated and enriched with symbol bindings and initial-state definitions.
-- The circuit runner executes state evolution, optionally followed by shot sampling or noisy sampling.
-- Analysis modules derive metrics and diagnostics, and those results feed the visual tabs.
-Transition:
-- To understand this pipeline, we need to look at the domain model first.
+"Here is the end-to-end runtime flow. A user edits the circuit on the grid, and that updates CircuitState through controlled history transitions. Inputs are validated, and optional enrichments such as symbol bindings and initial-state definitions are applied. The runner then executes state evolution and may branch into shot sampling or noisy sampling depending on the mode. Analysis modules compute metrics and diagnostics from those results. Finally, the tabbed interface renders synchronized visual and textual outputs so users can interpret behavior from multiple perspectives."
 
 ## Slide 7 - Domain Model Schema
-Talk track:
-- The core entities are GateName, PlacedGate, and CircuitState.
-- PlacedGate includes structural placement fields and optional classical control fields for feed-forward logic.
-- CircuitState is compact and serializable, which makes history, persistence, and export straightforward.
-- This strongly typed schema is the backbone that keeps editing and simulation consistent.
-Transition:
-- With the schema in place, let us inspect the interaction model in the editor.
+"At the core, three types keep everything coherent: GateName, PlacedGate, and CircuitState. PlacedGate includes placement metadata and optional classical control fields, which is important for conditional logic and feed-forward behavior. CircuitState is intentionally compact and serializable, which supports persistence, history, and export pipelines. Because these types are strict and shared across the codebase, editing and execution stay aligned. This schema is effectively the contract that keeps the product consistent."
 
 ## Slide 8 - Editing UX Internals
-Talk track:
-- The editor uses an SVG-based circuit grid with drag-and-drop placement and move operations.
-- It supports quick power actions such as alt-drag copy and keyboard shortcuts for editing speed.
-- Invalid placements are blocked early with inline feedback, reducing run-time errors.
-- Accessibility is integrated through ARIA labeling and keyboard support.
-Transition:
-- Now I will move from UX internals to the simulation kernel internals.
+"The editor uses an SVG-based circuit grid for precision and scalability. Users can drag gates from the palette, move gates directly on the grid, and use faster interactions like modifier-assisted copy behavior. Invalid placements are blocked early with visible feedback so users do not discover structural issues only at run time. Accessibility is also part of the editing model, including keyboard interaction and ARIA-friendly labeling. So although the surface looks simple, the interaction engine is quite robust."
 
 ## Slide 9 - Simulation Kernels
-Talk track:
-- The simulation core is built on pure complex-number arithmetic, gate matrix definitions, and state-evolution operators.
-- Gate application uses bitwise indexing to update affected amplitudes efficiently.
-- Measurement and partial trace behavior are implemented in core logic primitives.
-- This gives deterministic and testable behavior outside any UI lifecycle concerns.
-Transition:
-- These primitives are orchestrated by the circuit runner engine.
+"Under the hood, simulation is built on pure complex arithmetic, gate matrices, and evolution primitives. Rather than relying on generic heavy matrix operations at every step, the implementation uses bitwise indexing to target only affected amplitudes. Measurement and partial-trace behavior are implemented directly in core logic primitives, which keeps execution deterministic and explainable. Because these modules are pure functions, they are easy to test and reason about. This is the computational foundation of the entire application."
 
 ## Slide 10 - Circuit Runner Engine
-Talk track:
-- The runner compiles execution plans, manages mid-circuit measurement complexity, and executes full or partial runs.
-- It supports skip-measure preview paths, shot paths, noisy paths, and unitary derivation where valid.
-- Multiple caches reduce repeated work, including compiled plan reuse and run-result cache entries.
-- Classical conditions based on measurement outcomes are handled during execution.
-Transition:
-- Next is one of the key performance decisions: how shot sampling is made fast.
+"The circuit runner is the orchestration layer on top of the simulation primitives. It compiles execution plans, handles partial stepping, supports skip-measure previews, and executes ideal or noisy runs based on mode. It also handles classical conditions derived from measurement outcomes, which is essential for realistic circuit behavior. Performance is improved with plan and run caches so repeated interactions do not constantly recompute expensive paths. This runner is where correctness, flexibility, and responsiveness meet."
 
 ## Slide 11 - Shot Sampling and Determinism
-Talk track:
-- Shot sampling uses alias-table construction, which shifts most cost to setup and keeps per-shot draws at constant time.
-- This is crucial for interactive workflows where users repeatedly rerun with parameter tweaks.
-- Seeded randomness makes repeated experiments reproducible, which is important for benchmarking and demos.
-- We also expose practical runtime constraints and cache limits to keep behavior predictable.
-Transition:
-- I will now show how the system handles noise in a physically richer pathway.
+"A key performance decision is the alias-table approach for shot sampling. Setup takes linear time in the number of states, but once the table is built, each sample draw is constant time. That matters because users often rerun thousands of shots while adjusting parameters live. Another important property is deterministic reproducibility through seeded randomness, which supports fair comparisons and repeatable experiments. So this layer is optimized for both speed and scientific consistency."
 
 ## Slide 12 - Noise and Density-Matrix Evolution
-Talk track:
-- When noise is enabled, the execution model transitions from pure state-vector assumptions to density-matrix evolution.
-- Noise channels include depolarizing, amplitude damping, bit/phase flip, and readout effects.
-- Timing parameters such as T1 and T2 are integrated so the model can reflect realistic degradation behavior.
-- Calibration and mitigation tools are built around this path for practical experiment correction.
-Transition:
-- With execution paths covered, let us examine how outputs are visualized.
+"When noise is enabled, the model moves from pure state-vector assumptions to a density-matrix execution path. That allows the simulator to represent mixed states and decoherence effects more faithfully. Configurable channels include depolarizing, amplitude damping, phase and bit flips, and readout effects, plus timing-related parameters like T1 and T2 context. Calibration and mitigation tools are built around this same pathway, so noisy analysis is integrated rather than bolted on. The result is practical realism while staying interactive in the browser."
 
 ## Slide 13 - Visualization Surfaces
-Talk track:
-- The simulator intentionally offers multiple synchronized representations because each representation answers different questions.
-- Probability and histogram views expose outcome distributions.
-- Bloch and Dirac views make state interpretation more intuitive for learning and debugging.
-- The math lens and analysis tabs connect visual behavior back to formal structure.
-Transition:
-- Those visuals are powered by a deeper analysis layer, shown next.
+"This product intentionally provides multiple synchronized views because no single representation answers every question. Probability and histogram views are best for distribution-level behavior. Bloch and Dirac views provide more intuitive state interpretation, especially for teaching and debugging. The math-oriented views connect these visuals back to formal structure. Together, these surfaces help users move from observation to understanding quickly."
 
 ## Slide 14 - Analysis and Insight Modules
-Talk track:
-- The analysis stack includes fidelity and distance metrics, interference/coherence analysis, and entanglement diagnostics.
-- It also includes heuristic optimization signals such as cancellation opportunities and decomposition hints.
-- The goal is not only to simulate outcomes, but to explain why outcomes look the way they do.
-- This makes the platform useful for both instruction and iterative engineering.
-Transition:
-- The most advanced workflows live in the Simulator Lab, which I will map now.
+"Beyond visualization, the app includes an interpretability layer with state-distance metrics, interference and coherence indicators, and entanglement diagnostics. It also provides heuristic optimization suggestions, such as cancellation opportunities and decomposition hints. The objective is not just to show outputs, but to explain patterns and suggest improvements. That makes the tool useful for iterative design loops, not only one-off runs. This is where the simulator becomes a decision aid rather than just a calculator."
 
 ## Slide 15 - Simulator Lab Feature Map
-Talk track:
-- Simulator Lab is the advanced workspace where optimization, calibration, mitigation, interop, and profiling tools are centralized.
-- It includes parameter optimization, noise sweeps, readout mitigation, routing checks, and experiment management.
-- These are integrated, not isolated utilities, so users can chain workflows quickly.
-- The result is a practical laboratory surface inside the same app shell.
-Transition:
-- Let us zoom in on one representative area: optimization and calibration mechanics.
+"Simulator Lab is the advanced workspace for engineering-heavy workflows. It brings together optimization, sweeps, mitigation, calibration, routing checks, interoperability utilities, and experiment management in one place. The important design choice here is composability: these are integrated tools, so users can chain workflows instead of jumping between disconnected utilities. That significantly improves productivity for deeper experimentation. In short, the lab is where advanced users can scale from inspection to full investigative workflows."
 
 ## Slide 16 - Optimization and Sweep Mechanics
-Talk track:
-- The calibration process uses a clearly defined parameter grid over depolarizing, damping, and readout error dimensions.
-- The lattice shown here is a 2D slice of that search space, repeated across readout levels.
-- The full fit evaluates 216 combinations and scores them with KL divergence.
-- This is a deliberate tradeoff between computational cost and calibration usefulness.
-Transition:
-- Next I will show how the app bridges ideal circuits and hardware constraints.
+"This slide highlights the calibration and sweep mechanics. The parameter grid is explicit and bounded, which makes search behavior transparent to users. The shown matrix is a structured slice of the calibration space, and the full process expands across readout levels for a total of 216 candidate evaluations. Candidates are scored using KL divergence, which gives a principled comparison against observed distributions. This is a practical engineering compromise: enough resolution to be useful, while staying fast enough for interactive use."
 
 ## Slide 17 - Hardware Awareness and Routing
-Talk track:
-- The app ships with reference hardware profiles, including constrained coupling topologies.
-- Compatibility checks evaluate unsupported gates, edge violations, and expected routing overhead.
-- For nonadjacent interactions, SWAP insertion is performed using shortest-path heuristics.
-- This gives users practical NISQ awareness without leaving the simulation workflow.
-Transition:
-- Interoperability is another critical bridge, especially for external ecosystems.
+"The simulator also includes hardware-awareness features so users can move closer to realistic constraints. It provides reference hardware profiles with coupling information and noise-related context. Compatibility checks evaluate unsupported operations, connectivity violations, and expected routing overhead. For non-adjacent interactions, routing uses SWAP insertion based on shortest-path heuristics. This gives users early feedback on deployability without leaving the design environment."
 
 ## Slide 18 - Interoperability and OpenQASM
-Talk track:
-- OpenQASM-lite import/export allows circuits to move between this app and external tooling pipelines.
-- The system provides diagnostics for unsupported constructs instead of failing silently.
-- It also supports round-trip structural checks to verify transformation integrity.
-- Transpile-like optimization levels provide practical pre-export optimization controls.
-Transition:
-- Next, I will cover initial-state flexibility, which is essential for many experiments.
+"Interoperability is handled through an OpenQASM-lite pipeline for import and export. The system is explicit about unsupported constructs, so users get diagnostics instead of silent failures. It also supports round-trip structural checks, which improves confidence when translating between formats. Transpile-like optimization levels are available before export to improve resulting circuits. Altogether, this makes the app a better bridge to external ecosystems rather than an isolated tool."
 
 ## Slide 19 - Initial State System
-Talk track:
-- Users can initialize circuits with simple presets or with advanced expression-based statevector definitions.
-- The parser supports arithmetic and common constants, with explicit validation feedback.
-- Template states include Bell, GHZ, W, cluster, stabilizer, Haar, and Dicke-style options.
-- This removes friction when testing specific target-state behaviors.
-Transition:
-- Persistence and reproducibility are the next important operational topic.
+"Initial state handling supports both accessibility and depth. Beginners can use presets, while advanced users can define expression-based statevectors directly. The parser supports arithmetic and standard constants with clear validation feedback. Template states like Bell, GHZ, W, cluster, stabilizer, Haar, and Dicke variants are built in for fast setup. This significantly reduces friction when exploring specific theoretical scenarios."
 
 ## Slide 20 - Persistence and State Lifecycle
-Talk track:
-- The app is local-first and persists key workspace and lab data using versioned local storage keys.
-- Draft workflows, UI settings, experiment traces, and packs can be restored consistently.
-- Export/import supports portable state snapshots for sharing and backup.
-- This is essential for repeatable experimentation over multiple sessions.
-Transition:
-- I will now summarize reliability evidence from testing and quality controls.
+"Because the app is local-first, persistence is a core feature. Versioned storage keys capture app state, draft workspaces, and advanced lab artifacts. Users can resume work across sessions with consistent restoration behavior. Export and import support portable snapshots for backup, transfer, and collaboration handoffs. This enables reproducible experimentation over time, not just single-session usage."
 
 ## Slide 21 - QA and Reliability Evidence
-Talk track:
-- The logic layer has broad test coverage with over one hundred test cases across critical behaviors.
-- Tests emphasize deterministic correctness, edge-case robustness, and interop/routing invariants.
-- Strict TypeScript and linting settings provide additional compile-time and static analysis safeguards.
-- Together, these practices make the core engine trustworthy for iterative technical use.
-Transition:
-- Next is a reconstruction of how this system likely evolved over time.
+"Reliability is backed by broad logic-layer test coverage and strict static checks. The suite emphasizes deterministic correctness, edge-case robustness, and interop or routing invariants. Strict TypeScript and linting reduce an entire class of avoidable runtime defects. As a result, the core computational behavior is heavily guarded against regressions. This is critical for a simulator where trust in output quality matters."
 
 ## Slide 22 - Development Journey (Inferred)
-Talk track:
-- Based on code and module structure, development likely started with core math and simulation.
-- The team then layered visual editing and educational surfaces, followed by analytics and lab tooling.
-- Interop, hardware-aware functionality, and hardening appear to be later phases.
-- This timeline is explicitly marked as inference, not direct historical metadata.
-Transition:
-- I will now close the technical section with explicit limitations and risk areas.
+"This timeline is intentionally marked as inferred, based on code structure and module distribution rather than historical commit narration. The likely progression is core math first, then editing UX and learning surfaces, then advanced analytics and lab tooling, followed by interoperability and hardening. Even as inference, this pattern is useful because it reflects a sensible architecture-first development strategy. It also explains why the computational core feels mature relative to UI complexity growth."
 
 ## Slide 23 - Constraints and Risk Areas
-Talk track:
-- The current limits favor browser practicality, including qubit and column caps.
-- There is also a shot-policy nuance between constants and UI clamping that should be unified.
-- QASM-lite scope and routing heuristics are practical but not fully general or globally optimal.
-- Noise calibration is intentionally coarse and can be extended with adaptive refinement.
-Transition:
-- Before closing, here is the recommended live demo sequence.
+"It is important to be explicit about current limits. The simulator prioritizes browser practicality, so qubit and column constraints are intentionally bounded. Some pathways, such as QASM-lite parsing and heuristic routing, are practical but not fully general. Noise calibration currently uses a coarse grid and can be further refined with adaptive methods. Calling out these limits clearly helps users trust both the strengths and boundaries of the platform."
 
 ## Slide 24 - Recommended Live Demo Flow
-Talk track:
-- Start with a Bell template to establish the editing and execution loop quickly.
-- Show ideal outcomes first, then noisy outcomes, then interpretive views.
-- Move into analysis and one advanced lab workflow such as optimization or sweep.
-- End with report and QASM export to demonstrate portability and reproducibility.
-Transition:
-- I will finish with forward-looking opportunities and then open the floor.
+"For a live demo, begin with a Bell-template run to establish immediate value. Then show ideal outcomes, turn on noise, and compare distribution changes so the audience sees cause and effect. Move briefly into analysis panels to explain interpretability, and then open one advanced lab workflow such as optimization or a sweep. Close by exporting a report and OpenQASM artifact to demonstrate reproducibility and ecosystem fit. This sequence gives both narrative clarity and technical depth within a short time window."
 
 ## Slide 25 - Future Horizons and Q and A
-Talk track:
-- The roadmap focuses on three tracks: performance acceleration, stronger compiler/hardware mapping, and deeper interoperability.
-- A stabilizer fast path and improved routing could significantly expand practical scale.
-- Interop grammar depth and benchmark expansion can further strengthen research use cases.
-- Thank you, and I welcome questions.
+"Looking forward, the roadmap focuses on three tracks: performance acceleration, stronger compiler and hardware mapping, and deeper interoperability. A stabilizer fast path and richer routing optimization could expand the practical envelope significantly. Additional parser depth and benchmarking improvements can further strengthen research and production-readiness. Thank you for your time, and I would be happy to take your questions."
 
 ## Optional Timing Guide
 - Slides 1 to 4: 3 to 4 minutes
@@ -233,7 +87,7 @@ Talk track:
 - Slides 13 to 20: 6 to 8 minutes
 - Slides 21 to 25: 3 to 4 minutes
 
-## Presenter Tips
-- Keep mathematical notation simple unless asked.
-- Pause briefly on slides 11, 12, 16, and 23 for technical audiences.
-- If time is short, compress slides 3, 14, and 22 into one-minute summaries.
+## Delivery Notes
+- Read each slide block naturally; do not rush through technical terms.
+- Pause after slides 11, 12, 16, and 23 for likely audience questions.
+- If time is short, compress slides 3, 14, and 22 into brief summaries.
