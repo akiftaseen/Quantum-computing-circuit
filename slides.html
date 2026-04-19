@@ -55,23 +55,7 @@
     }
 
     .deck-status {
-      width: 1280px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--card) 72%, transparent);
-      padding: 10px 18px;
-      color: var(--text-2);
-      font-size: 12px;
-      box-shadow: var(--shadow-sm);
-      backdrop-filter: blur(3px);
-    }
-
-    .deck-status strong {
-      color: var(--text);
-      font-weight: 700;
+      display: none;
     }
 
     .slide {
@@ -83,11 +67,31 @@
       box-shadow: var(--shadow-md);
       position: relative;
       overflow: hidden;
-      padding: 48px 56px 42px;
+      padding: 56px;
       display: flex;
       flex-direction: column;
-      gap: 26px;
+      gap: 12px;
       isolation: isolate;
+    }
+
+    body.presentation-mode {
+      overflow: hidden;
+    }
+
+    .presentation-hint {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 40;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 85%, transparent);
+      color: var(--text-2);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 12px;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(4px);
     }
 
     .slide::before,
@@ -117,16 +121,21 @@
     }
 
     .slide-header {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
-      gap: 20px;
+      gap: 10px;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 15px;
+      padding-bottom: 10px;
+    }
+
+    .slide-header > div:first-child {
+      grid-column: 2;
+      text-align: center;
     }
 
     .slide-title {
-      font-size: 38px;
+      font-size: 48px;
       font-weight: 800;
       line-height: 1.08;
       letter-spacing: -0.02em;
@@ -134,18 +143,20 @@
     }
 
     .slide-subtitle {
-      margin-top: 8px;
+      margin-top: 6px;
       color: var(--text-2);
-      font-size: 17px;
+      font-size: 22px;
       font-weight: 500;
     }
 
     .slide-index {
+      grid-column: 3;
+      justify-self: end;
       border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border));
       border-radius: 999px;
       padding: 7px 12px;
       font-family: var(--font-mono);
-      font-size: 12px;
+      font-size: 15px;
       color: var(--primary);
       background: var(--primary-bg);
       white-space: nowrap;
@@ -155,7 +166,9 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 10px;
+      width: min(100%, 1140px);
+      margin: 0 auto;
       min-height: 0;
     }
 
@@ -163,11 +176,11 @@
       text-align: center;
       justify-content: center;
       align-items: center;
-      gap: 24px;
+      gap: 18px;
     }
 
     .hero h1 {
-      font-size: 76px;
+      font-size: 92px;
       letter-spacing: -0.04em;
       line-height: 0.98;
       font-weight: 800;
@@ -182,7 +195,7 @@
     .hero p {
       max-width: 880px;
       color: var(--text-2);
-      font-size: 22px;
+      font-size: 28px;
       line-height: 1.45;
       font-weight: 500;
     }
@@ -192,7 +205,7 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .tag {
@@ -200,7 +213,7 @@
       border-radius: 999px;
       background: #fff;
       padding: 8px 12px;
-      font-size: 13px;
+      font-size: 17px;
       color: var(--text-2);
       font-weight: 600;
       box-shadow: var(--shadow-sm);
@@ -214,38 +227,50 @@
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 12px;
+      height: 100%;
+      align-content: stretch;
       min-height: 0;
     }
 
     .grid-3 {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
+      gap: 12px;
+      height: 100%;
+      align-content: stretch;
       min-height: 0;
     }
 
     .grid-4 {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      gap: 10px;
+      height: 100%;
+      align-content: stretch;
       min-height: 0;
+    }
+
+    .grid-2 > .panel,
+    .grid-3 > .panel,
+    .grid-4 > .panel {
+      height: 100%;
     }
 
     .panel {
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       background: #fff;
-      padding: 16px;
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       box-shadow: var(--shadow-sm);
       min-height: 0;
     }
 
     .panel h3 {
-      font-size: 18px;
+      font-size: 25px;
       line-height: 1.24;
       font-weight: 750;
       color: var(--text);
@@ -253,8 +278,8 @@
 
     .panel p,
     .panel li {
-      font-size: 15px;
-      line-height: 1.48;
+      font-size: 20px;
+      line-height: 1.52;
       color: var(--text-2);
       font-weight: 500;
     }
@@ -263,7 +288,7 @@
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 9px;
+      gap: 7px;
       margin: 0;
       padding: 0;
     }
@@ -286,21 +311,12 @@
 
     .mono {
       font-family: var(--font-mono);
-      font-size: 13px;
+      font-size: 17px;
       color: var(--text-2);
     }
 
     .source {
-      font-size: 12px;
-      color: var(--text-3);
-      border-top: 1px dashed var(--border);
-      padding-top: 10px;
-      margin-top: auto;
-    }
-
-    .source strong {
-      color: var(--text-2);
-      font-weight: 700;
+      display: none;
     }
 
     .metric-grid {
@@ -317,7 +333,7 @@
     }
 
     .metric .v {
-      font-size: 26px;
+      font-size: 38px;
       line-height: 1;
       font-weight: 800;
       letter-spacing: -0.02em;
@@ -326,7 +342,7 @@
     }
 
     .metric .l {
-      font-size: 12px;
+      font-size: 15px;
       color: var(--text-3);
       font-weight: 600;
       text-transform: uppercase;
@@ -336,28 +352,21 @@
     .flow {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 12px;
+      gap: 10px;
       align-items: stretch;
+      height: 100%;
     }
 
     .flow-step {
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       background: #fff;
-      padding: 12px;
+      padding: 10px;
       position: relative;
     }
 
     .flow-step:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      right: -8px;
-      top: 50%;
-      width: 16px;
-      height: 2px;
-      background: color-mix(in srgb, var(--primary) 50%, var(--border));
-      transform: translateY(-50%);
-      z-index: 3;
+      display: none;
     }
 
     .flow-step .n {
@@ -370,13 +379,13 @@
       background: var(--primary);
       color: #fff;
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 700;
       margin-bottom: 8px;
     }
 
     .flow-step h4 {
-      font-size: 15px;
+      font-size: 22px;
       font-weight: 750;
       margin-bottom: 6px;
       color: var(--text);
@@ -384,7 +393,7 @@
 
     .flow-step p {
       color: var(--text-2);
-      font-size: 13px;
+      font-size: 18px;
       line-height: 1.42;
       font-weight: 500;
     }
@@ -400,10 +409,10 @@
 
     .table th,
     .table td {
-      padding: 11px 12px;
+      padding: 10px 11px;
       text-align: left;
       border-bottom: 1px solid var(--border);
-      font-size: 13px;
+      font-size: 16px;
       vertical-align: top;
     }
 
@@ -411,7 +420,7 @@
       background: var(--primary-bg);
       color: var(--text);
       font-weight: 800;
-      font-size: 12px;
+      font-size: 14px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
@@ -444,27 +453,20 @@
     }
 
     .layer .name {
-      font-size: 16px;
+      font-size: 23px;
       color: var(--text);
       font-weight: 750;
       margin-bottom: 6px;
     }
 
     .layer .desc {
-      font-size: 14px;
+      font-size: 19px;
       color: var(--text-2);
       line-height: 1.44;
     }
 
     .layer::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: -10px;
-      width: 2px;
-      height: 10px;
-      background: color-mix(in srgb, var(--primary) 45%, var(--border));
+      display: none;
     }
 
     .layer:last-child::after {
@@ -474,23 +476,24 @@
     .timeline {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
       align-items: stretch;
+      height: 100%;
     }
 
     .timeline-item {
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       background: #fff;
-      padding: 10px;
+      padding: 8px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
 
     .timeline-item .phase {
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 14px;
       color: var(--primary);
       font-weight: 700;
       text-transform: uppercase;
@@ -498,14 +501,14 @@
     }
 
     .timeline-item h4 {
-      font-size: 14px;
+      font-size: 19px;
       color: var(--text);
       line-height: 1.26;
       font-weight: 750;
     }
 
     .timeline-item p {
-      font-size: 12px;
+      font-size: 15px;
       color: var(--text-2);
       line-height: 1.4;
       font-weight: 550;
@@ -517,7 +520,7 @@
       border: 1px solid var(--border);
       border-radius: 999px;
       background: #fff;
-      font-size: 12px;
+      font-size: 15px;
       font-weight: 700;
       color: var(--text-2);
       padding: 5px 10px;
@@ -546,7 +549,7 @@
       grid-template-columns: 90px 1fr 56px;
       align-items: center;
       gap: 10px;
-      font-size: 12px;
+      font-size: 15px;
       color: var(--text-2);
       font-weight: 650;
     }
@@ -560,6 +563,7 @@
     }
 
     .bar-fill {
+      display: block;
       height: 100%;
       border-radius: 999px;
       background: linear-gradient(90deg, var(--primary), #73a7d4);
@@ -567,9 +571,99 @@
 
     .kpi-split {
       display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 16px;
+      grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
       min-height: 0;
+    }
+
+    .kpi-split > * {
+      height: 100%;
+    }
+
+    .metric-grid-compact {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+    }
+
+    .metric-grid-compact .metric {
+      min-height: 78px;
+    }
+
+    .calibration-grid-wrap {
+      display: grid;
+      gap: 10px;
+    }
+
+    .calibration-grid-label {
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.4;
+    }
+
+    .calibration-grid-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 6px;
+      table-layout: fixed;
+    }
+
+    .calibration-grid-table th,
+    .calibration-grid-table td {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 4px;
+    }
+
+    .calibration-grid-table thead th {
+      background: #eaf2f9;
+      color: var(--text-2);
+      font-weight: 700;
+    }
+
+    .calibration-grid-table tbody th {
+      background: #f4f8fc;
+      color: var(--text-2);
+      font-weight: 700;
+    }
+
+    .calibration-grid-table tbody td {
+      background: #f9fcff;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .calibration-grid-table tbody td.c0 {
+      background: #f6fbff;
+      color: #2a4b68;
+    }
+
+    .calibration-grid-table tbody td.c1 {
+      background: #ebf5fd;
+      color: #234a71;
+    }
+
+    .calibration-grid-table tbody td.c2 {
+      background: #deeffb;
+      color: #1d4c7a;
+    }
+
+    .calibration-grid-table tbody td.c3 {
+      background: #cfe7f9;
+      color: #184e84;
+    }
+
+    .calibration-grid-table tbody td.c4 {
+      background: #beddf4;
+      color: #144f87;
+    }
+
+    .calibration-grid-table tbody td.c5 {
+      background: #a9d1ee;
+      color: #0f4c81;
     }
 
     .big-number {
@@ -581,12 +675,12 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      gap: 10px;
-      padding: 16px;
+      gap: 14px;
+      padding: 12px;
     }
 
     .big-number .value {
-      font-size: 106px;
+      font-size: 124px;
       line-height: 0.9;
       color: var(--primary);
       letter-spacing: -0.04em;
@@ -596,11 +690,12 @@
     .big-number .label {
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      font-size: 12px;
+      font-size: 16px;
       color: var(--text-3);
       font-weight: 700;
       text-align: center;
       line-height: 1.3;
+      margin-top: 6px;
     }
 
     .steps {
@@ -627,7 +722,7 @@
       background: var(--primary);
       color: #fff;
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 700;
       display: inline-flex;
       align-items: center;
@@ -636,7 +731,7 @@
     }
 
     .step p {
-      font-size: 13px;
+      font-size: 18px;
       color: var(--text-2);
       line-height: 1.38;
       font-weight: 550;
@@ -649,7 +744,7 @@
     }
 
     .roadmap .panel h3 {
-      font-size: 17px;
+      font-size: 24px;
     }
 
     @media (max-width: 1320px) {
@@ -658,7 +753,6 @@
         padding: 24px;
       }
 
-      .deck-status,
       .slide {
         width: 100%;
         max-width: 1280px;
@@ -672,11 +766,6 @@
   </style>
 </head>
 <body>
-  <div class="deck-status">
-    <span><strong>Deck Theme:</strong> Synced to app styling tokens (Plus Jakarta Sans + JetBrains Mono + blue system palette)</span>
-    <span><strong>Data Basis:</strong> Repo snapshot validated on 2026-04-18</span>
-  </div>
-
   <section class="slide" id="slide1">
     <div class="content hero">
       <div class="pill ok">Architecture + Development Dossier</div>
@@ -1114,7 +1203,7 @@
           <li>Seeded random pathways make runs reproducible for benchmarking and demos.</li>
           <li>Mid-circuit measurement path falls back to branch-aware shot evolution.</li>
         </ul>
-        <div class="metric-grid">
+        <div class="metric-grid metric-grid-compact">
           <div class="metric">
             <div class="v">1024</div>
             <div class="l">Default shots</div>
@@ -1274,14 +1363,78 @@
     <div class="content grid-2">
       <article class="panel">
         <h3>Calibration Grid (Exact Values)</h3>
-        <p class="mono">grid = [0, 0.01, 0.02, 0.04, 0.06, 0.1]</p>
-        <div class="bars">
-          <div class="bar-row"><span>0.00</span><span class="bar-track"><span class="bar-fill" style="width:0%"></span></span><span>0%</span></div>
-          <div class="bar-row"><span>0.01</span><span class="bar-track"><span class="bar-fill" style="width:10%"></span></span><span>10%</span></div>
-          <div class="bar-row"><span>0.02</span><span class="bar-track"><span class="bar-fill" style="width:20%"></span></span><span>20%</span></div>
-          <div class="bar-row"><span>0.04</span><span class="bar-track"><span class="bar-fill" style="width:40%"></span></span><span>40%</span></div>
-          <div class="bar-row"><span>0.06</span><span class="bar-track"><span class="bar-fill" style="width:60%"></span></span><span>60%</span></div>
-          <div class="bar-row"><span>0.10</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span>100%</span></div>
+        <div class="calibration-grid-wrap">
+          <p class="mono">grid = [0, 0.01, 0.02, 0.04, 0.06, 0.1]</p>
+          <p class="calibration-grid-label">Derived matrix shown = depolarizing1q + amplitudeDamping for each row/column pair. This 6x6 slice is repeated across 6 readoutError levels in the full 216-combination search.</p>
+          <table class="calibration-grid-table" aria-label="Calibration parameter grid">
+            <thead>
+              <tr>
+                <th>dep\amp</th>
+                <th>0.00</th>
+                <th>0.01</th>
+                <th>0.02</th>
+                <th>0.04</th>
+                <th>0.06</th>
+                <th>0.10</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>0.00</th>
+                <td class="c0">0.00</td>
+                <td class="c1">0.01</td>
+                <td class="c1">0.02</td>
+                <td class="c2">0.04</td>
+                <td class="c3">0.06</td>
+                <td class="c4">0.10</td>
+              </tr>
+              <tr>
+                <th>0.01</th>
+                <td class="c1">0.01</td>
+                <td class="c1">0.02</td>
+                <td class="c2">0.03</td>
+                <td class="c3">0.05</td>
+                <td class="c3">0.07</td>
+                <td class="c4">0.11</td>
+              </tr>
+              <tr>
+                <th>0.02</th>
+                <td class="c1">0.02</td>
+                <td class="c2">0.03</td>
+                <td class="c2">0.04</td>
+                <td class="c3">0.06</td>
+                <td class="c4">0.08</td>
+                <td class="c4">0.12</td>
+              </tr>
+              <tr>
+                <th>0.04</th>
+                <td class="c2">0.04</td>
+                <td class="c3">0.05</td>
+                <td class="c3">0.06</td>
+                <td class="c4">0.08</td>
+                <td class="c4">0.10</td>
+                <td class="c5">0.14</td>
+              </tr>
+              <tr>
+                <th>0.06</th>
+                <td class="c3">0.06</td>
+                <td class="c3">0.07</td>
+                <td class="c4">0.08</td>
+                <td class="c4">0.10</td>
+                <td class="c4">0.12</td>
+                <td class="c5">0.16</td>
+              </tr>
+              <tr>
+                <th>0.10</th>
+                <td class="c4">0.10</td>
+                <td class="c4">0.11</td>
+                <td class="c4">0.12</td>
+                <td class="c5">0.14</td>
+                <td class="c5">0.16</td>
+                <td class="c5">0.20</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </article>
       <article class="panel">
@@ -1598,34 +1751,110 @@
       </div>
       <div class="slide-index">25 / 25</div>
     </div>
-    <div class="content roadmap">
-      <article class="panel">
-        <h3>Performance Track</h3>
-        <ul>
-          <li>Stabilizer acceleration for Clifford-like circuits.</li>
-          <li>More explicit policy alignment for shot limits and runtime guardrails.</li>
-        </ul>
-      </article>
-      <article class="panel">
-        <h3>Compiler and Hardware Track</h3>
-        <ul>
-          <li>Deeper routing optimization beyond shortest-path insertion.</li>
-          <li>Expanded transpile hints and decomposition quality scoring.</li>
-        </ul>
-      </article>
-      <article class="panel">
-        <h3>Interop and Research Track</h3>
-        <ul>
-          <li>Broader OpenQASM grammar support with richer diagnostics.</li>
-          <li>Extended benchmark suites and optional collaboration-ready artifacts.</li>
-        </ul>
-      </article>
-    </div>
-    <div class="panel" style="text-align:center;">
-      <h3 style="font-size:30px;">Questions and Discussion</h3>
-      <p style="font-size:17px;">Deck styling and data were aligned directly with the application codebase to stay faithful, technical, and presentation-ready.</p>
+    <div class="content">
+      <div class="roadmap">
+        <article class="panel">
+          <h3>Performance Track</h3>
+          <ul>
+            <li>Stabilizer acceleration for Clifford-like circuits.</li>
+            <li>More explicit policy alignment for shot limits and runtime guardrails.</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>Compiler and Hardware Track</h3>
+          <ul>
+            <li>Deeper routing optimization beyond shortest-path insertion.</li>
+            <li>Expanded transpile hints and decomposition quality scoring.</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>Interop and Research Track</h3>
+          <ul>
+            <li>Broader OpenQASM grammar support with richer diagnostics.</li>
+            <li>Extended benchmark suites and optional collaboration-ready artifacts.</li>
+          </ul>
+        </article>
+      </div>
+      <div class="panel" style="text-align:center;">
+        <h3 style="font-size:30px;">Questions and Discussion</h3>
+        <p style="font-size:17px;">Thank you for your time.</p>
+      </div>
     </div>
     <div class="source"><strong>Source:</strong> Consolidated from validated constraints, architecture, and feature inventory</div>
   </section>
+
+  <div class="presentation-hint">P: toggle presentation mode | ←/→: previous/next</div>
+
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      if (!slides.length) return;
+
+      let currentIndex = 0;
+      let presentationMode = false;
+
+      const activateSlide = (index, smooth = true) => {
+        currentIndex = Math.max(0, Math.min(slides.length - 1, index));
+        slides[currentIndex].scrollIntoView({
+          behavior: smooth ? 'smooth' : 'auto',
+          block: 'center',
+          inline: 'nearest'
+        });
+      };
+
+      const updateCurrentFromViewport = () => {
+        let bestIdx = currentIndex;
+        let bestDist = Number.POSITIVE_INFINITY;
+        const vhMid = window.innerHeight / 2;
+        slides.forEach((slide, idx) => {
+          const rect = slide.getBoundingClientRect();
+          const slideMid = rect.top + rect.height / 2;
+          const dist = Math.abs(slideMid - vhMid);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIdx = idx;
+          }
+        });
+        currentIndex = bestIdx;
+      };
+
+      const setPresentationMode = (enabled) => {
+        presentationMode = enabled;
+        document.body.classList.toggle('presentation-mode', enabled);
+        if (enabled) {
+          activateSlide(currentIndex, false);
+        }
+      };
+
+      window.addEventListener('scroll', updateCurrentFromViewport, { passive: true });
+      window.addEventListener('resize', () => updateCurrentFromViewport(), { passive: true });
+
+      document.addEventListener('keydown', (e) => {
+        const isNavKey = ['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'ArrowLeft', 'ArrowUp', 'PageUp', 'Home', 'End'].includes(e.key);
+
+        if (e.key.toLowerCase() === 'p') {
+          e.preventDefault();
+          setPresentationMode(!presentationMode);
+          return;
+        }
+
+        if (!isNavKey) return;
+
+        e.preventDefault();
+
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+          activateSlide(currentIndex + 1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+          activateSlide(currentIndex - 1);
+        } else if (e.key === 'Home') {
+          activateSlide(0);
+        } else if (e.key === 'End') {
+          activateSlide(slides.length - 1);
+        }
+      });
+
+      updateCurrentFromViewport();
+    })();
+  </script>
 </body>
 </html>
