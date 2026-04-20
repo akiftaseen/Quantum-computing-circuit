@@ -122,13 +122,12 @@
       width: 84px;
       height: 84px;
       border-radius: 50%;
+      overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
-      background:
-        url('./qubit.png'),
-        radial-gradient(circle at center, #ffffff 58%, #eef5ff 100%);
-      background-size: 90% 90%, auto;
-      background-position: center, center;
-      background-repeat: no-repeat, no-repeat;
+      background-image: url('./qubit.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
       box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
     }
 
