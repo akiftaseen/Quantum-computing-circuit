@@ -135,6 +135,85 @@
       min-height: 0;
     }
 
+    .content.media-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
+      align-items: stretch;
+      gap: 18px;
+      justify-content: stretch;
+    }
+
+    .media-left,
+    .media-right {
+      min-height: 0;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .media-right.single-row {
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .media-right.double-rows {
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+    }
+
+    .media-right.two-up {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .media-slide .card {
+      padding: 14px;
+      gap: 8px;
+    }
+
+    .media-slide .card-title {
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .media-slide .bullets {
+      gap: 10px;
+    }
+
+    .media-slide .bullets li {
+      font-size: 21px;
+      line-height: 1.28;
+    }
+
+    .media-slide .bullets.medium li {
+      font-size: 20px;
+    }
+
+    .media-slide .bullets.tight li {
+      font-size: 17px;
+      line-height: 1.24;
+    }
+
+    .media-slide .demo-steps {
+      gap: 10px;
+    }
+
+    .media-slide .demo-steps li {
+      font-size: 18px;
+      line-height: 1.25;
+      padding: 12px 14px;
+    }
+
+    .media-slide .kpi .value {
+      font-size: 34px;
+    }
+
+    .media-slide .kpi .label {
+      font-size: 14px;
+    }
+
+    .kpi-grid.compact-two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -313,6 +392,13 @@
       min-height: 306px;
     }
 
+    .media-layout .photo-slot.has-image,
+    .media-layout .photo-slot.small.has-image,
+    .media-layout .photo-slot.large.has-image,
+    .media-layout .photo-slot.tall.has-image {
+      min-height: 0;
+    }
+
     .photo-image {
       width: 100%;
       height: 100%;
@@ -399,9 +485,15 @@
 
       .two-col,
       .two-col.media-split,
-      .photo-grid.two {
+      .photo-grid.two,
+      .content.media-layout {
         grid-template-columns: 1fr;
         height: auto;
+      }
+
+      .media-right.two-up {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(2, minmax(0, 1fr));
       }
 
       .photo-slot.large.has-image,
@@ -426,16 +518,20 @@
       <h2 class="slide-title">Quantum Circuit Simulator</h2>
       <div class="slide-index">01 / 12</div>
     </header>
-    <main class="content">
-      <ul class="bullets">
-        <li>Background and motivation</li>
-        <li>What was done this semester</li>
-        <li>How it was implemented</li>
-        <li>Live app demonstration</li>
-      </ul>
-      <div class="photo-slot small has-image">
-        <img class="photo-image" src="./PH_01_APP_HERO_OVERVIEW.png" alt="App hero overview screenshot">
-        <div class="photo-caption">PH_01_APP_HERO_OVERVIEW</div>
+    <main class="content media-layout media-slide">
+      <div class="media-left">
+        <ul class="bullets medium">
+          <li>Background and motivation</li>
+          <li>What was done this semester</li>
+          <li>How it was implemented</li>
+          <li>Live app demonstration</li>
+        </ul>
+      </div>
+      <div class="media-right single-row">
+        <div class="photo-slot large has-image">
+          <img class="photo-image" src="./PH_01_APP_HERO_OVERVIEW.png" alt="App hero overview screenshot">
+          <div class="photo-caption">PH_01_APP_HERO_OVERVIEW</div>
+        </div>
       </div>
     </main>
   </section>
@@ -478,8 +574,8 @@
       <h2 class="slide-title">What Was Implemented</h2>
       <div class="slide-index">04 / 12</div>
     </header>
-    <main class="content">
-      <div class="two-col">
+    <main class="content media-layout media-slide">
+      <div class="media-left">
         <article class="card">
           <h3 class="card-title">Core Functionality</h3>
           <ul class="bullets tight">
@@ -501,12 +597,12 @@
           </ul>
         </article>
       </div>
-      <div class="photo-grid two">
-        <div class="photo-slot small has-image">
+      <div class="media-right double-rows">
+        <div class="photo-slot large has-image">
           <img class="photo-image" src="./PH_02_CORE_EDITOR_FLOW.png" alt="Core editor workflow screenshot">
           <div class="photo-caption">PH_02_CORE_EDITOR_FLOW</div>
         </div>
-        <div class="photo-slot small has-image">
+        <div class="photo-slot large has-image">
           <img class="photo-image" src="./PH_03_ADVANCED_LAB_OVERVIEW.png" alt="Advanced simulator lab overview screenshot">
           <div class="photo-caption">PH_03_ADVANCED_LAB_OVERVIEW</div>
         </div>
@@ -520,33 +616,37 @@
       <h2 class="slide-title">Evidence of Completed Work</h2>
       <div class="slide-index">05 / 12</div>
     </header>
-    <main class="content">
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="value">15</div>
-          <div class="label">Logic Test Files</div>
+    <main class="content media-layout media-slide">
+      <div class="media-left">
+        <div class="kpi-grid compact-two">
+          <div class="kpi">
+            <div class="value">15</div>
+            <div class="label">Logic Test Files</div>
+          </div>
+          <div class="kpi">
+            <div class="value">104</div>
+            <div class="label">Logic Test Cases</div>
+          </div>
+          <div class="kpi">
+            <div class="value">37</div>
+            <div class="label">Logic Modules</div>
+          </div>
+          <div class="kpi">
+            <div class="value">6</div>
+            <div class="label">Max Qubits (Current Limit)</div>
+          </div>
         </div>
-        <div class="kpi">
-          <div class="value">104</div>
-          <div class="label">Logic Test Cases</div>
-        </div>
-        <div class="kpi">
-          <div class="value">37</div>
-          <div class="label">Logic Modules</div>
-        </div>
-        <div class="kpi">
-          <div class="value">6</div>
-          <div class="label">Max Qubits (Current Limit)</div>
+        <ul class="bullets tight">
+          <li>App state persistence, draft management, and theme persistence are implemented</li>
+          <li>Simulator Lab includes calibration, mitigation, and optimization features</li>
+        </ul>
+      </div>
+      <div class="media-right single-row">
+        <div class="photo-slot tall has-image">
+          <img class="photo-image" src="./PH_04_TEST_EVIDENCE_TERMINAL.png" alt="Terminal test evidence screenshot">
+          <div class="photo-caption">PH_04_TEST_EVIDENCE_TERMINAL</div>
         </div>
       </div>
-      <div class="photo-slot small has-image">
-        <img class="photo-image" src="./PH_04_TEST_EVIDENCE_TERMINAL.png" alt="Terminal test evidence screenshot">
-        <div class="photo-caption">PH_04_TEST_EVIDENCE_TERMINAL</div>
-      </div>
-      <ul class="bullets medium">
-        <li>App state persistence, draft management, and theme persistence are implemented</li>
-        <li>Simulator Lab includes calibration, mitigation, and optimization features</li>
-      </ul>
     </main>
   </section>
 
@@ -572,8 +672,8 @@
       <h2 class="slide-title">How It Was Built - Architecture</h2>
       <div class="slide-index">07 / 12</div>
     </header>
-    <main class="content two-col media-split">
-      <div class="stack">
+    <main class="content media-layout media-slide">
+      <div class="media-left">
         <article class="card">
           <h3 class="card-title">Technology</h3>
           <ul class="bullets tight">
@@ -593,9 +693,11 @@
           </ul>
         </article>
       </div>
-      <div class="photo-slot tall has-image">
-        <img class="photo-image portrait-shot" src="./PH_05_APP_STRUCTURE_VIEW.png" alt="App structure view screenshot">
-        <div class="photo-caption">PH_05_APP_STRUCTURE_VIEW</div>
+      <div class="media-right single-row">
+        <div class="photo-slot tall has-image">
+          <img class="photo-image portrait-shot" src="./PH_05_APP_STRUCTURE_VIEW.png" alt="App structure view screenshot">
+          <div class="photo-caption">PH_05_APP_STRUCTURE_VIEW</div>
+        </div>
       </div>
     </main>
   </section>
@@ -606,17 +708,21 @@
       <h2 class="slide-title">How It Was Built - Execution Flow</h2>
       <div class="slide-index">08 / 12</div>
     </header>
-    <main class="content">
-      <ul class="bullets medium">
-        <li>Edit circuit in UI and validate placement/state inputs</li>
-        <li>Compile circuit plan and run simulation kernels</li>
-        <li>Sample outcomes (ideal and noisy paths)</li>
-        <li>Compute analysis metrics and render synchronized views</li>
-        <li>Use caching and alias sampling to keep interaction responsive</li>
-      </ul>
-      <div class="photo-slot small has-image">
-        <img class="photo-image" src="./PH_06_EXECUTION_RESULTS_VIEW.png" alt="Execution results screenshot">
-        <div class="photo-caption">PH_06_EXECUTION_RESULTS_VIEW</div>
+    <main class="content media-layout media-slide">
+      <div class="media-left">
+        <ul class="bullets medium">
+          <li>Edit circuit in UI and validate placement/state inputs</li>
+          <li>Compile circuit plan and run simulation kernels</li>
+          <li>Sample outcomes (ideal and noisy paths)</li>
+          <li>Compute analysis metrics and render synchronized views</li>
+          <li>Use caching and alias sampling to keep interaction responsive</li>
+        </ul>
+      </div>
+      <div class="media-right single-row">
+        <div class="photo-slot tall has-image">
+          <img class="photo-image" src="./PH_06_EXECUTION_RESULTS_VIEW.png" alt="Execution results screenshot">
+          <div class="photo-caption">PH_06_EXECUTION_RESULTS_VIEW</div>
+        </div>
       </div>
     </main>
   </section>
@@ -661,19 +767,21 @@
       <h2 class="slide-title">App Demonstration Plan</h2>
       <div class="slide-index">10 / 12</div>
     </header>
-    <main class="content">
-      <ol class="demo-steps">
-        <li><span class="step-no">01</span>Load Bell template and explain the circuit editor</li>
-        <li><span class="step-no">02</span>Run ideal shots and inspect probability/histogram tabs</li>
-        <li><span class="step-no">03</span>Turn on noise and compare ideal vs noisy outcomes</li>
-        <li><span class="step-no">04</span>Open analysis panels and summarize key metrics</li>
-      </ol>
-      <div class="photo-grid two">
-        <div class="photo-slot small has-image">
+    <main class="content media-layout media-slide">
+      <div class="media-left">
+        <ol class="demo-steps">
+          <li><span class="step-no">01</span>Load Bell template and explain the circuit editor</li>
+          <li><span class="step-no">02</span>Run ideal shots and inspect probability/histogram tabs</li>
+          <li><span class="step-no">03</span>Turn on noise and compare ideal vs noisy outcomes</li>
+          <li><span class="step-no">04</span>Open analysis panels and summarize key metrics</li>
+        </ol>
+      </div>
+      <div class="media-right double-rows">
+        <div class="photo-slot large has-image">
           <img class="photo-image" src="./PH_07_BELL_IDEAL_RUN.png" alt="Bell ideal run screenshot">
           <div class="photo-caption">PH_07_BELL_IDEAL_RUN</div>
         </div>
-        <div class="photo-slot small has-image">
+        <div class="photo-slot large has-image">
           <img class="photo-image" src="./PH_08_NOISE_COMPARISON.png" alt="Noise comparison screenshot">
           <div class="photo-caption">PH_08_NOISE_COMPARISON</div>
         </div>
@@ -687,14 +795,16 @@
       <h2 class="slide-title">Demo Continuation</h2>
       <div class="slide-index">11 / 12</div>
     </header>
-    <main class="content">
-      <ol class="demo-steps">
-        <li><span class="step-no">05</span>Run one Simulator Lab workflow (optimizer or sweep)</li>
-        <li><span class="step-no">06</span>Show hardware compatibility and routing feedback</li>
-        <li><span class="step-no">07</span>Export OpenQASM and report artifacts</li>
-        <li><span class="step-no">08</span>State current limits and expected future improvements</li>
-      </ol>
-      <div class="photo-grid two">
+    <main class="content media-layout media-slide">
+      <div class="media-left">
+        <ol class="demo-steps">
+          <li><span class="step-no">05</span>Run one Simulator Lab workflow (optimizer or sweep)</li>
+          <li><span class="step-no">06</span>Show hardware compatibility and routing feedback</li>
+          <li><span class="step-no">07</span>Export OpenQASM and report artifacts</li>
+          <li><span class="step-no">08</span>State current limits and expected future improvements</li>
+        </ol>
+      </div>
+      <div class="media-right two-up">
         <div class="photo-slot tall has-image">
           <img class="photo-image portrait-shot" src="./PH_09_SIMULATOR_LAB_WORKFLOW.png" alt="Simulator lab workflow screenshot">
           <div class="photo-caption">PH_09_SIMULATOR_LAB_WORKFLOW</div>
