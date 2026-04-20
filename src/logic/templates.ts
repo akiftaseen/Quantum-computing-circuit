@@ -38,13 +38,17 @@ export const teleportation = (): CircuitState => ({
 });
 
 export const deutschJozsa = (): CircuitState => ({
-  numQubits: 3, numColumns: 10,
+  numQubits: 3, numColumns: 12,
   gates: [
     g('X', 0, [2]),
     g('H', 1, [0]), g('H', 1, [1]), g('H', 1, [2]),
+    // Balanced oracle f(x0, x1) = x0 XOR x1.
     g('CNOT', 3, [2], [0]),
-    g('H', 5, [0]), g('H', 5, [1]),
-    g('M', 7, [0], [], [], 0), g('M', 7, [1], [], [], 1),
+    g('CNOT', 4, [2], [1]),
+    g('H', 6, [0]), g('H', 6, [1]),
+    // Return ancilla from |-⟩ back to |0⟩ so full-register shots are deterministic.
+    g('H', 6, [2]), g('X', 7, [2]),
+    g('M', 9, [0], [], [], 0), g('M', 9, [1], [], [], 1),
   ],
 });
 

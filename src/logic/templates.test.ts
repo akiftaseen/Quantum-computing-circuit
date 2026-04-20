@@ -210,7 +210,7 @@ describe('circuit templates', () => {
     for (const [key, count] of hist.entries()) {
       const q0 = bitOf(key, 0, 3);
       const q1 = bitOf(key, 1, 3);
-      if (q0 === 1 && q1 === 0) valid += count;
+      if (q0 === 1 && q1 === 1) valid += count;
     }
     expect(valid).toBe(shots);
   });
