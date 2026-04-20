@@ -137,9 +137,9 @@
 
     .content.media-layout {
       display: grid;
-      grid-template-columns: minmax(0, 0.46fr) minmax(0, 0.54fr);
+      grid-template-columns: minmax(0, 0.38fr) minmax(0, 0.62fr);
       align-items: stretch;
-      gap: 12px;
+      gap: 28px;
       justify-content: stretch;
     }
 
@@ -147,11 +147,11 @@
     .media-right {
       min-height: 0;
       display: grid;
-      gap: 10px;
+      gap: 16px;
     }
 
     .media-left {
-      align-content: start;
+      align-content: center;
     }
 
     .media-right {
@@ -168,57 +168,59 @@
 
     .media-right.double-rows {
       grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 16px;
     }
 
     .media-right.two-up {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       grid-template-rows: minmax(0, 1fr);
+      gap: 20px;
     }
 
     .media-slide .card {
-      padding: 14px;
-      gap: 8px;
+      padding: 20px;
+      gap: 12px;
     }
 
     .media-slide .card-title {
-      font-size: 22px;
-      line-height: 1.2;
+      font-size: 26px;
+      line-height: 1.25;
     }
 
     .media-slide .bullets {
-      gap: 10px;
+      gap: 14px;
     }
 
     .media-slide .bullets li {
-      font-size: 21px;
-      line-height: 1.28;
+      font-size: 25px;
+      line-height: 1.35;
     }
 
     .media-slide .bullets.medium li {
-      font-size: 20px;
+      font-size: 28px;
     }
 
     .media-slide .bullets.tight li {
-      font-size: 17px;
-      line-height: 1.24;
+      font-size: 21px;
+      line-height: 1.35;
     }
 
     .media-slide .demo-steps {
-      gap: 10px;
+      gap: 14px;
     }
 
     .media-slide .demo-steps li {
-      font-size: 18px;
-      line-height: 1.25;
-      padding: 12px 14px;
+      font-size: 23px;
+      line-height: 1.35;
+      padding: 16px 20px;
     }
 
     .media-slide .kpi .value {
-      font-size: 34px;
+      font-size: 42px;
     }
 
     .media-slide .kpi .label {
-      font-size: 14px;
+      font-size: 15px;
     }
 
     .kpi-grid.compact-two {
@@ -418,9 +420,10 @@
     .photo-caption {
       font-family: var(--font-mono);
       color: var(--text-2);
-      font-size: 12px;
-      line-height: 1.2;
+      font-size: 14px;
+      line-height: 1.25;
       text-align: center;
+      padding-top: 4px;
     }
 
     .photo-name {
