@@ -9,7 +9,7 @@ interface Token {
   value: string;
 }
 
-export type InitialStateInputMode = 'qubit' | 'statevector';
+export type InitialStateInputMode = 'qubit' | 'statevector' | 'basis';
 
 export interface InitialQubitStateParse {
   state: SingleQubitState;
@@ -369,6 +369,76 @@ const parseCustomPair = (raw: string): SingleQubitState | null => {
   return [c(a.re / norm, a.im / norm), c(b.re / norm, b.im / norm)];
 };
 
+const parseSingleQubitKet = (raw: string): SingleQubitState | null => {
+  const expr = (raw ?? '').trim();
+  if (!expr.includes('|')) return null;
+
+  const terms: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let i = 0; i < expr.length; i++) {
+    const ch = expr[i];
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth = Math.max(0, depth - 1);
+    if (depth === 0 && i > start && (ch === '+' || ch === '-')) {
+      terms.push(expr.slice(start, i).trim());
+      start = i;
+    }
+  }
+  terms.push(expr.slice(start).trim());
+
+  let amp0 = c(0, 0);
+  let amp1 = c(0, 0);
+
+  for (const term of terms) {
+    if (!term) continue;
+    const match = term.match(/\|\s*([01])\s*(?:>|⟩)/);
+    if (!match) return null;
+
+    const bit = match[1];
+    let coeffStr = term.slice(0, match.index).trim();
+    if (!coeffStr || coeffStr === '+') coeffStr = '1';
+    if (coeffStr === '-') coeffStr = '-1';
+    if (coeffStr.endsWith('*')) coeffStr = coeffStr.slice(0, -1).trim();
+
+    const coeff = parseComplexExpression(coeffStr);
+    if (!coeff) return null;
+
+    if (bit === '0') amp0 = add(amp0, coeff);
+    else amp1 = add(amp1, coeff);
+  }
+
+  const norm = Math.sqrt(cAbs2(amp0) + cAbs2(amp1));
+  if (!Number.isFinite(norm) || norm < EPS) return null;
+
+  return [c(amp0.re / norm, amp0.im / norm), c(amp1.re / norm, amp1.im / norm)];
+};
+
+export const parseInitialQubitStateDetailed = (raw: string): InitialQubitStateParse => {
+  const cleaned = (raw ?? '').trim();
+  const key = normalizeKey(cleaned || '0');
+  if (PRESETS[key]) {
+    const parsed = PRESETS[key];
+    return { ...parsed, valid: true, message: `Preset ${parsed.label}` };
+  }
+
+  // 先试 ket 格式（如 0.1|0⟩+0.9|1⟩）
+  const ket = parseSingleQubitKet(raw);
+  if (ket) return { state: ket, label: '|ψ⟩', valid: true, message: 'Ket expression normalized' };
+
+  // 再试逗号对格式（如 0.1, 0.9）
+  const custom = parseCustomPair(raw);
+  if (custom) return { state: custom, label: '|ψ⟩', valid: true, message: 'Custom amplitudes normalized' };
+
+  const fallback = PRESETS['0'];
+  return {
+    ...fallback,
+    valid: false,
+    message: "Invalid qubit expression. ...",
+  };
+};
+
 const initZeroState = (numQubits: number): Complex[] => {
   const dim = 1 << numQubits;
   const state: Complex[] = Array(dim).fill(null).map(() => c(0));
@@ -652,24 +722,7 @@ export const getStatevectorTemplateExpression = (kind: StatevectorTemplateKind, 
   }
 };
 
-export const parseInitialQubitStateDetailed = (raw: string): InitialQubitStateParse => {
-  const cleaned = (raw ?? '').trim();
-  const key = normalizeKey(cleaned || '0');
-  if (PRESETS[key]) {
-    const parsed = PRESETS[key];
-    return { ...parsed, valid: true, message: `Preset ${parsed.label}` };
-  }
 
-  const custom = parseCustomPair(raw);
-  if (custom) return { state: custom, label: '|ψ⟩', valid: true, message: 'Custom amplitudes normalized' };
-
-  const fallback = PRESETS['0'];
-  return {
-    ...fallback,
-    valid: false,
-    message: "Invalid qubit expression. Use preset (0,1,+,-,i,-i) or 'a,b' with complex expressions (supports +,-,*,/,^, pi, e, i, sin, cos, tan, sqrt, exp, log, abs, re, im, conj).",
-  };
-};
 
 export const parseInitialQubitState = (raw: string): { state: SingleQubitState; label: string } => {
   const { state, label } = parseInitialQubitStateDetailed(raw);
@@ -750,6 +803,7 @@ export const buildInitialStateFromInput = (
     };
   }
 
+  // mode === 'qubit' or mode === 'basis' (basis is converted to qubit expressions by the caller)
   const parsed = Array.from({ length: numQubits }, (_, q) => parseInitialQubitStateDetailed(qubitExpressions[q] ?? '0'));
   const valid = parsed.every((p) => p.valid);
 

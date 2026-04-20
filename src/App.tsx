@@ -101,6 +101,7 @@ const loadPersistedAppState = (): Partial<{
   shotsBasisAxes: MeasurementBasisAxis[];
   symbolBindings: SymbolBinding[];
   stepCol: number | null;
+  basisNumOnes: number;
 }> => {
   if (typeof window === 'undefined') return {};
   try {
@@ -139,12 +140,11 @@ const App: React.FC = () => {
   const [shotsBasisAxes, setShotsBasisAxes] = useState<MeasurementBasisAxis[]>(() => persisted.shotsBasisAxes ?? Array(INIT.numQubits).fill('Z'));
   const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => persisted.symbolBindings ?? defaultSymbolBindings());
   const [liveMessage, setLiveMessage] = useState('');
+  const [basisNumOnes, setBasisNumOnes] = useState<number>(persisted.basisNumOnes ?? 0);
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
   const appStateImportRef = useRef<HTMLInputElement | null>(null);
   const mainAreaRef = useRef<HTMLElement | null>(null);
-
-  // Keyboard shortcuts are defined after handlers to avoid stale references.
 
   // Sidebar resizer handlers
   const startResizingSidebar = useCallback((e: React.MouseEvent) => {
@@ -222,6 +222,7 @@ const App: React.FC = () => {
         shotsBasisAxes,
         symbolBindings,
         stepCol,
+        basisNumOnes,
       }));
     } catch {
       // Ignore localStorage write failures.
@@ -240,6 +241,7 @@ const App: React.FC = () => {
     shotsBasisAxes,
     symbolBindings,
     stepCol,
+    basisNumOnes,
   ]);
 
   const normalizedQubitExprs = useMemo(
@@ -262,10 +264,16 @@ const App: React.FC = () => {
     [statevectorExpr, symbolBindings],
   );
 
-  const initialConfig = useMemo(
-    () => buildInitialStateFromInput(circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr),
-    [circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr],
-  );
+  const initialConfig = useMemo(() => {
+    if (initialStateMode === 'basis') {
+      const clampedOnes = Math.max(0, Math.min(circuit.numQubits, basisNumOnes));
+      const basisExprs = Array.from({ length: circuit.numQubits }, (_, i) =>
+        i < circuit.numQubits - clampedOnes ? '0' : '1'
+      );
+      return buildInitialStateFromInput(circuit.numQubits, 'qubit', basisExprs, '');
+    }
+    return buildInitialStateFromInput(circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr);
+  }, [circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr, basisNumOnes]);
 
   const initialState = initialConfig.state;
   const initialQubitLabels = initialConfig.qubitLabels;
@@ -327,7 +335,6 @@ const App: React.FC = () => {
   const handlePlaceGate = useCallback((g: Omit<PlacedGate, 'id'>) => {
     const newGate: PlacedGate = { ...g, id: newGateId() };
     setCircuit((prev) => {
-      // Auto-expand columns when placing near the end
       let cols = prev.numColumns;
       if (newGate.column >= cols - 2) {
         cols = newGate.column + 4;
@@ -370,7 +377,6 @@ const App: React.FC = () => {
 
   const handleSetColumns = (n: number) => {
     if (!validateColumnCount(n)) return;
-    // Remove gates that fall outside the new range
     const filtered = circuit.gates.filter(g => g.column < n);
     setCircuit({ ...circuit, numColumns: n, gates: filtered });
   };
@@ -533,7 +539,6 @@ const App: React.FC = () => {
     if (e.key === 'ArrowLeft') setStepCol(prev => prev === null ? circuit.numColumns - 2 : Math.max(0, prev - 1));
     if (e.key === 'ArrowRight') setStepCol(prev => prev === null ? 0 : prev >= circuit.numColumns - 1 ? null : prev + 1);
 
-    // Gate keyboard shortcuts (1-6 on selected gate's qubit column+1)
     if (!selectedGate) return;
     if (['1', '2', '3', '4', '5', '6'].includes(e.key)) {
       const map: Record<string, 'H' | 'X' | 'Y' | 'Z' | 'S' | 'T'> = {
@@ -700,6 +705,11 @@ const App: React.FC = () => {
     event.target.value = '';
   };
 
+  // Derived values for basis mode UI
+  const basisClampedOnes = Math.max(0, Math.min(circuit.numQubits, basisNumOnes));
+  const basisClampedZeros = circuit.numQubits - basisClampedOnes;
+  const basisStateLabel = '0'.repeat(basisClampedZeros) + '1'.repeat(basisClampedOnes);
+
   return (
     <div className={`app-shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -855,6 +865,13 @@ const App: React.FC = () => {
                   </button>
                   <button
                     type="button"
+                    className={`init-mode-btn${initialStateMode === 'basis' ? ' active' : ''}`}
+                    onClick={() => setInitialStateMode('basis')}
+                  >
+                    Basis
+                  </button>
+                  <button
+                    type="button"
                     className={`init-mode-btn${initialStateMode === 'statevector' ? ' active' : ''}`}
                     onClick={() => setInitialStateMode('statevector')}
                   >
@@ -863,7 +880,51 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {initialStateMode === 'qubit' ? (
+              {initialStateMode === 'basis' ? (
+                <div className="init-state-inputs">
+                  <label className="init-state-item">
+                    <span>Number of |0⟩ qubits</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={circuit.numQubits}
+                      value={basisClampedZeros}
+                      onChange={(e) => {
+                        const num0 = Math.max(0, Math.min(circuit.numQubits, Math.round(Number(e.target.value) || 0)));
+                        setBasisNumOnes(circuit.numQubits - num0);
+                      }}
+                    />
+                  </label>
+                  <label className="init-state-item">
+                    <span>Number of |1⟩ qubits</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={circuit.numQubits}
+                      value={basisClampedOnes}
+                      onChange={(e) => {
+                        const num1 = Math.max(0, Math.min(circuit.numQubits, Math.round(Number(e.target.value) || 0)));
+                        setBasisNumOnes(num1);
+                      }}
+                    />
+                  </label>
+                  <label className="init-state-item" style={{ gridColumn: '1 / -1' }}>
+                    <span>Slide to adjust</span>
+                    <input
+                      type="range"
+                      className="ui-slider"
+                      min={0}
+                      max={circuit.numQubits}
+                      value={basisClampedOnes}
+                      onChange={(e) => setBasisNumOnes(Number(e.target.value))}
+                      aria-label="Number of qubits in |1⟩ state"
+                    />
+                  </label>
+                  <small className="init-state-hint" style={{ gridColumn: '1 / -1' }}>
+                    Initial state: |{basisStateLabel}⟩ — q0..q{basisClampedZeros - 1 >= 0 ? basisClampedZeros - 1 : 0} = |0⟩, q{basisClampedZeros}..q{circuit.numQubits - 1} = |1⟩
+                  </small>
+                </div>
+              ) : initialStateMode === 'qubit' ? (
                 <div className="init-state-inputs">
                   {Array.from({ length: circuit.numQubits }, (_, q) => (
                     <label key={q} className={`init-state-item${initialQubitValidation[q]?.valid ? '' : ' invalid'}`}>
@@ -905,33 +966,37 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              <div className="formula-pad" aria-label="Formula pad">
-                {['0', '1', '+', '-', '*', '/', '^', '(', ')', ',', 'i', 'pi', 'sqrt()', 'sin()', 'cos()', 'exp()', '|0⟩', '|1⟩', `|${'0'.repeat(circuit.numQubits)}⟩`, `|${'1'.repeat(circuit.numQubits)}⟩`].map((token) => (
-                  <button key={token} type="button" className="formula-pad-btn" onClick={() => insertInitToken(token)}>
-                    {token}
-                  </button>
-                ))}
-              </div>
-
-              <div className="inline-symbol-editor">
-                <div className="inline-symbol-title">Symbols</div>
-                <div className="inline-symbol-grid">
-                  {symbolBindings.map((binding, idx) => (
-                    <div key={`${binding.name}-${idx}`} className="inline-symbol-row">
-                      <input
-                        value={binding.name}
-                        onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, name: e.target.value } : row)))}
-                        placeholder="name"
-                      />
-                      <input
-                        value={binding.value}
-                        onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, value: e.target.value } : row)))}
-                        placeholder="value"
-                      />
-                    </div>
+              {initialStateMode !== 'basis' && (
+                <div className="formula-pad" aria-label="Formula pad">
+                  {['0', '1', '+', '-', '*', '/', '^', '(', ')', ',', 'i', 'pi', 'sqrt()', 'sin()', 'cos()', 'exp()', '|0⟩', '|1⟩', `|${'0'.repeat(circuit.numQubits)}⟩`, `|${'1'.repeat(circuit.numQubits)}⟩`].map((token) => (
+                    <button key={token} type="button" className="formula-pad-btn" onClick={() => insertInitToken(token)}>
+                      {token}
+                    </button>
                   ))}
                 </div>
-              </div>
+              )}
+
+              {initialStateMode !== 'basis' && (
+                <div className="inline-symbol-editor">
+                  <div className="inline-symbol-title">Symbols</div>
+                  <div className="inline-symbol-grid">
+                    {symbolBindings.map((binding, idx) => (
+                      <div key={`${binding.name}-${idx}`} className="inline-symbol-row">
+                        <input
+                          value={binding.name}
+                          onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, name: e.target.value } : row)))}
+                          placeholder="name"
+                        />
+                        <input
+                          value={binding.value}
+                          onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, value: e.target.value } : row)))}
+                          placeholder="value"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
