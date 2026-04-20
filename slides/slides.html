@@ -426,35 +426,6 @@
       padding-top: 4px;
     }
 
-    .graphic-panel {
-      border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
-      border-radius: 18px;
-      background:
-        radial-gradient(circle at 22% 18%, rgba(15, 76, 129, 0.12), transparent 54%),
-        linear-gradient(160deg, #ffffff, #edf5ff);
-      padding: 16px;
-      height: 100%;
-      min-height: 0;
-      display: grid;
-      grid-template-rows: minmax(0, 1fr) auto;
-      gap: 10px;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
-    }
-
-    .graphic-panel svg {
-      width: 100%;
-      height: 100%;
-      min-height: 0;
-      display: block;
-    }
-
-    .graphic-caption {
-      font-family: var(--font-mono);
-      color: var(--text-2);
-      font-size: 12px;
-      text-align: center;
-    }
-
     .photo-name {
       font-family: var(--font-mono);
       color: var(--primary);
@@ -573,37 +544,9 @@
         </ul>
       </div>
       <div class="media-right single-row">
-        <div class="graphic-panel" aria-label="Quantum learning concept graphic">
-          <svg viewBox="0 0 640 460" role="img" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="nodeBlue" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#0f4c81" />
-                <stop offset="100%" stop-color="#3b82c4" />
-              </linearGradient>
-              <linearGradient id="nodeSoft" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#d7e8fa" />
-                <stop offset="100%" stop-color="#f2f8ff" />
-              </linearGradient>
-            </defs>
-            <rect x="28" y="70" width="584" height="320" rx="24" fill="#ffffff" stroke="#d2dfed" stroke-width="2" />
-            <line x1="155" y1="165" x2="318" y2="115" stroke="#9db8d4" stroke-width="4" />
-            <line x1="318" y1="115" x2="482" y2="165" stroke="#9db8d4" stroke-width="4" />
-            <line x1="155" y1="285" x2="318" y2="335" stroke="#9db8d4" stroke-width="4" />
-            <line x1="318" y1="335" x2="482" y2="285" stroke="#9db8d4" stroke-width="4" />
-            <line x1="155" y1="165" x2="155" y2="285" stroke="#9db8d4" stroke-width="4" />
-            <line x1="482" y1="165" x2="482" y2="285" stroke="#9db8d4" stroke-width="4" />
-            <circle cx="155" cy="165" r="38" fill="url(#nodeBlue)" />
-            <circle cx="318" cy="115" r="38" fill="url(#nodeSoft)" stroke="#8ca8c5" stroke-width="3" />
-            <circle cx="482" cy="165" r="38" fill="url(#nodeBlue)" />
-            <circle cx="155" cy="285" r="38" fill="url(#nodeSoft)" stroke="#8ca8c5" stroke-width="3" />
-            <circle cx="318" cy="335" r="38" fill="url(#nodeBlue)" />
-            <circle cx="482" cy="285" r="38" fill="url(#nodeSoft)" stroke="#8ca8c5" stroke-width="3" />
-            <text x="154" y="171" font-size="26" text-anchor="middle" fill="#ffffff" font-family="JetBrains Mono">H</text>
-            <text x="318" y="121" font-size="21" text-anchor="middle" fill="#0f4c81" font-family="JetBrains Mono">CX</text>
-            <text x="482" y="171" font-size="24" text-anchor="middle" fill="#ffffff" font-family="JetBrains Mono">M</text>
-            <text x="318" y="422" font-size="22" text-anchor="middle" fill="#406383" font-family="JetBrains Mono">Local-first learning workflow</text>
-          </svg>
-          <div class="graphic-caption">Concept Graphic: Guided learning and experiment flow</div>
+        <div class="photo-slot tall has-image">
+          <img class="photo-image" src="./PH_01_APP_HERO_OVERVIEW.png" alt="Quantum Circuit Simulator main interface overview">
+          <div class="photo-caption">PH_01_APP_HERO_OVERVIEW</div>
         </div>
       </div>
     </main>
@@ -727,31 +670,9 @@
         </ul>
       </div>
       <div class="media-right single-row">
-        <div class="graphic-panel" aria-label="Engineering tradeoff concept graphic">
-          <svg viewBox="0 0 640 460" role="img" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="barA" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#0f4c81" />
-                <stop offset="100%" stop-color="#4f8fc0" />
-              </linearGradient>
-              <linearGradient id="barB" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#7faed6" />
-                <stop offset="100%" stop-color="#d6e6f7" />
-              </linearGradient>
-            </defs>
-            <rect x="34" y="62" width="572" height="334" rx="24" fill="#ffffff" stroke="#d2dfed" stroke-width="2" />
-            <rect x="100" y="164" width="84" height="190" rx="14" fill="url(#barA)" />
-            <rect x="220" y="138" width="84" height="216" rx="14" fill="url(#barB)" />
-            <rect x="340" y="188" width="84" height="166" rx="14" fill="url(#barA)" />
-            <rect x="460" y="118" width="84" height="236" rx="14" fill="url(#barB)" />
-            <line x1="84" y1="354" x2="562" y2="354" stroke="#9bb8d3" stroke-width="3" />
-            <text x="142" y="380" font-size="17" text-anchor="middle" fill="#466788" font-family="JetBrains Mono">Qubits</text>
-            <text x="262" y="380" font-size="17" text-anchor="middle" fill="#466788" font-family="JetBrains Mono">QASM</text>
-            <text x="382" y="380" font-size="17" text-anchor="middle" fill="#466788" font-family="JetBrains Mono">Routing</text>
-            <text x="502" y="380" font-size="17" text-anchor="middle" fill="#466788" font-family="JetBrains Mono">Calibration</text>
-            <text x="320" y="104" font-size="22" text-anchor="middle" fill="#33597a" font-family="JetBrains Mono">Practical limits for live browser performance</text>
-          </svg>
-          <div class="graphic-caption">Concept Graphic: Performance-driven scope tradeoffs</div>
+        <div class="photo-slot tall has-image">
+          <img class="photo-image" src="./PH_10_EXPORT_OUTPUTS.png" alt="OpenQASM and report export outputs">
+          <div class="photo-caption">PH_10_EXPORT_OUTPUTS</div>
         </div>
       </div>
     </main>
@@ -920,29 +841,9 @@
         </ul>
       </div>
       <div class="media-right single-row">
-        <div class="graphic-panel" aria-label="Project summary graphic">
-          <svg viewBox="0 0 640 460" role="img" aria-hidden="true" focusable="false">
-            <defs>
-              <linearGradient id="ringA" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#0f4c81" />
-                <stop offset="100%" stop-color="#69a8d6" />
-              </linearGradient>
-            </defs>
-            <rect x="42" y="68" width="556" height="324" rx="26" fill="#ffffff" stroke="#d2dfed" stroke-width="2" />
-            <circle cx="320" cy="230" r="120" fill="none" stroke="url(#ringA)" stroke-width="16" />
-            <circle cx="320" cy="230" r="76" fill="none" stroke="#c4dbef" stroke-width="12" />
-            <circle cx="320" cy="230" r="32" fill="#0f4c81" />
-            <rect x="104" y="128" width="124" height="40" rx="14" fill="#eff6fe" stroke="#b9d2ea" />
-            <rect x="412" y="128" width="124" height="40" rx="14" fill="#eff6fe" stroke="#b9d2ea" />
-            <rect x="104" y="294" width="124" height="40" rx="14" fill="#eff6fe" stroke="#b9d2ea" />
-            <rect x="412" y="294" width="124" height="40" rx="14" fill="#eff6fe" stroke="#b9d2ea" />
-            <text x="166" y="154" font-size="18" text-anchor="middle" fill="#3f6484" font-family="JetBrains Mono">Background</text>
-            <text x="474" y="154" font-size="18" text-anchor="middle" fill="#3f6484" font-family="JetBrains Mono">What</text>
-            <text x="166" y="320" font-size="18" text-anchor="middle" fill="#3f6484" font-family="JetBrains Mono">How</text>
-            <text x="474" y="320" font-size="18" text-anchor="middle" fill="#3f6484" font-family="JetBrains Mono">Demo</text>
-            <text x="320" y="237" font-size="22" text-anchor="middle" fill="#ffffff" font-family="JetBrains Mono">QCS</text>
-          </svg>
-          <div class="graphic-caption">Concept Graphic: End-to-end project structure</div>
+        <div class="photo-slot tall has-image">
+          <img class="photo-image" src="./PH_06_EXECUTION_RESULTS_VIEW.png" alt="Execution and analysis results overview">
+          <div class="photo-caption">PH_06_EXECUTION_RESULTS_VIEW</div>
         </div>
       </div>
     </main>
