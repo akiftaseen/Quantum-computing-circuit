@@ -57,6 +57,7 @@
         linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 252, 255, 0.92)),
         var(--quantum-orbit),
         var(--quantum-pattern),
+        var(--quantum-orbit-bold),
         repeating-linear-gradient(
           0deg,
           rgba(15, 76, 129, 0.02) 0,
@@ -65,9 +66,9 @@
           transparent 28px
         ),
         var(--card);
-      background-size: auto, 112px 112px, 220px 160px, auto, auto;
-      background-position: center, right 22px top 88px, 0 0, center, center;
-      background-repeat: no-repeat, no-repeat, repeat, repeat, no-repeat;
+      background-size: auto, 112px 112px, 220px 160px, 156px 156px, auto, auto;
+      background-position: center, right 22px top 88px, 0 0, right -44px bottom -52px, center, center;
+      background-repeat: no-repeat, no-repeat, repeat, no-repeat, repeat, no-repeat;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
@@ -112,25 +113,26 @@
       padding-bottom: 14px;
       text-align: center;
       position: relative;
-      padding-left: 66px;
+      padding-left: 112px;
       padding-right: 72px;
-      min-height: 74px;
+      min-height: 98px;
     }
 
     .slide-header::before {
       content: '';
       position: absolute;
-      left: 4px;
-      top: 2px;
-      width: 52px;
-      height: 52px;
+      left: -28px;
+      top: -26px;
+      width: 126px;
+      height: 126px;
       border-radius: 0;
       border: 0;
       background: var(--quantum-orbit-bold);
-      background-size: 52px 52px;
+      background-size: 126px 126px;
       background-position: center;
       background-repeat: no-repeat;
-      box-shadow: none;
+      opacity: 0.96;
+      filter: drop-shadow(0 10px 14px rgba(15, 76, 129, 0.2));
     }
 
     .slide-header::after {
