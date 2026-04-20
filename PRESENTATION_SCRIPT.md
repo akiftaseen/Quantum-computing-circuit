@@ -1,5 +1,10 @@
 # Quantum Circuit Simulator Presentation Script
 
+## Individual-Day Versions
+- Person 1 script: PRESENTATION_SCRIPT_PERSON1.md
+- Person 2 script: PRESENTATION_SCRIPT_PERSON2.md
+- Both versions keep the same 12-slide order to avoid slide redesign.
+
 Date: 2026-04-20
 Deck target: slides.html (12 slides)
 Suggested pace: 10 to 14 minutes total
