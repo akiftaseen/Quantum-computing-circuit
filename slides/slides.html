@@ -109,24 +109,24 @@
       padding-bottom: 14px;
       text-align: center;
       position: relative;
-      padding-left: 72px;
+      padding-left: 92px;
       padding-right: 72px;
-      min-height: 76px;
+      min-height: 92px;
     }
 
     .slide-header::before {
       content: '';
       position: absolute;
       left: 0;
-      top: -6px;
-      width: 64px;
-      height: 64px;
+      top: -10px;
+      width: 84px;
+      height: 84px;
       border-radius: 50%;
       border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
       background:
-        radial-gradient(circle at center, #ffffff 58%, #eef5ff 100%),
-        url('./qubit.png');
-      background-size: auto, 86% 86%;
+        url('./qubit.png'),
+        radial-gradient(circle at center, #ffffff 58%, #eef5ff 100%);
+      background-size: 90% 90%, auto;
       background-position: center, center;
       background-repeat: no-repeat, no-repeat;
       box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
