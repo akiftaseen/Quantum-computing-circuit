@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum Circuit Simulator Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-sans: 'Plus Jakarta Sans', 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --text-2: #334155;
+      --border: #d7e0ea;
+      --primary: #0f4c81;
+      --primary-bg: #e8f2fa;
+      --shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--text);
+      background:
+        radial-gradient(1300px 420px at 8% -12%, rgba(15, 76, 129, 0.16), transparent 64%),
+        radial-gradient(1000px 300px at 100% 0%, rgba(151, 182, 210, 0.22), transparent 60%),
+        var(--bg);
+      display: grid;
+      place-items: center;
+      gap: 40px;
+      padding: 36px 0 80px;
+    }
+
+    body.presentation-mode .hint {
+      opacity: 0.45;
+    }
+
+    .slide {
+      width: 1280px;
+      height: 720px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      right: -80px;
+      top: -90px;
+      width: 380px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(15, 76, 129, 0.15), transparent 70%);
+      pointer-events: none;
+    }
+
+    .slide-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+      text-align: center;
+      position: relative;
+    }
+
+    .section-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+      border-radius: 999px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .slide-title {
+      font-size: 54px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .slide-subtitle {
+      margin-top: 8px;
+      font-size: 23px;
+      line-height: 1.25;
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    .slide-index {
+      position: absolute;
+      right: 0;
+      top: 0;
+      border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+      border-radius: 999px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 7px 11px;
+      white-space: nowrap;
+    }
+
+    .content {
+      flex: 1;
+      width: min(100%, 1120px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      min-height: 0;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      height: 100%;
+    }
+
+    .cards-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .card-title {
+      font-size: 26px;
+      line-height: 1.2;
+      font-weight: 750;
+      color: var(--text);
+    }
+
+    .bullets {
+      margin: 0;
+      padding-left: 28px;
+      display: grid;
+      gap: 12px;
+      list-style: disc;
+    }
+
+    .bullets li {
+      font-size: 28px;
+      line-height: 1.34;
+      color: var(--text-2);
+      font-weight: 520;
+    }
+
+    .bullets.medium li {
+      font-size: 24px;
+    }
+
+    .bullets.tight li {
+      font-size: 21px;
+      line-height: 1.3;
+      gap: 8px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .kpi {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #ffffff, #f4f9ff);
+      padding: 14px;
+      text-align: center;
+    }
+
+    .kpi .value {
+      font-size: 44px;
+      line-height: 1;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .kpi .label {
+      font-size: 16px;
+      color: var(--text-2);
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .demo-steps {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .demo-steps li {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      padding: 14px 16px;
+      font-size: 24px;
+      line-height: 1.35;
+      color: var(--text-2);
+      font-weight: 540;
+    }
+
+    .photo-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .photo-grid.two {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .photo-slot {
+      border: 1.5px dashed color-mix(in srgb, var(--primary) 45%, var(--border));
+      border-radius: 12px;
+      min-height: 140px;
+      background:
+        linear-gradient(180deg, #ffffff, #f6faff),
+        repeating-linear-gradient(
+          -45deg,
+          rgba(15, 76, 129, 0.05) 0,
+          rgba(15, 76, 129, 0.05) 10px,
+          rgba(15, 76, 129, 0.02) 10px,
+          rgba(15, 76, 129, 0.02) 20px
+        );
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      text-align: center;
+      gap: 6px;
+    }
+
+    .photo-slot.large {
+      min-height: 190px;
+    }
+
+    .photo-slot.small {
+      min-height: 116px;
+    }
+
+    .photo-name {
+      font-family: var(--font-mono);
+      color: var(--primary);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .photo-note {
+      color: var(--text-2);
+      font-size: 14px;
+      line-height: 1.3;
+      font-weight: 540;
+    }
+
+    .step-no {
+      color: var(--primary);
+      font-family: var(--font-mono);
+      font-weight: 800;
+      margin-right: 8px;
+    }
+
+    .hint {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 84%, transparent);
+      color: var(--text-2);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 11px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(4px);
+    }
+
+    @media (max-width: 1320px) {
+      body {
+        display: block;
+        padding: 20px;
+      }
+
+      .slide {
+        width: 100%;
+        height: auto;
+        min-height: 720px;
+      }
+
+      .slide-title {
+        font-size: 44px;
+      }
+
+      .bullets li {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="slide" id="slide1">
+    <header class="slide-header">
+      <div class="section-chip">Presentation Overview</div>
+      <h2 class="slide-title">Quantum Circuit Simulator</h2>
+      <div class="slide-index">01 / 12</div>
+    </header>
+    <main class="content">
+      <ul class="bullets">
+        <li>Background and motivation</li>
+        <li>What was done this semester</li>
+        <li>How it was implemented</li>
+        <li>Live app demonstration</li>
+      </ul>
+      <div class="photo-slot small">
+        <div class="photo-name">PH_01_APP_HERO_OVERVIEW</div>
+        <div class="photo-note">Homepage screenshot with circuit + charts visible</div>
+      </div>
+    </main>
+  </section>
+
+  <section class="slide" id="slide2">
+    <header class="slide-header">
+      <div class="section-chip">A. Background</div>
+      <h2 class="slide-title">Project Motivation</h2>
+      <div class="slide-index">02 / 12</div>
+    </header>
+    <main class="content">
+      <ul class="bullets medium">
+        <li>Need a local quantum simulator for teaching and experimentation</li>
+        <li>Many existing tools are either hard for beginners or too limited for deeper work</li>
+        <li>Wanted one interface for visual learning and technical analysis</li>
+        <li>Design target: no backend dependency, reproducible outputs, offline-ready</li>
+      </ul>
+    </main>
+  </section>
+
+  <section class="slide" id="slide3">
+    <header class="slide-header">
+      <div class="section-chip">A. Background</div>
+      <h2 class="slide-title">Project Goals</h2>
+      <div class="slide-index">03 / 12</div>
+    </header>
+    <main class="content">
+      <ul class="bullets medium">
+        <li>Build circuits quickly with clear visual feedback</li>
+        <li>Run ideal and noisy simulations in the browser</li>
+        <li>Support export/import workflows for interoperability</li>
+        <li>Keep the UI simple first, then reveal advanced tools progressively</li>
+      </ul>
+    </main>
+  </section>
+
+  <section class="slide" id="slide4">
+    <header class="slide-header">
+      <div class="section-chip">B. What</div>
+      <h2 class="slide-title">What Was Implemented</h2>
+      <div class="slide-index">04 / 12</div>
+    </header>
+    <main class="content two-col">
+      <article class="card">
+        <h3 class="card-title">Core Functionality</h3>
+        <ul class="bullets tight">
+          <li>Drag-and-drop circuit editor</li>
+          <li>State-vector simulation</li>
+          <li>Shots and histogram views</li>
+          <li>Bloch and Dirac visualizations</li>
+          <li>Step-by-step execution support</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3 class="card-title">Advanced Functionality</h3>
+        <ul class="bullets tight">
+          <li>Noisy simulation with configurable channels</li>
+          <li>Hardware compatibility and routing checks</li>
+          <li>Optimization and sweep tools</li>
+          <li>OpenQASM-lite import/export</li>
+          <li>Experiment save/load and report export</li>
+        </ul>
+      </article>
+      <div class="photo-grid">
+        <div class="photo-slot small">
+          <div class="photo-name">PH_02_CORE_EDITOR_FLOW</div>
+          <div class="photo-note">Circuit editor with palette + placed gates</div>
+        </div>
+        <div class="photo-slot small">
+          <div class="photo-name">PH_03_ADVANCED_LAB_OVERVIEW</div>
+          <div class="photo-note">Simulator Lab advanced panel screenshot</div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <section class="slide" id="slide5">
+    <header class="slide-header">
+      <div class="section-chip">B. What</div>
+      <h2 class="slide-title">Evidence of Completed Work</h2>
+      <div class="slide-index">05 / 12</div>
+    </header>
+    <main class="content">
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="value">15</div>
+          <div class="label">Logic Test Files</div>
+        </div>
+        <div class="kpi">
+          <div class="value">104</div>
+          <div class="label">Logic Test Cases</div>
+        </div>
+        <div class="kpi">
+          <div class="value">37</div>
+          <div class="label">Logic Modules</div>
+        </div>
+        <div class="kpi">
+          <div class="value">6</div>
+          <div class="label">Max Qubits (Current Limit)</div>
+        </div>
+      </div>
+      <div class="photo-slot small">
+        <div class="photo-name">PH_04_TEST_EVIDENCE_TERMINAL</div>
+        <div class="photo-note">Terminal screenshot of passing test summary</div>
+      </div>
+      <ul class="bullets medium">
+        <li>App state persistence, draft management, and theme persistence are implemented</li>
+        <li>Simulator Lab includes calibration, mitigation, and optimization features</li>
+      </ul>
+    </main>
+  </section>
+
+  <section class="slide" id="slide6">
+    <header class="slide-header">
+      <div class="section-chip">B. What</div>
+      <h2 class="slide-title">Scope and Honest Limits</h2>
+      <div class="slide-index">06 / 12</div>
+    </header>
+    <main class="content">
+      <ul class="bullets medium">
+        <li>Current simulator limit is 6 qubits for browser practicality</li>
+        <li>OpenQASM support is intentionally a practical lite subset</li>
+        <li>Routing uses heuristic SWAP insertion, not globally optimal routing</li>
+        <li>Noise calibration uses a coarse 216-point parameter search</li>
+      </ul>
+    </main>
+  </section>
+
+  <section class="slide" id="slide7">
+    <header class="slide-header">
+      <div class="section-chip">C. How</div>
+      <h2 class="slide-title">How It Was Built - Architecture</h2>
+      <div class="slide-index">07 / 12</div>
+    </header>
+    <main class="content two-col">
+      <article class="card">
+        <h3 class="card-title">Technology</h3>
+        <ul class="bullets tight">
+          <li>React + TypeScript + Vite</li>
+          <li>Recharts for chart rendering</li>
+          <li>PWA support for offline usage</li>
+          <li>Local-first storage model</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3 class="card-title">Code Structure</h3>
+        <ul class="bullets tight">
+          <li>UI components for interaction and rendering</li>
+          <li>Hooks for shared state and persistence</li>
+          <li>Pure logic modules for simulation and analysis</li>
+          <li>Tests focused on logic correctness</li>
+        </ul>
+      </article>
+      <div class="photo-slot large">
+        <div class="photo-name">PH_05_APP_STRUCTURE_VIEW</div>
+        <div class="photo-note">File tree screenshot showing components, hooks, and logic folders</div>
+      </div>
+    </main>
+  </section>
+
+  <section class="slide" id="slide8">
+    <header class="slide-header">
+      <div class="section-chip">C. How</div>
+      <h2 class="slide-title">How It Was Built - Execution Flow</h2>
+      <div class="slide-index">08 / 12</div>
+    </header>
+    <main class="content">
+      <ul class="bullets medium">
+        <li>Edit circuit in UI and validate placement/state inputs</li>
+        <li>Compile circuit plan and run simulation kernels</li>
+        <li>Sample outcomes (ideal and noisy paths)</li>
+        <li>Compute analysis metrics and render synchronized views</li>
+        <li>Use caching and alias sampling to keep interaction responsive</li>
+      </ul>
+      <div class="photo-slot small">
+        <div class="photo-name">PH_06_EXECUTION_RESULTS_VIEW</div>
+        <div class="photo-note">Single screenshot showing circuit + probabilities + shots together</div>
+      </div>
+    </main>
+  </section>
+
+  <section class="slide" id="slide9">
+    <header class="slide-header">
+      <div class="section-chip">C. How</div>
+      <h2 class="slide-title">How It Was Built - Engineering Choices</h2>
+      <div class="slide-index">09 / 12</div>
+    </header>
+    <main class="content cards-3">
+      <article class="card">
+        <h3 class="card-title">Choice</h3>
+        <ul class="bullets tight">
+          <li>Local-first execution</li>
+          <li>Strict typing + tests</li>
+          <li>Progressive disclosure UI</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3 class="card-title">Reason</h3>
+        <ul class="bullets tight">
+          <li>Easy classroom/lab usage</li>
+          <li>Reduce regression risk</li>
+          <li>Keep beginner flow simple</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3 class="card-title">Tradeoff</h3>
+        <ul class="bullets tight">
+          <li>Bounded qubit scale</li>
+          <li>Heuristic optimizers</li>
+          <li>Lite interop scope</li>
+        </ul>
+      </article>
+    </main>
+  </section>
+
+  <section class="slide" id="slide10">
+    <header class="slide-header">
+      <div class="section-chip">D. Demo</div>
+      <h2 class="slide-title">App Demonstration Plan</h2>
+      <div class="slide-index">10 / 12</div>
+    </header>
+    <main class="content">
+      <ol class="demo-steps">
+        <li><span class="step-no">01</span>Load Bell template and explain the circuit editor</li>
+        <li><span class="step-no">02</span>Run ideal shots and inspect probability/histogram tabs</li>
+        <li><span class="step-no">03</span>Turn on noise and compare ideal vs noisy outcomes</li>
+        <li><span class="step-no">04</span>Open analysis panels and summarize key metrics</li>
+      </ol>
+      <div class="photo-grid two">
+        <div class="photo-slot small">
+          <div class="photo-name">PH_07_BELL_IDEAL_RUN</div>
+          <div class="photo-note">Bell template before/after first ideal run</div>
+        </div>
+        <div class="photo-slot small">
+          <div class="photo-name">PH_08_NOISE_COMPARISON</div>
+          <div class="photo-note">Ideal vs noisy histogram comparison view</div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <section class="slide" id="slide11">
+    <header class="slide-header">
+      <div class="section-chip">D. Demo</div>
+      <h2 class="slide-title">Demo Continuation</h2>
+      <div class="slide-index">11 / 12</div>
+    </header>
+    <main class="content">
+      <ol class="demo-steps">
+        <li><span class="step-no">05</span>Run one Simulator Lab workflow (optimizer or sweep)</li>
+        <li><span class="step-no">06</span>Show hardware compatibility and routing feedback</li>
+        <li><span class="step-no">07</span>Export OpenQASM and report artifacts</li>
+        <li><span class="step-no">08</span>State current limits and expected future improvements</li>
+      </ol>
+      <div class="photo-grid two">
+        <div class="photo-slot small">
+          <div class="photo-name">PH_09_SIMULATOR_LAB_WORKFLOW</div>
+          <div class="photo-note">Optimizer/sweep panel with a finished run</div>
+        </div>
+        <div class="photo-slot small">
+          <div class="photo-name">PH_10_EXPORT_OUTPUTS</div>
+          <div class="photo-note">Export dialog or generated report/QASM artifact view</div>
+        </div>
+      </div>
+    </main>
+  </section>
+
+  <section class="slide" id="slide12">
+    <header class="slide-header">
+      <div class="section-chip">Closing</div>
+      <h2 class="slide-title">Summary and Questions</h2>
+      <div class="slide-index">12 / 12</div>
+    </header>
+    <main class="content">
+      <ul class="bullets medium">
+        <li>Background: local-first simulator for learning and technical workflows</li>
+        <li>What: editor, simulation, analysis, advanced lab, and interop implemented</li>
+        <li>How: modular architecture with test-backed logic core</li>
+        <li>Demo: end-to-end run from circuit creation to export</li>
+      </ul>
+    </main>
+  </section>
+
+  <div class="hint">P toggle | Esc exit | arrows/PageUp/PageDown/Home/End</div>
+
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      if (!slides.length) return;
+
+      let currentIndex = 0;
+      let presentationMode = false;
+
+      const clampIndex = (index) => Math.max(0, Math.min(slides.length - 1, index));
+
+      const goToSlide = (index, smooth = true) => {
+        currentIndex = clampIndex(index);
+        slides[currentIndex].scrollIntoView({
+          behavior: smooth ? 'smooth' : 'auto',
+          block: 'center',
+          inline: 'nearest'
+        });
+      };
+
+      const setPresentationMode = (enabled) => {
+        presentationMode = enabled;
+        document.body.classList.toggle('presentation-mode', enabled);
+        if (enabled) {
+          goToSlide(currentIndex, false);
+        }
+      };
+
+      const syncIndexFromViewport = () => {
+        let best = currentIndex;
+        let bestDistance = Number.POSITIVE_INFINITY;
+        const centerY = window.innerHeight / 2;
+
+        slides.forEach((slide, idx) => {
+          const rect = slide.getBoundingClientRect();
+          const slideMid = rect.top + rect.height / 2;
+          const distance = Math.abs(slideMid - centerY);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            best = idx;
+          }
+        });
+
+        currentIndex = best;
+      };
+
+      window.addEventListener('scroll', syncIndexFromViewport, { passive: true });
+      window.addEventListener('resize', syncIndexFromViewport, { passive: true });
+
+      document.addEventListener('keydown', (event) => {
+        const target = event.target;
+        if (target instanceof HTMLElement) {
+          const tag = target.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) {
+            return;
+          }
+        }
+
+        const key = event.key;
+
+        if (key.toLowerCase() === 'p') {
+          event.preventDefault();
+          setPresentationMode(!presentationMode);
+          return;
+        }
+
+        if (key === 'Escape' && presentationMode) {
+          event.preventDefault();
+          setPresentationMode(false);
+          return;
+        }
+
+        if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown' || key === ' ') {
+          event.preventDefault();
+          goToSlide(currentIndex + 1);
+          return;
+        }
+
+        if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') {
+          event.preventDefault();
+          goToSlide(currentIndex - 1);
+          return;
+        }
+
+        if (key === 'Home') {
+          event.preventDefault();
+          goToSlide(0);
+          return;
+        }
+
+        if (key === 'End') {
+          event.preventDefault();
+          goToSlide(slides.length - 1);
+          return;
+        }
+      });
+
+      syncIndexFromViewport();
+    })();
+  </script>
+</body>
+</html>
