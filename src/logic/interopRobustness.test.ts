@@ -86,4 +86,12 @@ describe('interop and parser robustness', () => {
     expect(replaced).toContain('(pi/2)');
     expect(replaced).not.toContain('alpha+beta');
   });
+
+  it('replaces identifier symbols without mutating larger identifier tokens', () => {
+    const source = 'theta + theta1 + sin(theta)';
+    const replaced = applySymbolBindings(source, [{ name: 'theta', value: 'pi/2' }]);
+
+    expect(replaced).toContain('(pi/2) + theta1 + sin((pi/2))');
+    expect(replaced).toContain('theta1');
+  });
 });

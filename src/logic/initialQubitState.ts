@@ -335,6 +335,107 @@ const parseComplexExpression = (raw: string): Complex | null => {
   return new Parser(tokens).parse();
 };
 
+export interface BoundedIntegerExpressionParse {
+  valid: boolean;
+  value: number;
+  message: string;
+}
+
+export const parseBoundedIntegerExpression = (
+  raw: string,
+  min: number,
+  max: number,
+): BoundedIntegerExpressionParse => {
+  const lower = Math.min(min, max);
+  const upper = Math.max(min, max);
+  const expr = (raw ?? '').trim();
+
+  if (!expr) {
+    return {
+      valid: false,
+      value: lower,
+      message: 'Enter an integer expression',
+    };
+  }
+
+  const allowedIdentifiers = new Set([
+    'pi', 'e', 'i',
+    'sin', 'cos', 'tan',
+    'sqrt', 'exp', 'log',
+    'abs', 're', 'im', 'conj',
+  ]);
+  const unresolved = Array.from(expr.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)).find(
+    (m) => !allowedIdentifiers.has((m[0] ?? '').toLowerCase()),
+  )?.[0];
+  if (unresolved) {
+    return {
+      valid: false,
+      value: lower,
+      message: `Undefined symbol '${unresolved}'`,
+    };
+  }
+
+  const parsed = parseComplexExpression(expr);
+  if (!parsed) {
+    return {
+      valid: false,
+      value: lower,
+      message: 'Invalid integer expression',
+    };
+  }
+
+  if (Math.abs(parsed.im) > 1e-9) {
+    return {
+      valid: false,
+      value: lower,
+      message: 'Expression must evaluate to a real number',
+    };
+  }
+
+  if (!Number.isFinite(parsed.re)) {
+    return {
+      valid: false,
+      value: lower,
+      message: 'Expression must evaluate to a finite number',
+    };
+  }
+
+  const rounded = Math.round(parsed.re);
+  const clamped = Math.max(lower, Math.min(upper, rounded));
+  const roundedChanged = Math.abs(parsed.re - rounded) > 1e-9;
+  const clampedChanged = clamped !== rounded;
+
+  if (roundedChanged && clampedChanged) {
+    return {
+      valid: true,
+      value: clamped,
+      message: `Rounded to ${rounded} and clamped to ${clamped}`,
+    };
+  }
+
+  if (roundedChanged) {
+    return {
+      valid: true,
+      value: clamped,
+      message: `Rounded to ${clamped}`,
+    };
+  }
+
+  if (clampedChanged) {
+    return {
+      valid: true,
+      value: clamped,
+      message: `Clamped to ${clamped}`,
+    };
+  }
+
+  return {
+    valid: true,
+    value: clamped,
+    message: 'Expression evaluated',
+  };
+};
+
 const splitTopLevel = (raw: string, separator: ',' | '+' | '-'): string[] => {
   const out: string[] = [];
   let depth = 0;

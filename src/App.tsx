@@ -4,7 +4,12 @@ import { formatComplex } from './logic/complex';
 import { runCircuit, runWithShots, runWithNoiseShots, computeUnitary } from './logic/circuitRunner';
 import { getBlochVector } from './logic/simulator';
 import { TEMPLATE_GROUPS } from './logic/templates';
-import { buildInitialStateFromInput, parseInitialQubitStateDetailed, type InitialStateInputMode } from './logic/initialQubitState';
+import {
+  buildInitialStateFromInput,
+  parseBoundedIntegerExpression,
+  parseInitialQubitStateDetailed,
+  type InitialStateInputMode,
+} from './logic/initialQubitState';
 import type { MeasurementBasisAxis } from './logic/measurementBasis';
 import { applySymbolBindings, defaultSymbolBindings, type SymbolBinding } from './logic/symbolBindings';
 import { useCircuitHistory } from './hooks/useCircuitHistory';
@@ -102,6 +107,7 @@ const loadPersistedAppState = (): Partial<{
   symbolBindings: SymbolBinding[];
   stepCol: number | null;
   basisNumOnes: number;
+  basisOnesExpr: string;
 }> => {
   if (typeof window === 'undefined') return {};
   try {
@@ -141,6 +147,9 @@ const App: React.FC = () => {
   const [symbolBindings, setSymbolBindings] = useState<SymbolBinding[]>(() => persisted.symbolBindings ?? defaultSymbolBindings());
   const [liveMessage, setLiveMessage] = useState('');
   const [basisNumOnes, setBasisNumOnes] = useState<number>(persisted.basisNumOnes ?? 0);
+  const [basisOnesExpr, setBasisOnesExpr] = useState<string>(
+    persisted.basisOnesExpr ?? String(persisted.basisNumOnes ?? 0),
+  );
   const qubitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const statevectorInputRef = useRef<HTMLTextAreaElement | null>(null);
   const appStateImportRef = useRef<HTMLInputElement | null>(null);
@@ -223,6 +232,7 @@ const App: React.FC = () => {
         symbolBindings,
         stepCol,
         basisNumOnes,
+        basisOnesExpr,
       }));
     } catch {
       // Ignore localStorage write failures.
@@ -242,6 +252,7 @@ const App: React.FC = () => {
     symbolBindings,
     stepCol,
     basisNumOnes,
+    basisOnesExpr,
   ]);
 
   const normalizedQubitExprs = useMemo(
@@ -264,16 +275,36 @@ const App: React.FC = () => {
     [statevectorExpr, symbolBindings],
   );
 
+  const boundBasisOnesExpr = useMemo(
+    () => applySymbolBindings(basisOnesExpr, symbolBindings),
+    [basisOnesExpr, symbolBindings],
+  );
+
+  const basisInputStatus = useMemo(
+    () => parseBoundedIntegerExpression(boundBasisOnesExpr, 0, circuit.numQubits),
+    [boundBasisOnesExpr, circuit.numQubits],
+  );
+
   const initialConfig = useMemo(() => {
     if (initialStateMode === 'basis') {
-      const clampedOnes = Math.max(0, Math.min(circuit.numQubits, basisNumOnes));
+      const clampedOnes = basisInputStatus.valid
+        ? basisInputStatus.value
+        : Math.max(0, Math.min(circuit.numQubits, basisNumOnes));
       const basisExprs = Array.from({ length: circuit.numQubits }, (_, i) =>
         i < circuit.numQubits - clampedOnes ? '0' : '1'
       );
       return buildInitialStateFromInput(circuit.numQubits, 'qubit', basisExprs, '');
     }
     return buildInitialStateFromInput(circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr);
-  }, [circuit.numQubits, initialStateMode, boundInitialQubitExprs, boundStatevectorExpr, basisNumOnes]);
+  }, [
+    circuit.numQubits,
+    initialStateMode,
+    boundInitialQubitExprs,
+    boundStatevectorExpr,
+    basisInputStatus.valid,
+    basisInputStatus.value,
+    basisNumOnes,
+  ]);
 
   const initialState = initialConfig.state;
   const initialQubitLabels = initialConfig.qubitLabels;
@@ -706,7 +737,9 @@ const App: React.FC = () => {
   };
 
   // Derived values for basis mode UI
-  const basisClampedOnes = Math.max(0, Math.min(circuit.numQubits, basisNumOnes));
+  const basisClampedOnes = basisInputStatus.valid
+    ? basisInputStatus.value
+    : Math.max(0, Math.min(circuit.numQubits, basisNumOnes));
   const basisClampedZeros = circuit.numQubits - basisClampedOnes;
   const basisStateLabel = '0'.repeat(basisClampedZeros) + '1'.repeat(basisClampedOnes);
 
@@ -882,31 +915,27 @@ const App: React.FC = () => {
 
               {initialStateMode === 'basis' ? (
                 <div className="init-state-inputs">
-                  <label className="init-state-item">
-                    <span>Number of |0⟩ qubits</span>
+                  <label className={`init-state-item${basisInputStatus.valid ? '' : ' invalid'}`}>
+                    <span>Number of |1⟩ qubits (supports symbols)</span>
                     <input
-                      type="number"
-                      min={0}
-                      max={circuit.numQubits}
-                      value={basisClampedZeros}
+                      value={basisOnesExpr}
+                      onFocus={() => setActiveInitTarget({ mode: 'basis' })}
                       onChange={(e) => {
-                        const num0 = Math.max(0, Math.min(circuit.numQubits, Math.round(Number(e.target.value) || 0)));
-                        setBasisNumOnes(circuit.numQubits - num0);
+                        const v = e.target.value;
+                        setBasisOnesExpr(v);
+                        const parsed = parseBoundedIntegerExpression(applySymbolBindings(v, symbolBindings), 0, circuit.numQubits);
+                        if (parsed.valid) setBasisNumOnes(parsed.value);
                       }}
+                      placeholder="e.g. n-1"
+                      title="Integer expression. Symbols from the Symbols editor are supported."
                     />
+                    <small className={`init-state-hint${basisInputStatus.valid ? '' : ' error'}`}>
+                      {basisInputStatus.message}
+                    </small>
                   </label>
                   <label className="init-state-item">
-                    <span>Number of |1⟩ qubits</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={circuit.numQubits}
-                      value={basisClampedOnes}
-                      onChange={(e) => {
-                        const num1 = Math.max(0, Math.min(circuit.numQubits, Math.round(Number(e.target.value) || 0)));
-                        setBasisNumOnes(num1);
-                      }}
-                    />
+                    <span>Number of |0⟩ qubits</span>
+                    <input type="number" value={basisClampedZeros} readOnly />
                   </label>
                   <label className="init-state-item" style={{ gridColumn: '1 / -1' }}>
                     <span>Slide to adjust</span>
@@ -916,7 +945,11 @@ const App: React.FC = () => {
                       min={0}
                       max={circuit.numQubits}
                       value={basisClampedOnes}
-                      onChange={(e) => setBasisNumOnes(Number(e.target.value))}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setBasisNumOnes(next);
+                        setBasisOnesExpr(String(next));
+                      }}
                       aria-label="Number of qubits in |1⟩ state"
                     />
                   </label>
@@ -976,27 +1009,25 @@ const App: React.FC = () => {
                 </div>
               )}
 
-              {initialStateMode !== 'basis' && (
-                <div className="inline-symbol-editor">
-                  <div className="inline-symbol-title">Symbols</div>
-                  <div className="inline-symbol-grid">
-                    {symbolBindings.map((binding, idx) => (
-                      <div key={`${binding.name}-${idx}`} className="inline-symbol-row">
-                        <input
-                          value={binding.name}
-                          onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, name: e.target.value } : row)))}
-                          placeholder="name"
-                        />
-                        <input
-                          value={binding.value}
-                          onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, value: e.target.value } : row)))}
-                          placeholder="value"
-                        />
-                      </div>
-                    ))}
-                  </div>
+              <div className="inline-symbol-editor">
+                <div className="inline-symbol-title">Symbols</div>
+                <div className="inline-symbol-grid">
+                  {symbolBindings.map((binding, idx) => (
+                    <div key={`${binding.name}-${idx}`} className="inline-symbol-row">
+                      <input
+                        value={binding.name}
+                        onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, name: e.target.value } : row)))}
+                        placeholder="name"
+                      />
+                      <input
+                        value={binding.value}
+                        onChange={(e) => setSymbolBindings((prev) => prev.map((row, i) => (i === idx ? { ...row, value: e.target.value } : row)))}
+                        placeholder="value"
+                      />
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

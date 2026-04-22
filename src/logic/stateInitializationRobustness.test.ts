@@ -3,9 +3,11 @@ import {
   buildInitialState,
   buildInitialStateFromInput,
   getDickeTemplateExpression,
+  parseBoundedIntegerExpression,
   parseInitialQubitStateDetailed,
 } from './initialQubitState';
 import { allMeasurementOutcomes, getConditionalProbabilities } from './measurementCollapse';
+import { applySymbolBindings } from './symbolBindings';
 
 const prob = (z: { re: number; im: number }): number => z.re * z.re + z.im * z.im;
 
@@ -56,6 +58,32 @@ describe('initial state robustness', () => {
 
     const nonZero = built.state.map(prob).filter((p) => p > 1e-12);
     expect(nonZero).toHaveLength(3);
+  });
+
+  it('evaluates bounded integer expressions for basis-count style inputs', () => {
+    const parsed = parseBoundedIntegerExpression('3/2 + 0.4', 0, 4);
+    expect(parsed.valid).toBe(true);
+    expect(parsed.value).toBe(2);
+
+    const clamped = parseBoundedIntegerExpression('99', 0, 4);
+    expect(clamped.valid).toBe(true);
+    expect(clamped.value).toBe(4);
+
+    const invalid = parseBoundedIntegerExpression('1+i', 0, 4);
+    expect(invalid.valid).toBe(false);
+  });
+
+  it('supports symbol-expanded basis count expressions', () => {
+    const expr = applySymbolBindings('k + 1', [{ name: 'k', value: '1' }]);
+    const parsed = parseBoundedIntegerExpression(expr, 0, 3);
+    expect(parsed.valid).toBe(true);
+    expect(parsed.value).toBe(2);
+  });
+
+  it('returns an undefined-symbol hint for unresolved basis expressions', () => {
+    const parsed = parseBoundedIntegerExpression('n - 1', 0, 6);
+    expect(parsed.valid).toBe(false);
+    expect(parsed.message).toContain("Undefined symbol 'n'");
   });
 });
 

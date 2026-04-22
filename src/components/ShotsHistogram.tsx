@@ -63,7 +63,13 @@ const ShotsHistogram: React.FC<Props> = ({
     borderRadius: 8,
     background: 'var(--card)',
   };
-  const xTickInterval = data.length > 16 ? Math.ceil(data.length / 16) - 1 : 0;
+  const denseXAxis = numQubits >= 4 || data.length > 16;
+  const maxVisibleTicks = denseXAxis ? 8 : 16;
+  const xTickInterval = data.length > maxVisibleTicks ? Math.ceil(data.length / maxVisibleTicks) - 1 : 0;
+  const xTickStep = xTickInterval + 1;
+  const chartMargin = denseXAxis
+    ? { top: 8, right: 10, bottom: 10, left: 0 }
+    : { top: 8, right: 10, bottom: 4, left: 0 };
   const yDomain = React.useMemo(
     () => computeAdaptiveDomain(data.map((row) => row.freq), {
       defaultDomain: [0, 1],
@@ -79,15 +85,20 @@ const ShotsHistogram: React.FC<Props> = ({
     <div className="probability-chart-wrap">
       <div className="probability-chart-canvas">
         <ResponsiveContainer>
-          <ComposedChart data={data} margin={{ top: 8, right: 10, bottom: 4, left: 0 }}>
+          <ComposedChart data={data} margin={chartMargin}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis
-              dataKey="basis"
+              dataKey="bits"
+              tickFormatter={(bits) => (denseXAxis ? bits : `|${bits}⟩`)}
               tick={basisTick}
               axisLine={{ stroke: 'var(--border)' }}
               tickLine={{ stroke: 'var(--border)' }}
               interval={xTickInterval}
-              minTickGap={10}
+              minTickGap={denseXAxis ? 4 : 10}
+              angle={denseXAxis ? -24 : 0}
+              textAnchor={denseXAxis ? 'end' : 'middle'}
+              height={denseXAxis ? 42 : 30}
+              tickMargin={denseXAxis ? 1 : 4}
             />
             <YAxis
               domain={yDomain}
@@ -132,6 +143,11 @@ const ShotsHistogram: React.FC<Props> = ({
 
       <div className="probability-chart-meta">
         <span className="probability-chip probability-chip-muted">Total shots: {safeShots}</span>
+        {denseXAxis && xTickStep > 1 && (
+          <span className="probability-chip probability-chip-muted">
+            X-axis condensed: showing every {xTickStep}th basis state
+          </span>
+        )}
         {hasReference && maxDeltaState && (
           <span className="probability-chip">
             Max deviation: {maxDeltaState.basis} {((maxDeltaState.delta ?? 0) * 100).toFixed(2)}%
